@@ -1,0 +1,194 @@
+---
+title: "Raine Island hatchling protection cost effectiveness"
+output: html_notebook
+---
+
+This document summarizes the first step of analyzing Andy's hatchling data. The goal of the analysis is to determine how many hatchlings have been protected by the project. 
+
+```{r}
+rm(list=ls())
+
+library(tidyverse)
+library(ggplot2)
+library(lubridate)
+library(readr)
+library(reshape2)
+
+```
+
+Load the data and start making up data.
+
+```{r}
+col.def <- cols(Date = col_date(format = "%m/%d/%Y"),
+                Counts_100m = col_double(),
+                Season = col_integer(),
+                Sector = col_character())
+
+data.1 <- read_csv(file = "data/Hatchling_Data_v2.csv",
+                   col_types = col.def) %>%
+    mutate(DOSeason = as.numeric(Date - as.Date(paste0(Season, "-12-01"))),
+           Sector.f = as.factor(Sector))
+
+
+summary(data.1)
+```
+
+Plot how counts change within each season
+```{r}
+data.1.North <- filter(data.1, Sector.f == "North")
+ggplot(data = data.1.North) + 
+  geom_point(aes(x = DOSeason, y = Counts_100m, color = as.factor(Season))) + 
+  geom_path(aes(x = DOSeason, y = Counts_100m, color = as.factor(Season)))
+```
+
+```{r}
+data.1.South <- filter(data.1, Sector.f == "South")
+ggplot(data = data.1.South) + 
+  geom_point(aes(x = DOSeason, y = Counts_100m, color = as.factor(Season))) + 
+  geom_path(aes(x = DOSeason, y = Counts_100m, color = as.factor(Season)))
+```
+
+
+```{r}
+data.1.2014R <- filter(data.1, Sector.f == "2014R")
+ggplot(data = data.1.2014R) + 
+  geom_point(aes(x = DOSeason, y = Counts_100m, color = as.factor(Season))) + 
+  geom_path(aes(x = DOSeason, y = Counts_100m, color = as.factor(Season)))
+```
+
+```{r}
+data.1.West <- filter(data.1, Sector.f == "West")
+ggplot(data = data.1.West) + 
+  geom_point(aes(x = DOSeason, y = Counts_100m, color = as.factor(Season))) + 
+  geom_path(aes(x = DOSeason, y = Counts_100m, color = as.factor(Season)))
+```
+
+
+Look at the relationship between different sectors. There are some missing values for the west sector. 
+
+```{r}
+data.1.wide <- dcast(data.1, Date ~ Sector, value.var = "Counts_100m") 
+
+ggplot(data = data.1.wide) +
+  geom_point(aes(x = North, 
+                 y = West)) +
+    geom_point(aes(x = South, 
+                 y = West),
+               color = "red") +
+    geom_point(aes(x = `2014R`, 
+                 y = West),
+               color = "green")
+  
+
+```
+
+There are quite a few missing data - filling them in will be a bit difficult.  Linear models? There are a couple data points with both West and North missing. 
+
+```{r}
+lm.1 <- lm(West ~ `2014R` + North + South, data = data.1.wide)
+lm.2 <- lm(West ~ `2014R` * South, data = data.1.wide)
+summary(lm.1)
+summary(lm.2)
+```
+
+There is a pretty stong linear relationship between West and other three.  Try estimating the missing values from this linear relationship. For West without North, adding the interaction term between 2014R and South increased the R2 value by 0.16, so keep it.
+
+```{r}
+missing.west <- data.1.wide[is.na(data.1.wide$West),]
+lm.1.missing <- predict(lm.1, newdata = missing.west)
+
+lm.2.missing <- predict(lm.2, newdata = missing.west)
+
+lm.1.missing[is.na(lm.1.missing)] <- lm.2.missing[is.na(lm.1.missing)]
+lm.1.missing[lm.1.missing < 0] <- 0
+missing.west$West <- lm.1.missing
+
+ggplot(data = data.1.wide) +
+  geom_point(aes(x = North, 
+                 y = West)) +
+    geom_point(aes(x = South, 
+                 y = West),
+               color = "red") +
+    geom_point(aes(x = `2014R`, 
+                 y = West),
+               color = "green") + 
+  geom_point(data = missing.west,
+             aes(x = North, y = West),
+             color = "orange",
+             size = 3)
+
+```
+
+Somewhat believable... although may not convince everyone... 
+
+```{r}
+data.1.wide[is.na(data.1.wide$West), "West"] <- missing.west$West
+
+data.2 <- melt(data.1.wide, id.vars = "Date", 
+               value.name = "Counts_100m",
+               variable.name = "Sector") %>%
+  mutate(Season = ifelse(Date < as.Date(paste0(year(Date), "-12-01")),
+                         year(Date)-1, year(Date)),
+         DOSeason = as.numeric(Date - as.Date(paste0(Season, "-12-01"))))
+
+```
+
+Here is the original west data
+
+```{r}
+data.1.West <- filter(data.1, Sector.f == "West")
+ggplot(data = data.1.West) + 
+  geom_point(aes(x = DOSeason, y = Counts_100m, color = as.factor(Season))) + 
+  geom_path(aes(x = DOSeason, y = Counts_100m, color = as.factor(Season)))
+```
+
+and this is with filled ones.
+
+```{r}
+data.2.West <- filter(data.2, Sector == "West")
+ggplot(data = data.2.West) + 
+  geom_point(aes(x = DOSeason, y = Counts_100m, color = as.factor(Season))) + 
+  geom_path(aes(x = DOSeason, y = Counts_100m, color = as.factor(Season)))
+```
+
+```{r}
+data.2.2014 <- filter(data.2, Season == 2014)
+ggplot(data = data.2.2014) + 
+  geom_point(aes(x = DOSeason, y = Counts_100m, color = Sector)) + 
+  geom_path(aes(x = DOSeason, y = Counts_100m, color = Sector))
+```
+
+```{r}
+data.2.2015 <- filter(data.2, Season == 2015)
+ggplot(data = data.2.2015) + 
+  geom_point(aes(x = DOSeason, y = Counts_100m, color = Sector)) + 
+  geom_path(aes(x = DOSeason, y = Counts_100m, color = Sector))
+```
+
+
+```{r}
+data.2.2016 <- filter(data.2, Season == 2016)
+ggplot(data = data.2.2016) + 
+  geom_point(aes(x = DOSeason, y = Counts_100m, color = Sector)) + 
+  geom_path(aes(x = DOSeason, y = Counts_100m, color = Sector))
+```
+
+```{r}
+data.2.2017 <- filter(data.2, Season == 2017)
+ggplot(data = data.2.2017) + 
+  geom_point(aes(x = DOSeason, y = Counts_100m, color = Sector)) + 
+  geom_path(aes(x = DOSeason, y = Counts_100m, color = Sector))
+```
+
+
+I wonder if it makes more sense to use some sort of smooth functions, rather than using a linear regression. Note that later in this analysis, polynomial functions were fitted to estimate the total number of hatchlings per sector. Is there any way to combine those two steps?  
+
+The observed count comes with observation errors, we can have a state-space model for the true number of hatchlings, which is observed with some errors. The sectors are correlated so we can use a multivariate normal (or t) to model the state space. That way, we can use the MCMC engine to estimate the missing values. 
+
+Observation models are Poisson? Or negative binomial?  And the cyclic nature of it can be modeled with some function, like discrete Fourier series (again!)? Is the nesting season shifting later in the year? Seems like 2014 starts the earliest and 2017 starts latest. Should that be taken into account? That's probably because of the sampling issue so not to worry for now. 
+
+
+
+
+
+
