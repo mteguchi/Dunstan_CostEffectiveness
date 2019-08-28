@@ -1,0 +1,55 @@
+# JAGS model for imputing missing nest counts at Indonesia nesting beaches
+
+# This model also estimate the annual population growth rate, which is shared
+# by the two beaches. The observed cyclical nature of nesting at two beaches
+# are modeled by the discrete Fourier series, where Jamursba-Medi has one period
+# and Wermon has two periods within each nesting season (April to March). 
+
+model{
+    # Initial states
+    for(j in 1:n.timeseries) {            
+       predX0[j] ~ dnorm(8, 0.1)
+       predX[1,j] <- c[j, m[1]] + predX0[j]
+       X[1,j] ~ dnorm(predX[1,j], tau.X[j])
+
+       # observation
+       y[1,j] ~  dnorm(X[1,j], tau.y[j])
+                
+       for (t in 2:n.steps){
+           predX[t,j] <-  c[j,m[t]] + X[t-1, j]
+           X[t,j] ~ dnorm(predX[t,j], tau.X[j])
+
+           # observation
+           y[t,j] ~  dnorm(X[t,j], tau.y[j])
+                
+        }
+       
+        #N[1, j] <- log(sum(tmp2[y,,j]
+        for (y in 1:n.years){           
+	   for (mm in 1:12){
+	      tmp2[y, mm, j] <- exp(X[(y*12 - mm + 1), j])
+           }
+
+           N[y, j] <- log(sum(tmp2[y,,j]))
+        }
+    }
+    
+    # n.months = 12 when entire year is modeled. 
+    # n.months = 6 when one season is modeled (Wermon only)
+    for (j in 1:n.timeseries){
+        for (k in 1:n.months){
+            c.const[j, k] <-  2 * pi * k / period[j]
+            c[j, k] <- beta.cos[j] * cos(c.const[j,k]) + beta.sin[j] * sin(c.const[j,k])
+        }
+
+        sigma.y[j] ~ dgamma(2, 0.5)
+        tau.y[j] <- 1/(sigma.y[j] * sigma.y[j])
+        beta.cos[j] ~ dnorm(0, 1)
+        beta.sin[j] ~ dnorm(0, 1)
+
+        # sigma.X is the SD of the process (X)
+        sigma.X[j] ~ dgamma(2, 0.5)
+        tau.X[j] <- 1/(sigma.X[j] * sigma.X[j])    
+    }
+
+}
