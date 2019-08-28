@@ -187,8 +187,15 @@ The observed count comes with observation errors, we can have a state-space mode
 
 Observation models are Poisson? Or negative binomial?  And the cyclic nature of it can be modeled with some function, like discrete Fourier series (again!)? Is the nesting season shifting later in the year? Seems like 2014 starts the earliest and 2017 starts latest. Should that be taken into account? That's probably because of the sampling issue so not to worry for now. 
 
+Let's look at the entire time series for all sectors.
 
+```{r}
+ggplot(data = data.2) + 
+  geom_point(aes(x = Date, y = log(Counts_100m), color = Sector)) + 
+  geom_path(aes(x = Date, y = log(Counts_100m), color = Sector))
+```
 
+Data are quite limited... but we know that there are cyclical every year. 
 
 
 

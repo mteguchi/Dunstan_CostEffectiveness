@@ -1,0 +1,40 @@
+---
+title: "Hatchling counts modeling"
+output: html_notebook
+---
+
+I try to model hatchling counts at Raine Island by using a parametric function to determine missing counts.  They are only a few observations each season but the beginning (December 20) and end (April 30) of each season are assumed known. There is a peak during each season.  Different sections (sectors) are treated separately but assumed correlated. The state space of hatchling counts is modeled with an AR(1) process, where the slope (c) is modeled with a discrete Fourier series. 
+
+```{r}
+rm(list=ls())
+
+library(tidyverse)
+library(ggplot2)
+library(lubridate)
+library(readr)
+library(reshape2)
+
+```
+
+Get the data.
+
+```{r}
+col.def <- cols(Date = col_date(format = "%m/%d/%Y"),
+                Counts_100m = col_double(),
+                Season = col_integer(),
+                Sector = col_character())
+
+data.1 <- read_csv(file = "data/Hatchling_Data_v2.csv",
+                   col_types = col.def) %>%
+    mutate(DOSeason = as.numeric(Date - as.Date(paste0(Season, "-12-01"))),
+           Sector.f = as.factor(Sector))
+
+
+data.0 <- data.frame(Date = seq(as.Date("2014-12-20"), as.Date("2015-04-30"), by = 1),
+                     Counts_100m = 0) %>%
+  mutate(DOSeason = Date - as.Date("2014-12-20"))
+summary(data.1)
+
+
+```
+
