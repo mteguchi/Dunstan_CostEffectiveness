@@ -13,10 +13,12 @@ library(ggplot2)
 library(lubridate)
 library(readr)
 library(reshape2)
+library(jagsUI)
+library(bayesplot)
 
 ```
 
-Get the data.
+Get the data. Then, create a dataframe containing complete season (DOSeason from 0 to 131) for each season. 
 
 ```{r}
 col.def <- cols(Date = col_date(format = "%m/%d/%Y"),
@@ -25,16 +27,83 @@ col.def <- cols(Date = col_date(format = "%m/%d/%Y"),
                 Sector = col_character())
 
 data.1 <- read_csv(file = "data/Hatchling_Data_v2.csv",
-                   col_types = col.def) %>%
-    mutate(DOSeason = as.numeric(Date - as.Date(paste0(Season, "-12-01"))),
-           Sector.f = as.factor(Sector))
+                   col_types = col.def)
+data.1.wide <- dcast(data.1, Date ~ Sector, value.var = "Counts_100m")
+  #mutate(Year = year(Date)) %>%
+  #mutate(DOSeason = as.numeric(Date - as.Date(paste0(Season, "-12-01"))))
 
-
-data.0 <- data.frame(Date = seq(as.Date("2014-12-20"), as.Date("2015-04-30"), by = 1),
-                     Counts_100m = 0) %>%
-  mutate(DOSeason = Date - as.Date("2014-12-20"))
 summary(data.1)
 
+# create a data frame that repeats nesting season, which will be merged with data.1 to
+# create missing data. There are 132 days (from 12/20 to 4/30, if not leap year) within
+# each season
+data.0 <- data.frame(Season = rep(unique(data.1$Season), each = 132),
+                     DOSeason = rep(seq(from = 1, to = 132, by = 1), 
+                                    times = length(unique(data.1$Season))),
+                     Counts_100m = NA) %>%
+  #mutate(Year = ifelse(DOSeason < 12, Season, Season + 1)) %>%
+  mutate(Date = as.Date(paste0(Season, "-12-20")) + days(DOSeason))
 
+data.0 %>% left_join(data.1.wide, by = "Date") -> data.2
+
+obs.y <- t(as.matrix(data.2[, c("2014R", "2017R", "North", "South", "West")]))
+
+```
+
+Then, send these data to jags to fit the model
+
+```{r}
+jags.data <- list(y = log(obs.y),
+                  mu.X0 = as.vector(c(8,7,6,5,4)),
+                  tau.X0 = as.vector(rep(0.1, times = 5)),
+                  day = data.2$DOSeason,
+                  period = 132,
+                  n.days = 132,
+                  n.sectors = 5,
+                  n.steps = ncol(obs.y),
+                  pi = pi)
+
+jags.params <- c("c", "beta.cos", "beta.sin",
+                 "sigma.X", "sigma.y", "y",
+                  "X", "deviance")
+
+MCMC.params <- list(n.chains = 5,
+                    n.samples = 1000000,
+                    n.burnin = 700000,
+                    n.thin = 5)
+
+
+if (!file.exists("RData/Fourier_imputatoin_dnorm.rds")){
+  jm <- jags(jags.data,
+             inits = NULL,
+             parameters.to.save= jags.params,
+             model.file = 'models/model_Fourier_imputation_dnorm.txt',
+             n.chains = MCMC.params$n.chains,
+             n.burnin = MCMC.params$n.burnin,
+             n.thin = MCMC.params$n.thin,
+             n.iter = MCMC.params$n.samples,
+             DIC = T, parallel=T)
+  
+  # jm <- autojags(jags.data,
+  #                inits = NULL,
+  #                parameters.to.save= jags.params,
+  #                model.file = 'models/model_Fourier_imputation_dnorm.txt',
+  #                n.chains = MCMC.params$n.chains,
+  #                n.burnin = MCMC.params$n.burnin,
+  #                n.thin = MCMC.params$n.thin,
+  #                
+  #                max.iter = 500000,
+  #                DIC = T, parallel=T)
+  saveRDS(jm, "RData/Fourier_imputatoin_dnorm.rds")
+  
+} else {
+  jm <- readRDS("RData/Fourier_imputatoin_dnorm.rds")
+}
+
+
+```
+
+```{r}
+mcmc_trace(jm$samples, "c[1]")
 ```
 

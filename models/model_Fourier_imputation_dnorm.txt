@@ -1,0 +1,64 @@
+# JAGS model for imputing missing hatchling counts at Raine Island
+
+# The known cyclical nature of hatching is modeled by the discrete 
+# Fourier series of one period per year.  Hatchling production starts
+# December 20 and ends April 30 each season.  Observed counts are 
+# limited so they are used to determine amplitude of each season
+# and for each sector.  Amplitudes for sectors are correlated.
+
+# First, tried with mvnorm but jags does not allow partially missing observations
+# in mvnorm. So, changing it to five separate normals but a common slope
+# parameter
+
+model{
+
+    for (j in 1:n.sectors){
+       # Initial states
+       X0[j] ~ dnorm(mu.X0[j], tau.X0[j])
+       predX[j, 1] <- c[day[1]] + X0[j]  # day 1 should be 12/21
+
+       X[j,1] ~ dnorm(predX[j,1], tau.X[j])
+
+       # observation
+       y[j,1] ~  dnorm(X[j,1], tau.y[j])
+
+                
+       for (t in 2:n.steps){
+           # state
+           predX[j,t] <-  c[day[t]] + X[j, t-1]
+           X[j, t] ~ dnorm(predX[j,t], tau.X[j])
+
+           # observation
+           y[j,t] ~ dnorm(X[j,t], tau.y[j])
+                
+        }
+    }
+      
+    # c parameter defined here with a discrete Fourier function
+    # n.days = from 12/21 to 4/30. Provide it through jags.data
+    # also provide period (should be same as n.days) through jags.data
+
+    for (d in 1:n.days){
+        c.const[d] <-  2 * pi * d / period
+        c[d] <- beta.cos * cos(c.const[d]) + beta.sin * sin(c.const[d])
+    }
+    
+    # priors
+    beta.cos ~ dnorm(0, 1)
+    beta.sin ~ dnorm(0, 1)
+
+    for (j in 1:n.sectors){
+        # observation SD and precision - needs to be petty tight 
+        # for convergence because data are so limited
+        sigma.y[j] ~ dgamma(1, 0.1)
+        tau.y[j] <- 1/(sigma.y[j] * sigma.y[j])
+
+        # sigma.X is the SD of the process (X)
+        sigma.X[j] ~ dgamma(1, 0.1)
+        tau.X[j] <- 1/(sigma.X[j] * sigma.X[j])    
+        
+    }
+    
+    
+
+}
