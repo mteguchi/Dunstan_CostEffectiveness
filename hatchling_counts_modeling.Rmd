@@ -46,34 +46,62 @@ data.0 <- data.frame(Season = rep(unique(data.1$Season), each = 132),
 
 data.0 %>% left_join(data.1.wide, by = "Date") -> data.2
 
-obs.y <- t(as.matrix(data.2[, c("2014R", "2017R", "North", "South", "West")]))
+data.2 %>% select(Season, DOSeason, `2014R`, `2017R`, North, South, West) -> data.2.a
+
+obs.y <- array(NA, c(4, 5, 132))
+
+obs.y[1, ,] <- t(filter(data.2.a, Season == 2014) %>% select(-c("Season", "DOSeason")))
+obs.y[2, ,] <- t(filter(data.2.a, Season == 2015) %>% select(-c("Season", "DOSeason")))
+obs.y[3, ,] <- t(filter(data.2.a, Season == 2016) %>% select(-c("Season", "DOSeason")))
+obs.y[4, ,] <- t(filter(data.2.a, Season == 2017) %>% select(-c("Season", "DOSeason")))
+
+#obs.y <- t(as.matrix(data.2[, c("2014R", "2017R", "North", "South", "West")]))
 
 ```
 
-Then, send these data to jags to fit the model
+Take a look at the data:
 
 ```{r}
+ggplot(data = data.1) + 
+  geom_point(aes(x = Date, y = Counts_100m)) +
+  facet_grid(Sector ~.)
+
+
+```
+
+Data are limited but there are correlations among locations.  This makes sense because nesting occurs all at once.  So, one function can be used to describe the nesting pattern but the magnitude is different among locations.  The estimaed correlations can be helpful in imputing missing data points. 
+
+```{r}
+pairs(data.2[, c(5:9)])
+  
+
+```
+
+I have a tentative model that uses discrete a Fourier series with normal observation models to impute missing data.  Send these data to jags to fit the model
+
+```{r}
+# initial value is -2 for unobserved X0, which is pretty close to zero in anti-log space.  
 jags.data <- list(y = log(obs.y),
-                  mu.X0 = as.vector(c(8,7,6,5,4)),
-                  tau.X0 = as.vector(rep(0.1, times = 5)),
+                  mu.X0 = array(data = -2, dim = c(dim(obs.y)[1], dim(obs.y)[2])),
                   day = data.2$DOSeason,
-                  period = 132,
-                  n.days = 132,
-                  n.sectors = 5,
-                  n.steps = ncol(obs.y),
+                  period = dim(obs.y)[3],
+                  n.steps = dim(obs.y)[3],
+                  n.sectors = dim(obs.y)[2],
+                  n.years = dim(obs.y)[1],
                   pi = pi)
 
 jags.params <- c("c", "beta.cos", "beta.sin",
-                 "sigma.X", "sigma.y", "y",
-                  "X", "deviance")
+                 #"sigma.X", 
+                 "sigma.y", 
+                 "y", "X", "deviance")
 
-MCMC.params <- list(n.chains = 5,
-                    n.samples = 1000000,
-                    n.burnin = 700000,
+MCMC.params <- list(n.chains = 3,
+                    n.samples = 100000,
+                    n.burnin = 80000,
                     n.thin = 5)
 
 
-if (!file.exists("RData/Fourier_imputatoin_dnorm.rds")){
+if (!file.exists("RData/Fourier_imputation_dnorm.rds")){
   jm <- jags(jags.data,
              inits = NULL,
              parameters.to.save= jags.params,
@@ -94,16 +122,250 @@ if (!file.exists("RData/Fourier_imputatoin_dnorm.rds")){
   #                
   #                max.iter = 500000,
   #                DIC = T, parallel=T)
-  saveRDS(jm, "RData/Fourier_imputatoin_dnorm.rds")
+  saveRDS(jm, "RData/Fourier_imputation_dnorm.rds")
   
 } else {
-  jm <- readRDS("RData/Fourier_imputatoin_dnorm.rds")
+  jm <- readRDS("RData/Fourier_imputation_dnorm.rds")
 }
 
 
 ```
 
+put together estimated Xs and observed ys.
+
 ```{r}
-mcmc_trace(jm$samples, "c[1]")
+define.df <- function(x) { 
+  y <- data.frame(t(x))
+  colnames(y) <- c("2014R_q50", "2017R_q50", 
+                   "North_q50", "South_q50", "West_q50")
+  y$DOSeason <- seq(1, nrow(y))
+  return(y)}
+
+ys_q50 <- apply(jm$q50$y, MARGIN = 1, FUN = define.df)
+ys_q2.5 <- apply(jm$q2.5$y, MARGIN = 1, FUN = define.df)
+ys_q97.5 <- apply(jm$q97.5$y, MARGIN = 1, FUN = define.df)
+
+# ys_q2.5.long <- melt(ys_q2.5, value.name = "y_q2.5")
+# ys_q50.long <- melt(ys_q50, value.name = "y_q50")
+# ys_q97.5.long <- melt(ys_q97.5, value.name = "y_q97.5")
+
+Xs_q50 <- apply(jm$q50$X, MARGIN = 1, 
+                FUN = define.df)
+
+Xs_q2.5 <- apply(jm$q2.5$X, MARGIN = 1, FUN = define.df)
+               
+Xs_q97.5 <- apply(jm$q97.5$X, MARGIN = 1, FUN = define.df)
+
+# Xs_q2.5.long <- melt(Xs_q2.5, value.name = "X_q2.5")
+# 
+# Xs_q50.long <- melt(Xs_q50, value.name = "X_q50")
+# 
+# Xs_q97.5.long <- melt(Xs_q97.5, value.name = "y_q97.5")
+seasons <- c(2014, 2015, 2016, 2017)
+for (s in 1:4){
+  Xs_q50[[s]]$Season <- seasons[s]
+  Xs_q2.5[[2]]$Season  <- seasons[s]
+  Xs_q97.5[[2]]$Season  <- seasons[s]
+  
+  ys_q50[[s]]$Season <- seasons[s]
+  ys_q2.5[[2]]$Season  <- seasons[s]
+  ys_q97.5[[2]]$Season  <- seasons[s]
+}
+
+
+#data.3.long <- rbind(data.2, ys.q2.5, ys.q50, ys.q97.5, Xs.q2.5, Xs.q50, Xs.q97.5)
+#rm(list = c("jm"))
+```
+
+See how they look:
+
+```{r}
+ggplot() + 
+  #geom_path(aes(x = Date, y = `2014R_y_q50`),
+  #          size = 1.5) + 
+  geom_path(data = do.call(rbind, Xs_q50) ,
+            aes(x = DOSeason, y = `2014R_q50`,
+                color = as.factor(Season))) + 
+  geom_point(data = data.2,
+             aes(x = DOSeason, y = log(`2014R`),
+                 color = as.factor(Season)),
+             size = 2, shape = 4)
+```
+
+Needs to be looked at... 
+
+This doesn't look so bad!  This was from an earlier version... which I didn't keep...
+
+```{r}
+ggplot(data = data.3.wide) + 
+  #geom_path(aes(x = Date, y = `2017R_y_q50`),
+  #          size = 1.5) + 
+  geom_path(aes(x = Date, y = `2017R_X_q50`),
+            color = "forestgreen") + 
+  geom_point(aes(x = Date, y = log(`2017R`)),
+             size = 2, shape = 4)
+```
+
+
+```{r}
+ggplot(data = data.3.wide) + 
+  #geom_path(aes(x = Date, y = North),
+  #          size = 1.5) + 
+  geom_path(aes(x = Date, y = North_X_q50),
+            color = "forestgreen") + 
+  geom_point(aes(x = Date, y = log(North)),
+             size = 2, shape = 4)
+```
+
+
+
+
+```{r}
+ggplot(data = data.3.wide) + 
+  #geom_path(aes(x = Date, y = South),
+  #          size = 1.5) + 
+  geom_path(aes(x = Date, y = South_X_q50),
+            color = "forestgreen") + 
+  geom_point(aes(x = Date, y = log(South)),
+             size = 2, shape = 4)
+```
+
+
+
+
+
+
+
+```{r}
+ggplot(data = data.3.wide) + 
+  #geom_path(aes(x = Date, y = West),
+  #          size = 1.5) + 
+  geom_path(aes(x = Date, y = West_X_q50),
+            color = "forestgreen") + 
+  geom_point(aes(x = Date, y = log(West)),
+             size = 2, shape = 4)
+```
+
+How do they look with DOSeason:
+
+```{r}
+ggplot(data = data.3.wide) + 
+  geom_point(aes(x = DOSeason, y = `2014R_X_q50`,
+                 color = as.factor(Season))) + 
+  geom_point(aes(x = DOSeason, y = log(`2014R`), 
+                 color = as.factor(Season)),
+             shape = 4, size = 1.5)
+```
+
+
+```{r}
+ggplot(data = data.3.wide) + 
+  geom_point(aes(x = DOSeason, y = `2017R_X_q50`,
+                 color = as.factor(Season))) + 
+  geom_point(aes(x = DOSeason, y = log(`2017R`), 
+                 color = as.factor(Season)),
+             shape = 4, size = 1.5)
+```
+
+
+```{r}
+ggplot(data = data.3.wide) + 
+  geom_point(aes(x = DOSeason, y = North_X_q50,
+                 color = as.factor(Season))) + 
+  geom_point(aes(x = DOSeason, y = log(North), 
+                 color = as.factor(Season)),
+             shape = 4, size = 1.5)
+```
+
+
+```{r}
+ggplot(data = data.3.wide) + 
+  geom_point(aes(x = DOSeason, y = South_X_q50,
+                 color = as.factor(Season))) + 
+  geom_point(aes(x = DOSeason, y = log(South), 
+                 color = as.factor(Season)),
+             shape = 4, size = 1.5)
+```
+
+
+```{r}
+ggplot(data = data.3.wide) + 
+  geom_point(aes(x = DOSeason, y = West_X_q50,
+                 color = as.factor(Season))) + 
+  geom_point(aes(x = DOSeason, y = log(West), 
+                 color = as.factor(Season)),
+             shape = 4, size = 1.5)
+```
+
+Adding 95% CIs:
+
+
+```{r}
+ggplot(data = data.3.wide) + 
+  geom_point(aes(x = DOSeason, y = `2014R_X_q50`,
+                 color = as.factor(Season))) + 
+  geom_point(aes(x = DOSeason, y = log(`2014R`), 
+                 color = as.factor(Season)),
+             shape = 4, size = 1.5) + 
+  geom_errorbar(aes(x = DOSeason, 
+                    ymin = `2014R_X_q2.5`, 
+                    ymax = `2014R_X_q97.5`,
+                    color = as.factor(Season)))
+```
+
+
+```{r}
+ggplot(data = data.3.wide) + 
+  geom_point(aes(x = DOSeason, y = `2017R_X_q50`,
+                 color = as.factor(Season))) + 
+  geom_point(aes(x = DOSeason, y = log(`2017R`), 
+                 color = as.factor(Season)),
+             shape = 4, size = 1.5)+ 
+  geom_errorbar(aes(x = DOSeason, 
+                    ymin = `2017R_X_q2.5`, 
+                    ymax = `2017R_X_q97.5`,
+                    color = as.factor(Season)))
+```
+
+
+```{r}
+ggplot(data = data.3.wide) + 
+  geom_point(aes(x = DOSeason, y = North_X_q50,
+                 color = as.factor(Season))) + 
+  geom_point(aes(x = DOSeason, y = log(North), 
+                 color = as.factor(Season)),
+             shape = 4, size = 1.5) + 
+  geom_errorbar(aes(x = DOSeason, 
+                    ymin = North_X_q2.5, 
+                    ymax = North_X_q97.5,
+                    color = as.factor(Season)))
+```
+
+
+```{r}
+ggplot(data = data.3.wide) + 
+  geom_point(aes(x = DOSeason, y = South_X_q50,
+                 color = as.factor(Season))) + 
+  geom_point(aes(x = DOSeason, y = log(South), 
+                 color = as.factor(Season)),
+             shape = 4, size = 1.5) + 
+  geom_errorbar(aes(x = DOSeason, 
+                    ymin = South_X_q2.5, 
+                    ymax = South_X_q97.5,
+                    color = as.factor(Season)))
+```
+
+
+```{r}
+ggplot(data = data.3.wide) + 
+  geom_point(aes(x = DOSeason, y = West_X_q50,
+                 color = as.factor(Season))) + 
+  geom_point(aes(x = DOSeason, y = log(West), 
+                 color = as.factor(Season)),
+             shape = 4, size = 1.5) + 
+  geom_errorbar(aes(x = DOSeason, 
+                    ymin = West_X_q2.5, 
+                    ymax = West_X_q97.5,
+                    color = as.factor(Season)))
 ```
 
