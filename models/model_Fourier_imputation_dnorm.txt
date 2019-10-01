@@ -16,7 +16,7 @@ model{
     for (j in 1:n.sectors){
       # Initial states
       X0[yr, j] ~ dnorm(mu.X0[yr, j], 1.0)  #tau.X0[j])
-      X[yr, j, 1] <- c[day[1]] + X0[yr, j]  # day 1 should be 12/21
+      X[yr, j, 1] <- c[yr, day[1]] + X0[yr, j]  # day 1 should be 12/21
 
       #X[j,1] ~ dnorm(predX[j,1], 2.0)  # tau.X[j]
 
@@ -25,7 +25,7 @@ model{
 
        for (t in 2:n.steps){
            # state
-           X[yr,j,t] <-  c[day[t]] + X[yr, j, t-1]
+           X[yr,j,t] <-  c[yr, day[t]] + X[yr, j, t-1]
            #X[j, t] ~ dnorm(predX[j,t], 2.0)  #tau.X[j])
 
            # observation
@@ -38,15 +38,19 @@ model{
   # n.days = from 12/21 to 4/30. Provide it through jags.data
   # also provide period (should be same as n.days) through jags.data
 
-  for (d in 1:n.steps){
-    c.const[d] <-  2 * pi * d / period
-    c[d] <- beta.cos * cos(c.const[d]) + beta.sin * sin(c.const[d])
+  for (yr in 1:n.years){
+    for (d in 1:n.steps){
+      #c.const[d] <-  2 * pi * d / period
+      c[yr, d] <- beta.cos[yr] * cos(2 * pi * d / period) + beta.sin[yr] * sin(2 * pi * d / period)
+    }
   }
     
   # priors
-  beta.cos ~ dnorm(0, 1)
-  beta.sin ~ dnorm(0, 1)
-
+  for (yr in 1:n.years){
+    beta.cos[yr] ~ dnorm(0, 1)
+    beta.sin[yr] ~ dnorm(0, 1)
+  }
+  
   sigma.y ~ dgamma(1, 0.1)
   tau.y <- 1/(sigma.y * sigma.y)
 
