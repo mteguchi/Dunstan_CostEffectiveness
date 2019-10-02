@@ -15,8 +15,10 @@ model{
   for (yr in 1:n.years){
     for (j in 1:n.sectors){
       # Initial states
-      
-      X0[yr, j] ~ dnorm(mu.X0[yr, j], 1.0)  #tau.X0[j])
+      # To set the first reading almost exactly zero, rather than making 
+      # the first value a random deviate, I fix them. The output of this one
+      # is denoted with _X0_ in output filename
+      X0[yr, j] <- mu.X0[yr, j]   #~ dnorm(mu.X0[yr, j], 1.0)  #tau.X0[j])
       X[yr, j, 1] <- c[yr, day[1]] + X0[yr, j]  # day 1 should be 12/21
 
       #X[j,1] ~ dnorm(predX[j,1], 2.0)  # tau.X[j]

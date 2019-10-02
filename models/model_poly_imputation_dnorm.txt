@@ -1,0 +1,37 @@
+# JAGS model for imputing missing hatchling counts at Raine Island
+
+# The known cyclical nature of hatching is modeled by 2nd order polynomial
+# functions.  Hatchling production starts
+# December 20 and ends April 30 each season.  Observed counts are 
+# limited so they are used to determine amplitude of each season
+# and for each sector.  Amplitudes for sectors are correlated.
+
+# Using the second order polynomial with conditions that y = 0 at t = 0 and 132,
+# we can solve that y = a + bx + bx^2, where a = 0 and b = -132c. 
+
+model{
+
+  for (yr in 1:n.years){
+    for (j in 1:n.sectors){
+       for (t in 1:n.steps){
+           # state
+           X[yr,j,t] <-  -132 * c[yr, j] * day[t] + c[yr, j] * day[t] * day[t]
+           # observation
+           y[yr, j, t] ~ dnorm(X[yr,j,t], tau.y)
+                
+        }
+    }
+  }  
+
+  # priors
+for (yr in 1:n.years){
+  for (j in 1:n.sectors){
+    c[yr,j] ~ dnorm(0, 0.1)
+    
+  }
+}
+
+  sigma.y ~ dgamma(1, 0.1)
+  tau.y <- 1/(sigma.y * sigma.y)
+
+}

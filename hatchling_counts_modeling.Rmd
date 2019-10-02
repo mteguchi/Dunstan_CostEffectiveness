@@ -15,7 +15,7 @@ library(readr)
 library(reshape2)
 library(jagsUI)
 library(bayesplot)
-
+source("Dunstan_functions.R")
 ```
 
 Get the data. Then, create a dataframe containing complete season (DOSeason from 0 to 131) for each season. 
@@ -101,7 +101,7 @@ MCMC.params <- list(n.chains = 3,
                     n.thin = 5)
 
 
-if (!file.exists("RData/Fourier_imputation_dnorm.rds")){
+if (!file.exists("RData/Fourier_imputation_X0_dnorm.rds")){
   jm <- jags(jags.data,
              inits = NULL,
              parameters.to.save= jags.params,
@@ -112,20 +112,10 @@ if (!file.exists("RData/Fourier_imputation_dnorm.rds")){
              n.iter = MCMC.params$n.samples,
              DIC = T, parallel=T)
   
-  # jm <- autojags(jags.data,
-  #                inits = NULL,
-  #                parameters.to.save= jags.params,
-  #                model.file = 'models/model_Fourier_imputation_dnorm.txt',
-  #                n.chains = MCMC.params$n.chains,
-  #                n.burnin = MCMC.params$n.burnin,
-  #                n.thin = MCMC.params$n.thin,
-  #                
-  #                max.iter = 500000,
-  #                DIC = T, parallel=T)
-  saveRDS(jm, "RData/Fourier_imputation_dnorm.rds")
+  saveRDS(jm, "RData/Fourier_imputation_X0_dnorm.rds")
   
 } else {
-  jm <- readRDS("RData/Fourier_imputation_dnorm.rds")
+  jm <- readRDS("RData/Fourier_imputation_X0_dnorm.rds")
 }
 
 
@@ -134,207 +124,37 @@ if (!file.exists("RData/Fourier_imputation_dnorm.rds")){
 put together estimated Xs and observed ys.
 
 ```{r}
-define.df_q50 <- function(x) { 
-  y <- data.frame(t(x))
-  colnames(y) <- c("2014R_q50", "2017R_q50", 
-                   "North_q50", "South_q50", "West_q50")
-  y$DOSeason <- seq(1, nrow(y))
-  return(y)}
 
-define.df_q2.5 <- function(x) { 
-  y <- data.frame(t(x))
-  colnames(y) <- c("2014R_q2.5", "2017R_q2.5", 
-                   "North_q2.5", "South_q2.5", "West_q2.5")
-  y$DOSeason <- seq(1, nrow(y))
-  return(y)}
-
-define.df_q97.5 <- function(x) { 
-  y <- data.frame(t(x))
-  colnames(y) <- c("2014R_q97.5", "2017R_q97.5", 
-                   "North_q97.5", "South_q97.5", "West_q97.5")
-  y$DOSeason <- seq(1, nrow(y))
-  return(y)}
-
-ys_q50 <- apply(jm$q50$y, MARGIN = 1, FUN = define.df_q50)
-ys_q2.5 <- apply(jm$q2.5$y, MARGIN = 1, FUN = define.df_q2.5)
-ys_q97.5 <- apply(jm$q97.5$y, MARGIN = 1, FUN = define.df_q97.5)
-
-# ys_q2.5.long <- melt(ys_q2.5, value.name = "y_q2.5")
-# ys_q50.long <- melt(ys_q50, value.name = "y_q50")
-# ys_q97.5.long <- melt(ys_q97.5, value.name = "y_q97.5")
-
-Xs_q50 <- apply(jm$q50$X, MARGIN = 1, 
-                FUN = define.df_q50)
-
-Xs_q2.5 <- apply(jm$q2.5$X, MARGIN = 1, FUN = define.df_q2.5)
-               
-Xs_q97.5 <- apply(jm$q97.5$X, MARGIN = 1, FUN = define.df_q97.5)
-
-# Xs_q2.5.long <- melt(Xs_q2.5, value.name = "X_q2.5")
-# 
-# Xs_q50.long <- melt(Xs_q50, value.name = "X_q50")
-# 
-# Xs_q97.5.long <- melt(Xs_q97.5, value.name = "y_q97.5")
-
-seasons <- c(2014, 2015, 2016, 2017)
-for (s in 1:4){
-  Xs_q50[[s]]$Season <- seasons[s]
-  Xs_q2.5[[s]]$Season  <- seasons[s]
-  Xs_q97.5[[s]]$Season  <- seasons[s]
-  
-  ys_q50[[s]]$Season <- seasons[s]
-  ys_q2.5[[s]]$Season  <- seasons[s]
-  ys_q97.5[[s]]$Season  <- seasons[s]
-}
-
-Xs_q2.5_df <- do.call(rbind, Xs_q2.5)
-Xs_q50_df <- do.call(rbind, Xs_q50)
-Xs_q97.5_df <- do.call(rbind, Xs_q97.5)
-
-Xs_2014R <- cbind(Xs_q2.5_df$`2014R_q2.5`, Xs_q50_df$`2014R_q50`,
-                  Xs_q97.5_df$`2014R_q97.5`, Xs_q2.5_df[, c("DOSeason", "Season")])
-colnames(Xs_2014R) <- c("Xs_q2.5", "Xs_q50", "Xs_q97.5", "DOSeason", "Season")
-
-Xs_2017R <- cbind(Xs_q2.5_df$`2017R_q2.5`, Xs_q50_df$`2017R_q50`,
-                  Xs_q97.5_df$`2017R_q97.5`, Xs_q2.5_df[, c("DOSeason", "Season")])
-colnames(Xs_2017R) <- c("Xs_q2.5", "Xs_q50", "Xs_q97.5", "DOSeason", "Season")
-
-Xs_North <- cbind(Xs_q2.5_df$North_q2.5, Xs_q50_df$North_q50,
-                  Xs_q97.5_df$North_q97.5, Xs_q2.5_df[, c("DOSeason", "Season")])
-colnames(Xs_North) <- c("Xs_q2.5", "Xs_q50", "Xs_q97.5", "DOSeason", "Season")
-
-Xs_South <- cbind(Xs_q2.5_df$South_q2.5, Xs_q50_df$South_q50,
-                  Xs_q97.5_df$South_q97.5, Xs_q2.5_df[, c("DOSeason", "Season")])
-colnames(Xs_South) <- c("Xs_q2.5", "Xs_q50", "Xs_q97.5", "DOSeason", "Season")
-
-Xs_West <- cbind(Xs_q2.5_df$West_q2.5, Xs_q50_df$West_q50,
-                  Xs_q97.5_df$West_q97.5, Xs_q2.5_df[, c("DOSeason", "Season")])
-colnames(Xs_West) <- c("Xs_q2.5", "Xs_q50", "Xs_q97.5", "DOSeason", "Season")
+stats_X0 <- extract.statistics(jm)
 
 #data.3.long <- rbind(data.2, ys.q2.5, ys.q50, ys.q97.5, Xs.q2.5, Xs.q50, Xs.q97.5)
 #rm(list = c("jm"))
 ```
 
-See how they look:
-
-```{r}
-ggplot() + 
-  geom_path(data = Xs_q50_df ,
-            aes(x = DOSeason, y = `2014R_q50`,
-                color = as.factor(Season)),
-            size = 1.2) + 
-  geom_point(data = data.2,
-             aes(x = DOSeason, y = log(`2014R`),
-                 color = as.factor(Season)),
-             size = 2, shape = 16) +
-  labs(title = "2014R", x = "Days since December 21", y = "Median counts",
-       color = "Season") +
-  theme(axis.text = element_text(size = 12),
-        legend.position = c(0.1, 0.8),
-        axis.title = element_text(size = 12))
-```
-
-This looks good!  Having separate beta.cos and beta.sin coefficients for different years seems to work good.
-
-```{r}
-ggplot() + 
-  geom_path(data = Xs_q50_df ,
-            aes(x = DOSeason, y = `2017R_q50`,
-                color = as.factor(Season)),
-            size = 1.2) + 
-  geom_point(data = data.2,
-             aes(x = DOSeason, y = log(`2017R`),
-                 color = as.factor(Season)),
-             size = 2, shape = 16) +
-  labs(title = "2017R", x = "Days since December 21", y = "Median counts",
-       color = "Season") +
-  theme(axis.text = element_text(size = 12),
-        legend.position = c(0.1, 0.8),
-        axis.title = element_text(size = 12))
-```
-
-
-```{r}
-
-ggplot() + 
-  geom_path(data = Xs_q50_df ,
-            aes(x = DOSeason, y = North_q50,
-                color = as.factor(Season)),
-            size = 1.2) + 
-  geom_point(data = data.2,
-             aes(x = DOSeason, y = log(North),
-                 color = as.factor(Season)),
-             size = 2, shape = 16) +
-  labs(title = "North", x = "Days since December 21", y = "Median counts",
-       color = "Season") +
-  theme(axis.text = element_text(size = 12),
-        legend.position = c(0.1, 0.8),
-        axis.title = element_text(size = 12))
-
-```
-
-
-```{r}
-ggplot() + 
-  geom_path(data = Xs_q50_df ,
-            aes(x = DOSeason, y = South_q50,
-                color = as.factor(Season)),
-            size = 1.2) + 
-  geom_point(data = data.2,
-             aes(x = DOSeason, y = log(South),
-                 color = as.factor(Season)),
-             size = 2, shape = 16)+
-  labs(title = "South", x = "Days since December 21", y = "Median counts",
-       color = "Season") +
-  theme(axis.text = element_text(size = 12),
-        legend.position = c(0.1, 0.8),
-        axis.title = element_text(size = 12))
-
-```
-
-
-
-```{r}
-ggplot() + 
-  geom_path(data = Xs_q50_df ,
-            aes(x = DOSeason, y = West_q50,
-                color = as.factor(Season)),
-            size = 1.2) + 
-  geom_point(data = data.2,
-             aes(x = DOSeason, y = log(West),
-                 color = as.factor(Season)),
-             size = 2, shape = 16) +
-  labs(title = "West", x = "Days since December 21", y = "Median counts",
-       color = "Season") +
-  theme(axis.text = element_text(size = 12),
-        legend.position = c(0.1, 0.8),
-        axis.title = element_text(size = 12))
-
-```
-
-
-
-Adding 95% CIs:
-
+Plot estimates:
 
 ```{r}
 
 
 ggplot() + 
-  geom_path(data = Xs_2017R ,
+  geom_path(data = stats_X0$Xs_2017R ,
             aes(x = DOSeason, y = Xs_q50,
-                color = as.factor(Season))) +
-  geom_errorbar(data = Xs_2017R, 
+                color = as.factor(Season)),
+            size = 1.2) +
+  geom_ribbon(data = stats_X0$Xs_2017R, 
                 aes(x = DOSeason,
                     ymin = Xs_q2.5, 
                     ymax = Xs_q97.5,
-                    color = as.factor(Season))) +  
+                    fill = as.factor(Season)),
+              alpha = 0.3,
+              show.legend = F) +  
   geom_point(data = data.2,
              aes(x = DOSeason, y = log(`2017R`),
                  color = as.factor(Season)),
              size = 2, shape = 16) +
   labs(title = "2017R", 
-       x = "Days since December 21", y = "Median counts and 95% CI",
+       x = "Days since December 21", 
+       y = "ln(Median counts) and 95% CI",
        color = "Season") +
   theme(axis.text = element_text(size = 12),
         legend.position = c(0.1, 0.8),
@@ -347,19 +167,22 @@ Probably shouldn't have these other years...
 ```{r}
 
 ggplot() + 
-  geom_path(data = Xs_2014R ,
+  geom_path(data = stats_X0$Xs_2014R ,
             aes(x = DOSeason, y = Xs_q50,
                 color = as.factor(Season))) +
-  geom_errorbar(data = Xs_2014R, 
+  geom_ribbon(data = stats_X0$Xs_2014R, 
                 aes(x = DOSeason,
                     ymin = Xs_q2.5, 
                     ymax = Xs_q97.5,
-                    color = as.factor(Season))) +  
+                    fill = as.factor(Season)),
+              alpha = 0.3,
+              show.legend = F) +  
   geom_point(data = data.2,
              aes(x = DOSeason, y = log(`2014R`),
                  color = as.factor(Season)),
              size = 2, shape = 16) +
-  labs(title = "2014R", x = "Days since December 21", y = "Median counts and 95% CI",
+  labs(title = "2014R", x = "Days since December 21", 
+       y = "log(Median counts) and 95% CI",
        color = "Season") +
   theme(axis.text = element_text(size = 12),
         legend.position = c(0.1, 0.8),
@@ -369,23 +192,25 @@ ggplot() +
 
 
 
-
 ```{r}
 
 ggplot() + 
-  geom_path(data = Xs_North ,
+  geom_path(data = stats_X0$Xs_North ,
             aes(x = DOSeason, y = Xs_q50,
                 color = as.factor(Season))) +
-  geom_errorbar(data = Xs_North, 
+  geom_ribbon(data = stats_X0$Xs_North, 
                 aes(x = DOSeason,
                     ymin = Xs_q2.5, 
                     ymax = Xs_q97.5,
-                    color = as.factor(Season))) +  
+                    fill = as.factor(Season)),
+              alpha = 0.3,
+              show.legend = F) +  
   geom_point(data = data.2,
              aes(x = DOSeason, y = log(North),
                  color = as.factor(Season)),
              size = 2, shape = 16)+
-  labs(title = "North", x = "Days since December 21", y = "Median counts and 95% CI",
+  labs(title = "North", x = "Days since December 21", 
+       y = "ln(Median counts) and 95% CI",
        color = "Season") +
   theme(axis.text = element_text(size = 12),
         legend.position = c(0.1, 0.8),
@@ -397,19 +222,22 @@ ggplot() +
 
 ```{r}
 ggplot() + 
-  geom_path(data = Xs_South ,
+  geom_path(data = stats_X0$Xs_South ,
             aes(x = DOSeason, y = Xs_q50,
                 color = as.factor(Season))) +
-  geom_errorbar(data = Xs_South, 
+  geom_ribbon(data = stats_X0$Xs_South, 
                 aes(x = DOSeason,
                     ymin = Xs_q2.5, 
                     ymax = Xs_q97.5,
-                    color = as.factor(Season))) +  
+                    fill = as.factor(Season)),
+              alpha = 0.3,
+              show.legend = F) +  
   geom_point(data = data.2,
              aes(x = DOSeason, y = log(South),
                  color = as.factor(Season)),
              size = 2, shape = 16) +
-  labs(title = "South", x = "Days since December 21", y = "Median counts and 95% CI",
+  labs(title = "South", x = "Days since December 21", 
+       y = "ln(Median counts) and 95% CI",
        color = "Season") +
   theme(axis.text = element_text(size = 12),
         legend.position = c(0.1, 0.8),
@@ -420,19 +248,22 @@ ggplot() +
 
 ```{r}
 ggplot() + 
-  geom_path(data = Xs_West ,
+  geom_path(data = stats_X0$Xs_West ,
             aes(x = DOSeason, y = Xs_q50,
                 color = as.factor(Season))) +
-  geom_errorbar(data = Xs_West, 
+  geom_ribbon(data = stats_X0$Xs_West, 
                 aes(x = DOSeason,
                     ymin = Xs_q2.5, 
                     ymax = Xs_q97.5,
-                    color = as.factor(Season))) +  
+                    fill = as.factor(Season)),
+              alpha = 0.3,
+              show.legend = F) +  
   geom_point(data = data.2,
              aes(x = DOSeason, y = log(West),
                  color = as.factor(Season)),
              size = 2, shape = 16)+
-  labs(title = "West", x = "Days since December 21", y = "Median counts and 95% CI",
+  labs(title = "West", x = "Days since December 21", 
+       y = "ln(Median counts) and 95% CI",
        color = "Season") +
   theme(axis.text = element_text(size = 12),
         legend.position = c(0.1, 0.8),
@@ -442,53 +273,413 @@ ggplot() +
 
 Now that we seem to have pretty "believable" models for all these data, we can go ahead and sum the imputed counts with confidence bands.  
 
-For 2014, we add 2014R, South, North, and West areas.  2017R did not exist until 2017.
 ```{r}
-Xs_2014R %>% group_by(as.factor(Season)) %>%
-  summarise(q50 = sum(exp(Xs_q50)),
-            q2.5 = sum(exp(Xs_q2.5)),
-            q97.5 = sum(exp(Xs_q97.5))) %>%
-  mutate(Sector = "R2014") -> Xs_2014R_summary
-
-colnames(Xs_2014R_summary) <- c("Season", "q50", "q2.5", "q97.5", "Sector")
-
-Xs_North %>% group_by(as.factor(Season)) %>%
-  summarise(q50 = sum(exp(Xs_q50)),
-            q2.5 = sum(exp(Xs_q2.5)),
-            q97.5 = sum(exp(Xs_q97.5))) %>%
-  mutate(Sector = "North") -> Xs_North_summary
-colnames(Xs_North_summary) <- c("Season", "q50", "q2.5", "q97.5", "Sector")
-
-Xs_South %>% group_by(as.factor(Season)) %>%
-  summarise(q50 = sum(exp(Xs_q50)),
-            q2.5 = sum(exp(Xs_q2.5)),
-            q97.5 = sum(exp(Xs_q97.5))) %>%
-  mutate(Sector = "South") -> Xs_South_summary
-colnames(Xs_South_summary) <- c("Season", "q50", "q2.5", "q97.5", "Sector")
-
-Xs_West %>% group_by(as.factor(Season)) %>%
-  summarise(q50 = sum(exp(Xs_q50)),
-            q2.5 = sum(exp(Xs_q2.5)),
-            q97.5 = sum(exp(Xs_q97.5))) %>%
-  mutate(Sector = "West") -> Xs_West_summary
-colnames(Xs_West_summary) <- c("Season", "q50", "q2.5", "q97.5", "Sector")
-
-Xs_2017R %>% filter(Season == 2017) %>%
-  summarise(q50 = sum(exp(Xs_q50)),
-            q2.5 = sum(exp(Xs_q2.5)),
-            q97.5 = sum(exp(Xs_q97.5))) %>%
-  mutate(Sector = "R2017",
-         Season = "2017") -> Xs_2017R_summary
-colnames(Xs_2017R_summary) <- c("Season", "q50", "q2.5", "q97.5", "Sector")
-
-all.summary <- rbind(Xs_2014R_summary,
-                     Xs_North_summary,
-                     Xs_South_summary,
-                     Xs_West_summary)
+all.summary <- summary.stats(stats_X0)
 
 ggplot(data = all.summary) + 
   geom_point(aes(x = Season, y = log10(q50))) + 
   geom_errorbar(aes(x = Season, ymin = log10(q2.5), ymax = log10(q97.5))) +
-  facet_grid(Sector ~. )
+  facet_wrap(Sector ~., nrow = 2 )
 ```
 
+We can relax the initial data point as deviates:
+
+```{r}
+# initial value is -2 for unobserved X0, which is pretty close to zero in anti-log space.  
+jags.data <- list(y = log(obs.y),
+                  mu.X0 = array(data = -2, dim = c(dim(obs.y)[1], dim(obs.y)[2])),
+                  day = data.2$DOSeason,
+                  period = dim(obs.y)[3],
+                  n.steps = dim(obs.y)[3],
+                  n.sectors = dim(obs.y)[2],
+                  n.years = dim(obs.y)[1],
+                  pi = pi)
+
+jags.params <- c("beta.cos", "beta.sin",
+                 #"sigma.X", 
+                 "sigma.y", 
+                 "y", "X", "deviance")
+
+MCMC.params <- list(n.chains = 3,
+                    n.samples = 100000,
+                    n.burnin = 80000,
+                    n.thin = 5)
+
+
+if (!file.exists("RData/Fourier_imputation_dnorm.rds")){
+  jm <- jags(jags.data,
+             inits = NULL,
+             parameters.to.save= jags.params,
+             model.file = 'models/model_Fourier_imputation_dnorm.txt',
+             n.chains = MCMC.params$n.chains,
+             n.burnin = MCMC.params$n.burnin,
+             n.thin = MCMC.params$n.thin,
+             n.iter = MCMC.params$n.samples,
+             DIC = T, parallel=T)
+  
+  saveRDS(jm, "RData/Fourier_imputation_dnorm.rds")
+  
+} else {
+  jm <- readRDS("RData/Fourier_imputation_dnorm.rds")
+}
+
+
+```
+
+put together estimated Xs and observed ys.
+
+```{r}
+
+stats_X0 <- extract.statistics(jm)
+
+#data.3.long <- rbind(data.2, ys.q2.5, ys.q50, ys.q97.5, Xs.q2.5, Xs.q50, Xs.q97.5)
+#rm(list = c("jm"))
+```
+
+Plot estimates:
+
+```{r}
+
+
+ggplot() + 
+  geom_path(data = stats_X0$Xs_2017R ,
+            aes(x = DOSeason, y = Xs_q50,
+                color = as.factor(Season)),
+            size = 1.2) +
+  geom_ribbon(data = stats_X0$Xs_2017R, 
+                aes(x = DOSeason,
+                    ymin = Xs_q2.5, 
+                    ymax = Xs_q97.5,
+                    fill = as.factor(Season)),
+              alpha = 0.3,
+              show.legend = F) +  
+  geom_point(data = data.2,
+             aes(x = DOSeason, y = log(`2017R`),
+                 color = as.factor(Season)),
+             size = 2, shape = 16) +
+  labs(title = "2017R", 
+       x = "Days since December 21", 
+       y = "ln(Median counts) and 95% CI",
+       color = "Season") +
+  theme(axis.text = element_text(size = 12),
+        legend.position = c(0.1, 0.8),
+        axis.title = element_text(size = 12))
+```
+
+Probably shouldn't have these other years... 
+
+
+```{r}
+
+ggplot() + 
+  geom_path(data = stats_X0$Xs_2014R ,
+            aes(x = DOSeason, y = Xs_q50,
+                color = as.factor(Season))) +
+  geom_ribbon(data = stats_X0$Xs_2014R, 
+                aes(x = DOSeason,
+                    ymin = Xs_q2.5, 
+                    ymax = Xs_q97.5,
+                    fill = as.factor(Season)),
+              alpha = 0.3,
+              show.legend = F) +  
+  geom_point(data = data.2,
+             aes(x = DOSeason, y = log(`2014R`),
+                 color = as.factor(Season)),
+             size = 2, shape = 16) +
+  labs(title = "2014R", x = "Days since December 21", 
+       y = "ln(Median counts) and 95% CI",
+       color = "Season") +
+  theme(axis.text = element_text(size = 12),
+        legend.position = c(0.1, 0.8),
+        axis.title = element_text(size = 12))
+
+```
+
+
+
+```{r}
+
+ggplot() + 
+  geom_path(data = stats_X0$Xs_North ,
+            aes(x = DOSeason, y = Xs_q50,
+                color = as.factor(Season))) +
+  geom_ribbon(data = stats_X0$Xs_North, 
+                aes(x = DOSeason,
+                    ymin = Xs_q2.5, 
+                    ymax = Xs_q97.5,
+                    fill = as.factor(Season)),
+              alpha = 0.3,
+              show.legend = F) +  
+  geom_point(data = data.2,
+             aes(x = DOSeason, y = log(North),
+                 color = as.factor(Season)),
+             size = 2, shape = 16)+
+  labs(title = "North", x = "Days since December 21", 
+       y = "ln(Median counts) and 95% CI",
+       color = "Season") +
+  theme(axis.text = element_text(size = 12),
+        legend.position = c(0.1, 0.8),
+        axis.title = element_text(size = 12))
+
+```
+
+
+
+```{r}
+ggplot() + 
+  geom_path(data = stats_X0$Xs_South ,
+            aes(x = DOSeason, y = Xs_q50,
+                color = as.factor(Season))) +
+  geom_ribbon(data = stats_X0$Xs_South, 
+                aes(x = DOSeason,
+                    ymin = Xs_q2.5, 
+                    ymax = Xs_q97.5,
+                    fill = as.factor(Season)),
+              alpha = 0.3,
+              show.legend = F) +  
+  geom_point(data = data.2,
+             aes(x = DOSeason, y = log(South),
+                 color = as.factor(Season)),
+             size = 2, shape = 16) +
+  labs(title = "South", x = "Days since December 21", 
+       y = "ln(Median counts) and 95% CI",
+       color = "Season") +
+  theme(axis.text = element_text(size = 12),
+        legend.position = c(0.1, 0.8),
+        axis.title = element_text(size = 12))
+
+
+```
+
+```{r}
+ggplot() + 
+  geom_path(data = stats_X0$Xs_West ,
+            aes(x = DOSeason, y = Xs_q50,
+                color = as.factor(Season))) +
+  geom_ribbon(data = stats_X0$Xs_West, 
+                aes(x = DOSeason,
+                    ymin = Xs_q2.5, 
+                    ymax = Xs_q97.5,
+                    fill = as.factor(Season)),
+              alpha = 0.3,
+              show.legend = F) +  
+  geom_point(data = data.2,
+             aes(x = DOSeason, y = log(West),
+                 color = as.factor(Season)),
+             size = 2, shape = 16)+
+  labs(title = "West", x = "Days since December 21", 
+       y = "ln(Median counts) and 95% CI",
+       color = "Season") +
+  theme(axis.text = element_text(size = 12),
+        legend.position = c(0.1, 0.8),
+        axis.title = element_text(size = 12))
+
+```
+
+Now that we seem to have pretty "believable" models for all these data, we can go ahead and sum the imputed counts with confidence bands.  
+
+```{r}
+all.summary <- summary.stats(stats_X0)
+
+ggplot(data = all.summary) + 
+  geom_point(aes(x = Season, y = log10(q50))) + 
+  geom_errorbar(aes(x = Season, ymin = log10(q2.5), ymax = log10(q97.5))) +
+  facet_wrap(Sector ~., nrow = 2 )
+```
+
+
+Also try second-order polynomial here:
+
+```{r}
+jags.data <- list(y = log(obs.y),
+                  day = data.2$DOSeason,
+                  n.steps = dim(obs.y)[3],
+                  n.sectors = dim(obs.y)[2],
+                  n.years = dim(obs.y)[1])
+
+jags.params <- c("sigma.y", "c",
+                 "y", "X", "deviance")
+
+MCMC.params <- list(n.chains = 3,
+                    n.samples = 100000,
+                    n.burnin = 80000,
+                    n.thin = 5)
+
+
+if (!file.exists("RData/poly_log_imputation_dnorm.rds")){
+  jm <- jags(jags.data,
+             inits = NULL,
+             parameters.to.save= jags.params,
+             model.file = 'models/model_poly_imputation_dnorm.txt',
+             n.chains = MCMC.params$n.chains,
+             n.burnin = MCMC.params$n.burnin,
+             n.thin = MCMC.params$n.thin,
+             n.iter = MCMC.params$n.samples,
+             DIC = T, parallel=T)
+  
+  saveRDS(jm, "RData/poly_log_imputation_dnorm.rds")
+  
+} else {
+  jm <- readRDS("RData/poly_log_imputation_dnorm.rds")
+}
+
+```
+
+```{r}
+
+stats_poly_log <- extract.statistics(jm)
+
+```
+
+
+```{r}
+
+ggplot() + 
+  geom_path(data = filter(stats_poly_log$Xs_2017R, Season == 2017) ,
+            aes(x = DOSeason, y = Xs_q50,
+                color = as.factor(Season)),
+            size = 1.2) +
+  geom_ribbon(data = filter(stats_poly_log$Xs_2017R, Season == 2017),
+                aes(x = DOSeason,
+                    ymin = Xs_q2.5,
+                    ymax = Xs_q97.5,
+                    fill = as.factor(Season)),
+              alpha = 0.3,
+              show.legend = F) +
+  geom_point(data = filter(data.2, Season == 2017),
+             aes(x = DOSeason, y = log(`2017R`),
+                 color = as.factor(Season)),
+             size = 2, shape = 16) +
+  labs(title = "2017R", 
+       x = "Days since December 21", 
+       y = "ln(Median counts) and 95% CI",
+       color = "Season") +
+  theme(axis.text = element_text(size = 12),
+        legend.position = c(0.1, 0.8),
+        axis.title = element_text(size = 12))
+```
+
+Probably shouldn't have these other years... 
+
+
+```{r}
+
+ggplot() + 
+  geom_path(data = stats_poly_log$Xs_2014R ,
+            aes(x = DOSeason, y = Xs_q50,
+                color = as.factor(Season))) +
+  geom_ribbon(data = stats_poly_log$Xs_2014R, 
+                aes(x = DOSeason,
+                    ymin = Xs_q2.5, 
+                    ymax = Xs_q97.5,
+                    fill = as.factor(Season)),
+              alpha = 0.3,
+              show.legend = F) +  
+  geom_point(data = data.2,
+             aes(x = DOSeason, y = log(`2014R`),
+                 color = as.factor(Season)),
+             size = 2, shape = 16) +
+  labs(title = "2014R", x = "Days since December 21", 
+       y = "ln(Median counts) and 95% CI",
+       color = "Season") +
+  theme(axis.text = element_text(size = 12),
+        legend.position = c(0.1, 0.8),
+        axis.title = element_text(size = 12))
+
+```
+
+
+
+
+```{r}
+
+ggplot() + 
+  geom_path(data = stats_poly_log$Xs_North ,
+            aes(x = DOSeason, y = Xs_q50,
+                color = as.factor(Season))) +
+  geom_ribbon(data = stats_poly_log$Xs_North, 
+                aes(x = DOSeason,
+                    ymin = Xs_q2.5, 
+                    ymax = Xs_q97.5,
+                    fill = as.factor(Season)),
+              alpha = 0.3,
+              show.legend = F) +  
+  geom_point(data = data.2,
+             aes(x = DOSeason, y = log(North),
+                 color = as.factor(Season)),
+             size = 2, shape = 16)+
+  labs(title = "North", x = "Days since December 21", 
+       y = "ln(Median counts) and 95% CI",
+       color = "Season") +
+  theme(axis.text = element_text(size = 12),
+        legend.position = c(0.1, 0.8),
+        axis.title = element_text(size = 12))
+
+```
+
+
+
+```{r}
+ggplot() + 
+  geom_path(data = stats_poly_log$Xs_South ,
+            aes(x = DOSeason, y = Xs_q50,
+                color = as.factor(Season))) +
+  geom_ribbon(data = stats_poly_log$Xs_South, 
+                aes(x = DOSeason,
+                    ymin = Xs_q2.5, 
+                    ymax = Xs_q97.5,
+                    fill = as.factor(Season)),
+              alpha = 0.3,
+              show.legend = F) +  
+  geom_point(data = data.2,
+             aes(x = DOSeason, y = log(South),
+                 color = as.factor(Season)),
+             size = 2, shape = 16) +
+  labs(title = "South", x = "Days since December 21", 
+       y = "ln(Median counts) and 95% CI",
+       color = "Season") +
+  theme(axis.text = element_text(size = 12),
+        legend.position = c(0.1, 0.8),
+        axis.title = element_text(size = 12))
+
+
+```
+
+```{r}
+data.no2014.west <- filter(stats_poly_log$Xs_West, Season != 2014) %>%
+  mutate(f.Season = as.factor(Season))
+ggplot() + 
+  geom_path(data = filter(stats_poly_log$Xs_West, Season != 2014),
+            aes(x = DOSeason, y = Xs_q50,
+                color = as.factor(Season))) +
+  geom_ribbon(data = filter(stats_poly_log$Xs_West, Season != 2014),
+                aes(x = DOSeason,
+                    ymin = Xs_q2.5,
+                    ymax = Xs_q97.5,
+                    fill = as.factor(Season)),
+              alpha = 0.3,
+              show.legend = F) +
+  geom_point(data = filter(data.2, Season != 2014),
+             aes(x = DOSeason, y = log(West),
+                 color = as.factor(Season)),
+             size = 2, shape = 16)+
+  labs(title = "West", x = "Days since December 21", 
+       y = "ln(Median counts) and 95% CI",
+       color = "Season") +
+  theme(axis.text = element_text(size = 12),
+        legend.position = c(0.1, 0.8),
+        axis.title = element_text(size = 12))
+
+```
+
+
+
+
+```{r}
+all.summary <- summary.stats(stats_poly_log)
+
+# ggplot(data = all.summary) + 
+#   geom_point(aes(x = Season, y = (q50))) + 
+#   geom_errorbar(aes(x = Season, ymin = (q2.5), ymax = (q97.5))) +
+#   facet_wrap(Sector ~., nrow = 2 )
+```
