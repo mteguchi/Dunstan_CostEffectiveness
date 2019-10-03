@@ -14,22 +14,29 @@ model{
   for (yr in 1:n.years){
     for (j in 1:n.sectors){
        for (t in 1:n.steps){
-           # state
-           X[yr,j,t] <-  - n.days * c[yr, j] * day[t] + c[yr, j] * day[t] * day[t]
-           # observation
-           y[yr, j, t] ~ dnorm(X[yr,j,t], tau.y)
+          M1[yr,j,t] <- (1 + (2 * exp(K) - 1) * exp((1/(-S)) * (P[yr] - t))) ^ (-1/exp(K))
+          M2[yr,j,t] <- (1 + (2 * exp(K) - 1) * exp((1/S) * (P[yr] - t))) ^ (-1/exp(K))
+          X[yr, j, t] <- min[j] + (max[yr, j] - min[j]) * (M1[yr,j,t] * M2[yr,j,t])
+            
+          # observation
+          y[yr, j, t] ~ dnorm(X[yr,j,t], tau.y)
                 
         }
     }
   }  
 
   # priors
-for (yr in 1:n.years){
-  for (j in 1:n.sectors){
-    c[yr,j] ~ dnorm(0, 0.1)
+   for (yr in 1:n.years){
+    for (j in 1:n.sectors){
+      max[yr,j] ~ dnorm(max.mat[yr,j], 0.001)T(min[j],)
+
+    }
+    P[yr] ~ dunif(50, 100)
 
   }
-}
+
+  K ~ dnorm(0, 0.01)T(0,)
+  S ~ dnorm(0, 0.1)T(0,)
 
   sigma.y ~ dgamma(1, 0.1)
   tau.y <- 1/(sigma.y * sigma.y)

@@ -152,11 +152,99 @@ summary.stats <- function(out.stats){
   colnames(Xs_2017R_summary) <- c("Season", "q50", "q2.5", "q97.5", 
                                   "total_q50", "total_q2.5", "total_q97.5", "Sector")
   
-  all.summary <- rbind(Xs_2014R_summary,
+  all.summary <- rbind(Xs_2017R_summary, 
+                       Xs_2014R_summary,
                        Xs_North_summary,
                        Xs_South_summary,
                        Xs_West_summary)
   
   return(all.summary)
 }
+
+
+summary.stats.nolog <- function(out.stats){
+  out.stats$Xs_2014R %>% group_by(as.factor(Season)) %>%
+    summarise(q50 = sum((Xs_q50)),
+              q2.5 = sum((Xs_q2.5)),
+              q97.5 = sum((Xs_q97.5)),
+              total_q50 = sum((Xs_q50)) * Beach.Length[which(Beach.Length$name == "2014R"), "length"]/100,
+              total_q2.5 = sum((Xs_q2.5)) * Beach.Length[which(Beach.Length$name == "2014R"), "length"]/100,
+              total_q97.5 = sum((Xs_q97.5)) * Beach.Length[which(Beach.Length$name == "2014R"), "length"]/100) %>%
+    mutate(Sector = "2014R") -> Xs_2014R_summary
+  
+  colnames(Xs_2014R_summary) <- c("Season", "q50", "q2.5", "q97.5", 
+                                  "total_q50", "total_q2.5", "total_q97.5", "Sector")
+  
+  out.stats$Xs_North %>% group_by(as.factor(Season)) %>%
+    summarise(q50 = sum((Xs_q50)),
+              q2.5 = sum((Xs_q2.5)),
+              q97.5 = sum((Xs_q97.5)),
+              total_q50 = sum((Xs_q50)) * Beach.Length[which(Beach.Length$name == "North"), "length"]/100,
+              total_q2.5 = sum((Xs_q2.5)) * Beach.Length[which(Beach.Length$name == "North"), "length"]/100,
+              total_q97.5 = sum((Xs_q97.5)) * Beach.Length[which(Beach.Length$name == "North"), "length"]/100) %>%
+    mutate(Sector = "North") -> Xs_North_summary
+  colnames(Xs_North_summary) <- c("Season", "q50", "q2.5", "q97.5", 
+                                  "total_q50", "total_q2.5", "total_q97.5", "Sector")
+  
+  out.stats$Xs_South %>% group_by(as.factor(Season)) %>%
+    summarise(q50 = sum((Xs_q50)),
+              q2.5 = sum((Xs_q2.5)),
+              q97.5 = sum((Xs_q97.5)),
+              total_q50 = sum((Xs_q50)) * Beach.Length[which(Beach.Length$name == "South"), "length"]/100,
+              total_q2.5 = sum((Xs_q2.5)) * Beach.Length[which(Beach.Length$name == "South"), "length"]/100,
+              total_q97.5 = sum((Xs_q97.5)) * Beach.Length[which(Beach.Length$name == "South"), "length"]/100) %>%
+    mutate(Sector = "South") -> Xs_South_summary
+  colnames(Xs_South_summary) <- c("Season", "q50", "q2.5", "q97.5", 
+                                  "total_q50", "total_q2.5", "total_q97.5", "Sector")
+  
+  out.stats$Xs_West %>% group_by(as.factor(Season)) %>%
+    summarise(q50 = sum((Xs_q50)),
+              q2.5 = sum((Xs_q2.5)),
+              q97.5 = sum((Xs_q97.5)),
+              total_q50 = sum((Xs_q50)) * Beach.Length[which(Beach.Length$name == "West"), "length"]/100,
+              total_q2.5 = sum((Xs_q2.5)) * Beach.Length[which(Beach.Length$name == "West"), "length"]/100,
+              total_q97.5 = sum((Xs_q97.5)) * Beach.Length[which(Beach.Length$name == "West"), "length"]/100) %>%
+    mutate(Sector = "West") -> Xs_West_summary
+  colnames(Xs_West_summary) <- c("Season", "q50", "q2.5", "q97.5", 
+                                 "total_q50", "total_q2.5", "total_q97.5", "Sector")
+  
+  out.stats$Xs_2017R %>% group_by(as.factor(Season)) %>%
+    summarise(q50 = sum((Xs_q50)),
+              q2.5 = sum((Xs_q2.5)),
+              q97.5 = sum((Xs_q97.5)),
+              total_q50 = sum((Xs_q50)) * Beach.Length[which(Beach.Length$name == "2017R"), "length"]/100,
+              total_q2.5 = sum((Xs_q2.5)) * Beach.Length[which(Beach.Length$name == "2017R"), "length"]/100,
+              total_q97.5 = sum((Xs_q97.5)) * Beach.Length[which(Beach.Length$name == "2017R"), "length"]/100) %>%
+    mutate(Sector = "2017R") -> Xs_2017R_summary
+  colnames(Xs_2017R_summary) <- c("Season", "q50", "q2.5", "q97.5", 
+                                  "total_q50", "total_q2.5", "total_q97.5", "Sector")
+  
+  all.summary <- rbind(Xs_2017R_summary,
+                       Xs_2014R_summary,
+                       Xs_North_summary,
+                       Xs_South_summary,
+                       Xs_West_summary)
+  
+  all.summary[all.summary < 0] <- 0
+  
+  return(all.summary)
+}
+
+
+Girondot_fcn <- function(d, S, K, P, min, max){
+  K <- abs(K)
+  S <- abs(S)
+  S1 <- -S
+  M1 <- (1 + (2 * exp(K) - 1) * exp((1/S1) * (P - d))) ^ (-1/exp(K))
+  M2 <- (1 + (2 * exp(K) - 1) * exp((1/S) * (P - d))) ^ (-1/exp(K))
+  N <- min + (max - min) * (M1 * M2)
+  return(N)
+}
+
+# Extracting posterior samples of deviance or any other variable from jags output:
+extract.samples <- function(varname, zm){
+  dev <- unlist(lapply(zm, FUN = function(x) x[, varname]))
+  return(dev)
+}
+
 

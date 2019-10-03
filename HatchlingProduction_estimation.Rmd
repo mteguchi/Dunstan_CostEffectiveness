@@ -26,7 +26,15 @@ data.1 <- read_csv(file = "data/Hatchling_Data_v2.csv",
                    col_types = col.def)
 #data.1.wide <- dcast(data.1, Date ~ Sector, value.var = "Counts_100m")
 
-data.1 %>% mutate(DOSeason = as.numeric(Date - as.Date(paste0(Season, "-12-21")))) -> data.3
+# These two need to be changed when different runs are used
+Day1 <- "12-20"
+Day2 <- "04-30"
+
+n.days <- as.numeric(as.Date(paste0("2018-", Day2)) - as.Date(paste0("2017-", Day1)))
+
+seasons <- unique(data.1$Season)
+
+data.1 %>% mutate(DOSeason = as.numeric(Date - as.Date(paste0(Season, "-", Day1)))) -> data.3
 
   #mutate(Year = year(Date)) %>%
   #mutate(DOSeason = as.numeric(Date - as.Date(paste0(Season, "-12-01"))))
@@ -46,17 +54,17 @@ data.1 %>% mutate(DOSeason = as.numeric(Date - as.Date(paste0(Season, "-12-21"))
 ```
 
 # Converting hatchling count data to total hatchling production estimates for the entire season
-Over the 132 days of the hatching season (Dec 21 to April 30), annual total hatchling output were calculated as the sum of estimated hatchling production for four sectors of the island.  To estimate annual hatchling output from observed hatchling counts during two trips per season, we assumed that the natural logarithm of hatchling production within each nesting season was cyclical, in which there was one peak. The observed counts (in the natural logarithm space), then, were assumed to be random deviates from the normal distribution with a constant variance over sampling areas and time.  This approach allowed us to impute the number of unobserved hatchlings from the few data points while keeping the uncertainty minimal.  The imputed number of daily hathclings were summed over each season to determine the annual total number of hatchlings.   
+Annual total hatchling outputs were calculated as the sum of estimated hatchling production for four sectors of the island.  To estimate annual hatchling output from observed hatchling counts during two trips per season, I assumed that the hatchling production within each nesting season was cyclical, in which there was one peak. The observed counts (in the natural logarithm space or in the anti-log space), then, were assumed to be random deviates from the normal distribution with a constant variance over sampling areas and time.  This approach allowed us to impute the number of unobserved hatchlings from the few data points while keeping the uncertainty minimal.  The imputed number of daily hathclings were summed over each season to determine the annual total number of hatchlings.   
 
 ## Models
-I used three different models for the imputation process. Each model was based on a separate set of assumptions for how hatchling productions changed within each season. I did not compute statistics to evaluate the model fit because the true functional form cannot be evaluated with the available data.  Model selection needs to be based on the experts' knowledge.  All models were fitted to the data using JAGS (v. 3.6, Plummer 2018) using jagsUI package (v. REF) in the R Statistical Environment (v. 3.6.5, R Development Team). The JAGS code is available in appendix.   
+I used four different models to estimate the missing hatchling counts. Each model was based on a separate set of assumptions for how hatchling productions changed within each season. I did not compute statistics to evaluate the model fit because the true functional form cannot be evaluated with the available data.  I think the model selection process needs to be based on the experts' knowledge.  All models were fitted to the data using JAGS (v. 3.6, Plummer 2018) using jagsUI package (v. REF) in the R Statistical Environment (v. 3.6.5, R Development Team). The JAGS code is available in appendix.   
 
 ### Discrete Fourier series with random starting points
 The number of observed hatchlings (y) in a nesting season (season), sampling sector (sector), and the day of the season (t) (y[season, sector, t]) was modeled as a random deviate from the normal distribution with mean equals to the true number of hatchlings (X[season, sector, day]) and constant standard deviation (sigma_y):
 
 y[season, sector, t] ~ N(X[season, sector, t], sigma_y).
 
-The change in the true hatchling number (X) from time t-1 to t changed with a slope parameter (s), which was modeled with the discrete Fourier series, where the period of the function was fixed at 132 days (from December 20 to April 30) :
+The change in the true hatchling number (X) from time t-1 to t changed with a slope parameter (s), which was modeled with the discrete Fourier series, where the period of the function was fixed at the number of days between first (```r Day1```) and the last day (```r Day2```) of hatching season:
 
 s[season, t] = beta1[season] * cos(2 * pi * t/period) + beta2[season] * sin(2 * pi * t/period),
 
@@ -65,7 +73,7 @@ The slope parameters (s) were shared among the sectors within each season.  I us
 The estimated true numbers of hatchlings (X) were used to determine the total number of hatchlings. The initial abundance (in the natural logarithmic space) at time 0 (April 20) was drawn from a normal distribution with mean -2 (equates to 0.13 in the anti-log space) and standard deviation of 1.0.  
 
 ```{r Model_Fourier, include=FALSE, echo=FALSE}
-jm <- readRDS("RData/Fourier_imputation_dnorm.rds")
+jm <- readRDS(paste0("RData/Fourier_imputation_dnorm_", Day1, "_", Day2, ".rds"))
 
 Fourier_stats <- extract.statistics(jm)
 
@@ -73,7 +81,7 @@ Fourier_stats <- extract.statistics(jm)
 
 Qualitatiely, the functions fit well to the data (Figure 1). These imputed counts for each season were summed to provide the total number of hatchlings per 100 m for each season.   
 
-```{r Fourier_plotEstimates, echo=FALSE, include=TRUE, warning=FALSE, fig.cap="Figure 1. The fitted functions (medians and their 95% CIs as shaded areas) and observed numbers of hatchlings (dots) per 100 m at different sectors from December 20 (Day 0) to April 30. Because the cyclic functions share the same slopes among sectors, estimates are available even when there was no data."}
+```{r Fourier_plotEstimates, echo=FALSE, include=TRUE, warning=FALSE, fig.cap="Figure 1. The fitted functions (medians and their 95% CIs as shaded areas) and observed numbers of hatchlings (dots) per 100 m at different sectors. Because the cyclic functions share the same slopes among sectors, estimates are available even when there was no data."}
 
 Fourier.all.data <- do.call(rbind, Fourier_stats)
 
@@ -95,7 +103,7 @@ ggplot() +
                  color = as.factor(Season)),
              size = 2, shape = 16) +
   facet_wrap(Sector ~., nrow = 3) + 
-  labs(x = "Days since December 21", 
+  labs(x = paste0("Days since ", Day1), 
        y = "ln(Median counts) and 95% CI",
        color = "Season") +
   guides(color = guide_legend(title.position = "top",
@@ -107,7 +115,7 @@ ggplot() +
         legend.direction = "horizontal")
 ```
 
-Assuming that these sample represent the entire sectors, we extrapolated the imputed numers to the entire sectors (Figure 2, Table 1). 
+Assuming that these sample represent the entire sectors, we extrapolated the imputed numbers to the entire sectors (Figure 2, Table 1). 
 
 ```{r Fourier_extrapolation, echo=FALSE, warning=FALSE, fig.cap="Figure 2. Extrapolated total hatchling abundance at four sectors."}
 Fourier_summary <- summary.stats(Fourier_stats)
@@ -125,6 +133,7 @@ ggplot(data = Fourier.total.summary) +
 
 ```
 
+\newline
 
 ```{r Fourier_summaryTable, echo=FALSE, warning=FALSE}
 Fourier.total.summary %>% select(Season, total_q50, Sector) -> Fourier.total.median
@@ -143,20 +152,28 @@ Fourier.total.q97.5.wide <- reshape2::acast(Fourier.total.q97.5,
                                              Sector ~ Season, 
                                              value.var = "total_q97.5")
 
+Fourier.total.median.wide["2017R", c("2014", "2015", "2016")] <- NA
+
 knitr::kable(Fourier.total.median.wide, digits = 0, 
              format.args = list(big.mark = ","),
              caption = "Table 1. Median imputed total hatchling production based on Fourier discrete series and random initial values. ")
 ```
 
+\newline \newline
 
 ```{r Fourier_lowerLimits, echo=FALSE}
+Fourier.total.q2.5.wide["2017R", c("2014", "2015", "2016")] <- NA
+
 knitr::kable(Fourier.total.q2.5.wide, digits = 0, 
              format.args = list(big.mark = ","),
              caption = "Table 1a. Lower 95% CI for imputed total hatchling production based on Fourier discrete series and random initial values. ")
 ```
 
+\newline
 
 ```{r Fourier_upperLimits, echo=FALSE}
+Fourier.total.q97.5.wide["2017R", c("2014", "2015", "2016")] <- NA
+
 knitr::kable(Fourier.total.q97.5.wide, digits = 0, 
              format.args = list(big.mark = ","),
              caption = "Table 1b. Upper 95% CI for imputed total hatchling production based on Fourier discrete series and random initial values. ")
@@ -165,18 +182,18 @@ knitr::kable(Fourier.total.q97.5.wide, digits = 0,
 
 
 ### Using discrete Fourier series and fixed starting points
-This model is similar to the previous one except the initial abundance on April 21 was fixed at 0.13 (= exp(-2)).  
+This model is similar to the previous one except the initial abundance on the first day (```r Day1```) was fixed at 0.13 (= exp(-2)).  
 
 ```{r Model_Fourier_X0, include=FALSE, echo=FALSE}
-jm <- readRDS("RData/Fourier_X0_imputation_dnorm.rds")
+jm <- readRDS(paste0("RData/Fourier_X0_imputation_dnorm_", Day1, "_", Day2, ".rds"))
 
 Fourier_X0_stats <- extract.statistics(jm)
 
 ```
 
-Qualitatiely, the functions fit well to the data (Figure 2). These imputed counts for each season were summed to provide the total number of hatchlings per 100 m for each season.   
+The functions also fit well to the data (Figure 3). These imputed counts for each season were summed to provide the total number of hatchlings per 100 m for each season.   
 
-```{r Fourier_X0_plotEstimates, echo=FALSE, include=TRUE, warning=FALSE, fig.cap="Figure 3. The fitted functions (medians and their 95% CIs) and observed numbers of hatchlings (dots) per 100 m at different sectors from December 20 (Day 0) to April 30. Because the cyclic functions share the same slopes among sectors, estimates are available even when there was no data."}
+```{r Fourier_X0_plotEstimates, echo=FALSE, include=TRUE, warning=FALSE, fig.cap="Figure 3. The fitted functions (medians and their 95% CIs) and observed numbers of hatchlings (dots) per 100 m at different sectors. Because the cyclic functions share the same slopes among sectors, estimates are available even when there was no data."}
 
 Fourier.X0.all.data <- do.call(rbind, Fourier_X0_stats)
 
@@ -198,7 +215,7 @@ ggplot() +
                  color = as.factor(Season)),
              size = 2, shape = 16) +
   facet_wrap(Sector ~., nrow = 3) + 
-  labs(x = "Days since December 21", 
+  labs(x = paste0("Days since ", Day1), 
        y = "ln(Median counts) and 95% CI",
        color = "Season") +
   guides(color = guide_legend(title.position = "top",
@@ -210,7 +227,7 @@ ggplot() +
         legend.direction = "horizontal")
 ```
 
-Assuming that these sample represent the entire sectors, we extrapolated the imputed numers to the entire sectors (Figure 4, Table 2). 
+Assuming that these sample represent the entire sectors, we extrapolated the imputed numbers to the entire sectors (Figure 4, Table 2). 
 
 ```{r Fourier_X0_extrapolation, echo=FALSE, warning=FALSE, fig.cap="Figure 4. Extrapolated total hatchling abundance at four sectors."}
 Fourier_X0_summary <- summary.stats(Fourier_X0_stats)
@@ -228,6 +245,7 @@ ggplot(data = Fourier.X0.total.summary) +
 
 ```
 
+\newline
 
 ```{r Fourier_X0_summaryTable, echo=FALSE, warning=FALSE}
 Fourier.X0.total.summary %>% select(Season, total_q50, Sector) -> Fourier.X0.total.median
@@ -246,20 +264,27 @@ Fourier.X0.total.q97.5.wide <- reshape2::acast(Fourier.X0.total.q97.5,
                                              Sector ~ Season, 
                                              value.var = "total_q97.5")
 
+Fourier.X0.total.median.wide["2017R", c("2014", "2015", "2016")] <- NA
+
 knitr::kable(Fourier.X0.total.median.wide, digits = 0, 
              format.args = list(big.mark = ","),
              caption = "Table 2. Median imputed total hatchling production based on Fourier discrete series and random initial values. ")
 ```
 
+\newline
 
 ```{r Fourier_X0_lowerLimits, echo=FALSE}
+Fourier.X0.total.q2.5.wide["2017R", c("2014", "2015", "2016")] <- NA
+
 knitr::kable(Fourier.X0.total.q2.5.wide, digits = 0,
              format.args = list(big.mark = ","),
              caption = "Table 2a. Lower 95% CI for imputed total hatchling production based on Fourier discrete series and random initial values. ")
 ```
 
+\newline
 
 ```{r Fourier_X0_upperLimits, echo=FALSE}
+Fourier.X0.total.q97.5.wide["2017R", c("2014", "2015", "2016")] <- NA
 knitr::kable(Fourier.X0.total.q97.5.wide, digits = 0,
              format.args = list(big.mark = ","),
              caption = "Table 2b. Upper 95% CI for imputed total hatchling production based on Fourier discrete series and random initial values. ")
@@ -267,22 +292,22 @@ knitr::kable(Fourier.X0.total.q97.5.wide, digits = 0,
 ```
 
 ### Season and sector specific Fourier functions
-In this approach, I relaxed the assumption that the Fourier function is shared among sectors. 
+In this approach, I relaxed the assumption that the Fourier function is shared among sectors. In equation:
 
 s[season, sector, t] = beta1[season, sector] * cos(2 * pi * t/period) + beta2[season, sector] * sin(2 * pi * t/period),
 
 Consequently, no sensible estimates are available when no or one data point is available.
 
 ```{r Model_beta_yr_sector, include=FALSE, echo=FALSE}
-jm <- readRDS("RData/Fourier_beta_yr_sector_imputation_dnorm.rds")
+jm <- readRDS(paste0("RData/Fourier_beta_yr_sector_imputation_dnorm_", Day1, "_", Day2, ".rds"))
 
 Fourier_beta_yr_sector_stats <- extract.statistics(jm)
 
 ```
 
-Qualitatiely, the functions fit well to the data (Figure 2). These imputed counts for each season were summed to provide the total number of hatchlings per 100 m for each season.   
+The functions also fit well to the data (Figure 2). These imputed counts for each season were summed to provide the total number of hatchlings per 100 m for each season. Analyses for the sectors West and 2017R were excluded in this analysis because insufficinet data were available for some years. These sectors were analyzed separately and results are shown below.   
 
-```{r beta_yr_sector_plotEstimates, echo=FALSE, include=TRUE, warning=FALSE, fig.cap="Figure 5. The fitted functions (medians and their 95% CIs) and observed numbers of hatchlings (dots) per 100 m at different sectors from December 20 (Day 0) to April 30."}
+```{r beta_yr_sector_plotEstimates, echo=FALSE, include=TRUE, warning=FALSE, fig.cap="Figure 5. The fitted functions (medians and their 95% CIs) and observed numbers of hatchlings (dots) per 100 m at different sectors."}
 
 Fourier.beta.yr.sector.no2017R.data <- rbind(Fourier_beta_yr_sector_stats$Xs_2014R,
                                       Fourier_beta_yr_sector_stats$Xs_North,
@@ -310,7 +335,7 @@ ggplot() +
                  color = as.factor(Season)),
              size = 2, shape = 16) +
   facet_wrap(Sector ~., nrow = 2) + 
-  labs(x = "Days since December 21", 
+  labs(x = paste0("Days since ", Day1), 
        y = "ln(Median counts) and 95% CI",
        color = "Season") +
   guides(color = guide_legend(title.position = "top",
@@ -322,9 +347,10 @@ ggplot() +
         legend.direction = "horizontal")
 ```
 
-Just for 2017
-```{r beta_yr_sector_2017, echo=FALSE, fig.cap="Figure x. just for 2017"}
+#### 2017R sector
+For this approach, the 2017R sector had to be analyzed seprately because the data for the sector were available only for 2017.  The model fit well to the data (Figure 6).
 
+```{r beta_yr_sector_2017, echo=FALSE, fig.cap="Figure 6. Imputed hatchling counts for the sector 2017R in 2017."}
 ggplot() + 
   geom_path(data = filter(Fourier_beta_yr_sector_stats$Xs_2017R, Season == 2017),
             aes(x = DOSeason, y = Xs_q50),
@@ -339,7 +365,7 @@ ggplot() +
              aes(x = DOSeason, y = log(Counts_100m)),
              size = 2, shape = 16) +
   labs(title = "2017R", 
-       x = "Days since December 21", 
+       x = paste0("Days since ", Day1), 
        y = "ln(Median counts) and 95% CI",
        color = "Season") +
   theme(axis.text = element_text(size = 12),
@@ -347,25 +373,24 @@ ggplot() +
         axis.title = element_text(size = 12))
 ```
 
-Just for West, where reasonable data (n > 1) were available for only 2017
+#### West sector
+for the West sector only one data point was available for years 2014, 2015, and 2016.  Consequently, the model could be fit to the data from 2017 only. 
 
-```{r beta_yr_sector_West, echo=FALSE, warning=FALSE, fig.cap = "Figure x. Imputed hatchling counts for the West sector."}
+```{r beta_yr_sector_West, echo=FALSE, warning=FALSE, fig.cap = "Figure 7. Imputed hatchling counts for the West sector. Because there were only one data point for 2014, 2015, and 2016, no imputation was possible without shared Fourier parameters among sectors. "}
 ggplot() + 
   geom_path(data = filter(Fourier_beta_yr_sector_stats$Xs_West, Season == 2017),
-            aes(x = DOSeason, y = Xs_q50,
-                color = as.factor(Season))) +
+            aes(x = DOSeason, y = Xs_q50),
+            size = 1.2) +
   geom_ribbon(data = filter(Fourier_beta_yr_sector_stats$Xs_West, Season == 2017), 
                 aes(x = DOSeason,
                     ymin = Xs_q2.5, 
-                    ymax = Xs_q97.5,
-                    fill = as.factor(Season)),
+                    ymax = Xs_q97.5),
               alpha = 0.3,
               show.legend = F) +  
   geom_point(data = filter(data.3, Season == 2017) %>% filter(Sector == "West"),
-             aes(x = DOSeason, y = log(Counts_100m),
-                 color = as.factor(Season)),
+             aes(x = DOSeason, y = log(Counts_100m)),
              size = 2, shape = 16)+
-  labs(title = "West", x = "Days since December 21", 
+  labs(title = "West", x = paste0("Days since ", Day1), 
        y = "ln(Median counts) and 95% CI",
        color = "Season") +
   theme(axis.text = element_text(size = 12),
@@ -373,14 +398,22 @@ ggplot() +
         axis.title = element_text(size = 12))
 ```
 
+Using these estimated counts, I extrapolated the imputed numbers to the entire sectors (Figure 8, Table 3). 
 
-Assuming that these samples represent the entire sectors, we extrapolated the imputed numers to the entire sectors (Figure 4, Table 2). 
-
-```{r beta_yr_sector_extrapolation, echo=FALSE, warning=FALSE, fig.cap="Figure 6. Extrapolated total hatchling abundance at four sectors."}
+```{r beta_yr_sector_extrapolation, echo=FALSE, warning=FALSE, fig.cap="Figure 8. Extrapolated total hatchling abundance at four sectors."}
 beta_yr_sector_summary <- summary.stats(Fourier_beta_yr_sector_stats)
 
 beta.yr.sector.total.summary <- beta_yr_sector_summary %>% 
   select(Season, total_q2.5, total_q50, total_q97.5, Sector)
+
+beta.yr.sector.total.summary %>% filter(Sector != "West") -> beta.yr.sector.noWest.summary
+
+beta.yr.sector.total.summary %>% filter(Sector == "West") %>%
+  filter(Season == 2017) -> beta.yr.sector.West2017.summary
+
+beta.yr.sector.total.summary[(beta.yr.sector.total.summary$Sector == "2017R" & beta.yr.sector.total.summary$Season != "2017"), c("total_q2.5", "total_q50", "total_q97.5")] <- NA
+
+beta.yr.sector.total.summary[(beta.yr.sector.total.summary$Sector == "West" & beta.yr.sector.total.summary$Season != "2017"), c("total_q2.5", "total_q50", "total_q97.5")] <- NA
 
 ggplot(data = beta.yr.sector.total.summary) + 
   geom_point(aes(x = Season, y = log10(total_q50))) + 
@@ -392,46 +425,58 @@ ggplot(data = beta.yr.sector.total.summary) +
 
 ```
 
+\newline
 
 ```{r beta_yr_sector_summaryTable, echo=FALSE, warning=FALSE}
-beta.yr.sector.total.summary %>% select(Season, total_q50, Sector) -> beta.yr.sector.total.median
-beta.yr.sector.total.summary %>% select(Season, total_q2.5, Sector) -> beta.yr.sector.total.q2.5
-beta.yr.sector.total.summary %>% select(Season, total_q97.5, Sector) -> beta.yr.sector.total.q97.5
+beta.yr.sector.total.summary %>% select(Season, total_q50, Sector) -> beta.yr.sector.median
+beta.yr.sector.total.summary %>% select(Season, total_q2.5, Sector) -> beta.yr.sector.q2.5
+beta.yr.sector.total.summary %>% select(Season, total_q97.5, Sector) -> beta.yr.sector.q97.5
 
-beta.yr.sector.total.median.wide <- reshape2::acast(beta.yr.sector.total.median, 
+beta.yr.sector.median.wide <- reshape2::acast(beta.yr.sector.median, 
                                              Sector ~ Season, 
                                              value.var = "total_q50")
 
-beta.yr.sector.total.q2.5.wide <- reshape2::acast(beta.yr.sector.total.q2.5, 
+beta.yr.sector.q2.5.wide <- reshape2::acast(beta.yr.sector.q2.5, 
                                              Sector ~ Season, 
                                              value.var = "total_q2.5")
 
-beta.yr.sector.total.q97.5.wide <- reshape2::acast(beta.yr.sector.total.q97.5, 
+beta.yr.sector.q97.5.wide <- reshape2::acast(beta.yr.sector.q97.5, 
                                              Sector ~ Season, 
                                              value.var = "total_q97.5")
 
-knitr::kable(beta.yr.sector.total.median.wide, digits = 0,
+beta.yr.sector.median.wide["2017R", c("2014", "2015", "2016")] <- NA
+knitr::kable(beta.yr.sector.median.wide,
+             digits = 0,
              format.args = list(big.mark = ","),
              caption = "Table 3. Median imputed total hatchling production based on Fourier discrete series and random initial values. ")
 ```
 
+\newline
 
 ```{r beta_yr_sector_lowerLimits, echo=FALSE}
-knitr::kable(beta.yr.sector.total.q2.5.wide, digits = 0,
+beta.yr.sector.q2.5.wide["2017R", c("2014", "2015", "2016")] <- NA
+
+knitr::kable(beta.yr.sector.q2.5.wide,
+             digits = 0,
              format.args = list(big.mark = ","),
              caption = "Table 3a. Lower 95% CI for imputed total hatchling production based on Fourier discrete series and random initial values. ")
 ```
 
+\newline
 
 ```{r beta_yr_sector_upperLimits, echo=FALSE}
-knitr::kable(beta.yr.sector.total.q97.5.wide, digits = 0,
+beta.yr.sector.q97.5.wide["2017R", c("2014", "2015", "2016")] <- NA
+
+knitr::kable(beta.yr.sector.q97.5.wide,
+             
+             digits = 0,
              format.args = list(big.mark = ","),
              caption = "Table 3b. Upper 95% CI for imputed total hatchling production based on Fourier discrete series and random initial values. ")
 
 ```
 
 
-### Second-order polynomial
+### Second-order polynomial in the natural log scale
 For this modeling approach, I used the secon-order polynomial function as the underlying model to describe the pattern of hatchling production.  Similarly to the other models, observations were assumed to come from a normal distribution with mean X[season, sector, day] and constant standard deviation (sigma_X):
 
 y[season, sector, t] ~ N(X[season, sector, t], sigma_y).
@@ -440,19 +485,19 @@ The true number of hatchlings in the natural logarithmic space (X) was modeled w
 
 X[season, sector, t] = -132 * beta[season, sector] + beta[season, sector] * t^2
 
-The polynomial was derived from using the constraints X = 0 at t = 0 and t = 132. I used normal distributions with mean 0 and variance 10 for the prior distributions for betas and gamma distribution with scale parameter = 1  and shape parameter = 0.1 for the standard deviation of the observation (sigma_y).
+The polynomial was derived from using the constraints X = 0 at t = ```r Day1``` and t = ```r Day2```. I used normal distributions with mean 0 and variance 10 for the prior distributions for betas and gamma distribution with scale parameter = 1  and shape parameter = 0.1 for the standard deviation of the observation (sigma_y).
 
 
-```{r Model_poly, include=FALSE, echo=FALSE}
-jm <- readRDS("RData/poly_log_imputation_dnorm.rds")
+```{r Model_poly_log, include=FALSE, echo=FALSE}
+jm <- readRDS(paste0("RData/poly_log_imputation_dnorm_", Day1, "_", Day2, ".rds"))
 
 poly_log_stats <- extract.statistics(jm)
 
 ```
 
-Qualitatiely, the functions fit well to the data (Figure 2). These imputed counts for each season were summed to provide the total number of hatchlings per 100 m for each season.   
+Qualitatively, the functions fit poorly to the data (Figure 8). However, these estimated counts for each season were summed to provide the total number of hatchlings per 100 m for each season.  Similarly to the previous approach, the West and 2017R sectors were excluded in this analysis because insufficinet data were available for some years. These sectors were analyzed separately and results are shown below.     
 
-```{r poly_log_plotEstimates, echo=FALSE, include=TRUE, warning=FALSE, fig.cap="Figure 5. The fitted functions (medians and their 95% CIs) and observed numbers of hatchlings (dots) per 100 m at different sectors from December 20 (Day 0) to April 30."}
+```{r poly_log_plotEstimates, echo=FALSE, include=TRUE, warning=FALSE, fig.cap="Figure 8. The fitted functions (medians and their 95% CIs in shaded areas) and observed numbers of hatchlings (dots) per 100 m at different sectors."}
 
 poly.log.noWest.no2017R.data <- rbind(poly_log_stats$Xs_2014R,
                                       poly_log_stats$Xs_North,
@@ -480,7 +525,7 @@ ggplot() +
                  color = as.factor(Season)),
              size = 2, shape = 16) +
   facet_wrap(Sector ~., nrow = 2) + 
-  labs(x = "Days since December 21", 
+  labs(x = paste0("Days since ", Day1), 
        y = "ln(Median counts) and 95% CI",
        color = "Season") +
   guides(color = guide_legend(title.position = "top",
@@ -492,8 +537,10 @@ ggplot() +
         legend.direction = "horizontal")
 ```
 
-Just for 2017
-```{r poly_2017, echo=FALSE, fig.cap="Figure x. just for 2017"}
+#### 2017R sector
+For this approach, the 2017R sector had to be analyzed seprately because the data for the sector were available only for 2017.  The model fit poorly to the data (Figure 9).
+
+```{r poly_log_2017, echo=FALSE, fig.cap="Figure 9. Imputed hatchling counts for the sector 2017R in 2017."}
 
 ggplot() + 
   geom_path(data = filter(poly_log_stats$Xs_2017R, Season == 2017),
@@ -509,7 +556,7 @@ ggplot() +
              aes(x = DOSeason, y = log(Counts_100m)),
              size = 2, shape = 16) +
   labs(title = "2017R", 
-       x = "Days since December 21", 
+       x = paste0("Days since ", Day1), 
        y = "ln(Median counts) and 95% CI",
        color = "Season") +
   theme(axis.text = element_text(size = 12),
@@ -517,25 +564,25 @@ ggplot() +
         axis.title = element_text(size = 12))
 ```
 
-Just for West, where reasonable data (n > 1) were available for only 2017
+#### West Sector
+for the West sector only one data point was available for years 2014, 2015, and 2016.  Consequently, the model could be fit to the data from 2017 only. 
 
-```{r poly_West, echo=FALSE, warning=FALSE, fig.cap = "Figure x. Imputed hatchling counts for the West sector."}
+```{r poly_log_West, echo=FALSE, warning=FALSE, fig.cap = "Figure 10. Imputed hatchling counts for the West sector. Because there were only one data point for 2014, 2015, and 2016, no imputation was possible without shared Fourier parameters among sectors."}
+
 ggplot() + 
   geom_path(data = filter(poly_log_stats$Xs_West, Season == 2017),
-            aes(x = DOSeason, y = Xs_q50,
-                color = as.factor(Season))) +
+            aes(x = DOSeason, y = Xs_q50),
+            size = 1.2) +
   geom_ribbon(data = filter(poly_log_stats$Xs_West, Season == 2017), 
                 aes(x = DOSeason,
                     ymin = Xs_q2.5, 
-                    ymax = Xs_q97.5,
-                    fill = as.factor(Season)),
+                    ymax = Xs_q97.5),
               alpha = 0.3,
               show.legend = F) +  
   geom_point(data = filter(data.3, Season == 2017) %>% filter(Sector == "West"),
-             aes(x = DOSeason, y = log(Counts_100m),
-                 color = as.factor(Season)),
-             size = 2, shape = 16)+
-  labs(title = "West", x = "Days since December 21", 
+             aes(x = DOSeason, y = log(Counts_100m)),
+             size = 2, shape = 16) +
+  labs(title = "West", x = paste0("Days since ", Day1), 
        y = "ln(Median counts) and 95% CI",
        color = "Season") +
   theme(axis.text = element_text(size = 12),
@@ -543,13 +590,17 @@ ggplot() +
         axis.title = element_text(size = 12))
 ```
 
-Assuming that these sample represent the entire sectors, we extrapolated the imputed numers to the entire sectors (Figure 4, Table 2). 
+Assuming that these sample represent the entire sectors, we extrapolated the imputed numers to the entire sectors (Figure 11, Table 4). 
 
-```{r poly_log_extrapolation, echo=FALSE, warning=FALSE, fig.cap="Figure 6. Extrapolated total hatchling abundance at four sectors."}
+```{r poly_log_extrapolation, echo=FALSE, warning=FALSE, fig.cap="Figure 11. Extrapolated total hatchling abundance at four sectors."}
 poly_log_summary <- summary.stats(poly_log_stats)
 
 poly.log.total.summary <- poly_log_summary %>% 
   select(Season, total_q2.5, total_q50, total_q97.5, Sector)
+
+poly.log.total.summary[(poly.log.total.summary$Season != 2017 & poly.log.total.summary$Sector == "West"), c("total_q2.5", "total_q50", "total_q97.5")]<-NA 
+
+poly.log.total.summary[(poly.log.total.summary$Sector == "2017R" & poly.log.total.summary$Season != "2017"), c("total_q2.5", "total_q50", "total_q97.5")] <- NA
 
 ggplot(data = poly.log.total.summary) + 
   geom_point(aes(x = Season, y = log10(total_q50))) + 
@@ -561,6 +612,7 @@ ggplot(data = poly.log.total.summary) +
 
 ```
 
+\newline
 
 ```{r poly_log_summaryTable, echo=FALSE, warning=FALSE}
 poly.log.total.summary %>% select(Season, total_q50, Sector) -> poly.log.total.median
@@ -579,29 +631,361 @@ poly.log.total.q97.5.wide <- reshape2::acast(poly.log.total.q97.5,
                                              Sector ~ Season, 
                                              value.var = "total_q97.5")
 
+poly.log.total.median.wide["2017R", c("2014", "2015", "2016")] <- NA
+poly.log.total.q2.5.wide["2017R", c("2014", "2015", "2016")] <- NA
+poly.log.total.q97.5.wide["2017R", c("2014", "2015", "2016")] <- NA
+
 knitr::kable(poly.log.total.median.wide, 
              digits = 0,
              format.args = list(big.mark = ","),
-             caption = "Table 3. Median imputed total hatchling production based on Fourier discrete series and random initial values. ")
+             caption = "Table 4. Median imputed total hatchling production based on Fourier discrete series and random initial values. ")
 ```
 
+\newline
 
-```{r poly_lowerLimits, echo=FALSE}
+```{r poly_log_lowerLimits, echo=FALSE}
 knitr::kable(poly.log.total.q2.5.wide, 
              digits = 0,
              format.args = list(big.mark = ","),
-             caption = "Table 3a. Lower 95% CI for imputed total hatchling production based on Fourier discrete series and random initial values. ")
+             caption = "Table 4a. Lower 95% CI for imputed total hatchling production based on Fourier discrete series and random initial values. ")
 ```
 
+\newline
 
-```{r poly_upperLimits, echo=FALSE}
+```{r poly_log_upperLimits, echo=FALSE}
 knitr::kable(poly.log.total.q97.5.wide, digits = 0,
              format.args = list(big.mark = ","),
-             caption = "Table 3b. Upper 95% CI for imputed total hatchling production based on Fourier discrete series and random initial values. ")
+             caption = "Table 4b. Upper 95% CI for imputed total hatchling production based on Fourier discrete series and random initial values. ")
 
 ```
 
 
+### Second order polynomial in anti-log scale
+
+```{r Model_poly, include=FALSE, echo=FALSE}
+jm <- readRDS(paste0("RData/poly_imputation_dnorm_", Day1, "_", Day2, ".rds"))
+
+poly_stats <- extract.statistics(jm)
+
+```
+
+Qualitatiely, the functions fit poorly to the data (Figure 12). These imputed counts for each season were summed to provide the total number of hatchlings per 100 m for each season.   Similarly to the previous approach, the West and 2017R sectors were excluded in this analysis because insufficinet data were available for some years. These sectors were analyzed separately and results are shown below.  
+
+```{r poly_plotEstimates, echo=FALSE, include=TRUE, warning=FALSE, fig.cap="Figure 12. The fitted functions (medians and their 95% CIs in shaded areas) and observed numbers of hatchlings (dots) per 100 m at different sectors."}
+
+poly.noWest.no2017R.data <- rbind(poly_stats$Xs_2014R,
+                                  poly_stats$Xs_North,
+                                  poly_stats$Xs_South)
+
+data.3.noWest.no2017R <- filter(data.3, Sector != "West") %>%
+  filter(Sector != "2017R") 
+#  filter(Sector != "2017R")
+
+ggplot() + 
+  geom_path(data = poly.noWest.no2017R.data ,
+            aes(x = DOSeason, y = Xs_q50,
+                color = as.factor(Season)),
+            size = 1.2) +
+  geom_ribbon(data = poly.noWest.no2017R.data, 
+                aes(x = DOSeason,
+                    ymin = Xs_q2.5, 
+                    ymax = Xs_q97.5,
+                    fill = as.factor(Season)),
+              alpha = 0.3,
+              show.legend = F) +  
+  geom_point(data = data.3.noWest.no2017R,
+             aes(x = DOSeason, 
+                 y = (Counts_100m),
+                 color = as.factor(Season)),
+             size = 2, shape = 16) +
+  facet_wrap(Sector ~., nrow = 2) + 
+  labs(x = paste0("Days since ", Day1), 
+       y = "Median counts and 95% CI",
+       color = "Season") +
+  guides(color = guide_legend(title.position = "top",
+                              title.hjust = 0.5,
+                              nrow = 2)) +
+  theme(axis.text = element_text(size = 12),
+        legend.position = c(0.75, 0.1),
+        axis.title = element_text(size = 12),
+        legend.direction = "horizontal")
+```
 
 
+#### 2017R sector
+For this approach, the 2017R sector had to be analyzed seprately because the data for the sector were available only for 2017 (Figure 13).
+
+```{r poly_2017, echo=FALSE, fig.cap="Figure 13. Imputed hatchling counts for the sector 2017R in 2017.  "}
+
+ggplot() + 
+  geom_path(data = filter(poly_stats$Xs_2017R, Season == 2017),
+            aes(x = DOSeason, y = Xs_q50),
+            size = 1.2) +
+  geom_ribbon(data = filter(poly_stats$Xs_2017R, Season == 2017), 
+                aes(x = DOSeason,
+                    ymin = Xs_q2.5, 
+                    ymax = Xs_q97.5),
+              alpha = 0.3,
+              show.legend = F) +  
+  geom_point(data = filter(data.3, Season == 2017) %>% filter(Sector == "2017R"),
+             aes(x = DOSeason, y = (Counts_100m)),
+             size = 2, shape = 16) +
+  labs(title = "2017R", 
+       x = "Days since December 20", 
+       y = "Median counts and 95% CI",
+       color = "Season") +
+  theme(axis.text = element_text(size = 12),
+        legend.position = c(0.1, 0.8),
+        axis.title = element_text(size = 12))
+```
+
+#### West Sector
+for the West sector only one data point was available for years 2014, 2015, and 2016.  Consequently, the model could be fit to the data from 2017 only. Because of the large uncertainty and using the anti-log scale, the 95% confidence band included negative values (Figure 14).  Negative values are converted to zeros.  
+
+```{r poly_West, echo=FALSE, warning=FALSE, fig.cap = "Figure 14. Imputed hatchling counts for the West sector. Because there were only one data point for 2014, 2015, and 2016, no imputation was possible without shared Fourier parameters among sectors."}
+
+ggplot() + 
+  geom_path(data = filter(poly_stats$Xs_West, Season == 2017),
+            aes(x = DOSeason, y = Xs_q50),
+            size = 1.2) +
+  geom_ribbon(data = filter(poly_stats$Xs_West, Season == 2017), 
+                aes(x = DOSeason,
+                    ymin = Xs_q2.5, 
+                    ymax = Xs_q97.5),
+              alpha = 0.3,
+              show.legend = F) +  
+  geom_point(data = filter(data.3, Season == 2017) %>% filter(Sector == "West"),
+             aes(x = DOSeason, y = (Counts_100m)),
+             size = 2, shape = 16) +
+  labs(title = "West", x = "Days since December 20", 
+       y = "Median counts and 95% CI",
+       color = "Season") +
+  theme(axis.text = element_text(size = 12),
+        legend.position = c(0.1, 0.8),
+        axis.title = element_text(size = 12))
+```
+
+Assuming that these sample represent the entire sectors, we extrapolated the imputed numers to the entire sectors (Figure 15, Table 4). 
+
+```{r poly_extrapolation, echo=FALSE, warning=FALSE, fig.cap="Figure 15. Extrapolated total hatchling abundance at four sectors."}
+poly_summary <- summary.stats.nolog(poly_stats)
+
+poly.total.summary <- poly_summary %>% 
+  select(Season, total_q2.5, total_q50, total_q97.5, Sector)
+
+poly.total.summary[(poly.total.summary$Season != "2017" & poly.total.summary$Sector == "West"), 
+                   c("total_q2.5", "total_q50", "total_q97.5")]<-NA 
+
+poly.total.summary[(poly.total.summary$Season != "2017" & poly.total.summary$Sector == "2017R"),
+                   c("total_q2.5", "total_q50", "total_q97.5")] <- NA
+
+ggplot(data = poly.total.summary) + 
+  geom_point(aes(x = Season, y = log10(total_q50))) + 
+  geom_errorbar(aes(x = Season, 
+                    ymin = log10(total_q2.5), 
+                    ymax = log10(total_q97.5))) +
+  facet_wrap(Sector ~., nrow = 2 ) + 
+  ylab("log10(Median total hatchling) and 95% CI")
+
+```
+
+\newline
+
+```{r poly_summaryTable, echo=FALSE, warning=FALSE}
+poly.total.summary %>% select(Season, total_q50, Sector) -> poly.total.median
+poly.total.summary %>% select(Season, total_q2.5, Sector) -> poly.total.q2.5
+poly.total.summary %>% select(Season, total_q97.5, Sector) -> poly.total.q97.5
+
+poly.total.median.wide <- reshape2::acast(poly.total.median, 
+                                             Sector ~ Season, 
+                                             value.var = "total_q50")
+
+poly.total.q2.5.wide <- reshape2::acast(poly.total.q2.5, 
+                                             Sector ~ Season, 
+                                             value.var = "total_q2.5")
+
+poly.total.q97.5.wide <- reshape2::acast(poly.total.q97.5, 
+                                             Sector ~ Season, 
+                                             value.var = "total_q97.5")
+
+knitr::kable(poly.total.median.wide, 
+             digits = 0,
+             format.args = list(big.mark = ","),
+             caption = "Table 5. Median imputed total hatchling production based on Fourier discrete series and random initial values. ")
+```
+
+\newline
+
+```{r poly_lowerLimits, echo=FALSE}
+knitr::kable(poly.total.q2.5.wide, 
+             digits = 0,
+             format.args = list(big.mark = ","),
+             caption = "Table 5a. Lower 95% CI for imputed total hatchling production based on Fourier discrete series and random initial values. ")
+```
+
+\newline
+
+```{r poly_upperLimits, echo=FALSE}
+knitr::kable(poly.total.q97.5.wide, digits = 0,
+             format.args = list(big.mark = ","),
+             caption = "Table 5b. Upper 95% CI for imputed total hatchling production based on Fourier discrete series and random initial values. ")
+
+```
+
+### Modified Richards equation by Girondot et al. (2007)
+
+In this approach, I used the model described by Girondot et al. (2007). It has two symmetrical functions that are connected at the peak of nesting.  
+
+The function has the following form:
+
+M1 <- (1 + (2 * exp(K) - 1) * exp((1/S1) * (P - d))) ^ (-1/exp(K))
+
+M2 <- (1 + (2 * exp(K) - 1) * exp((1/S) * (P - d))) ^ (-1/exp(K))
+
+N <- min + (max - min) * (M1 * M2), where
+
+d is the number of days from the beginning of nesting season
+S > 0 and S1 = -S define the "fatness" of the function
+K > 0 defines the "flatness" at the peak of the function
+P defines where the peak is relatvie to the range of d min(d) < P < max(d)
+min is "the basal level of nesting outside the nesting season"
+max >> min
+
+For this approach, rather than imputing the missing values, I estimated the parameters of the function from data and predicted the missing values based on the function.  (The similar imputation approach resulted in poor estimation of parameters.)
+
+```{r Model_Girondot, include=FALSE, echo=FALSE}
+jm <- readRDS(paste0("RData/Girondot_Par_estimation_dnorm_", Day1, "_", Day2, ".rds"))
+Sectors <- unique(data.3$Sector)
+Girondot_stats <- list(length = 5)
+i <- j <- k <- 1
+#k <- 50
+for (j in 1:length(Sectors)){
+  tmp.mat <- matrix(data = NA, nrow = n.days * length(seasons), ncol = 5)
+  c <- 1
+  for (i in 1:length(seasons)){
+    
+    for (k in 1:n.days){
+      tmp <- Girondot_fcn(k, 
+                          extract.samples("S", jm$samples), 
+                          extract.samples("K", jm$samples), 
+                          extract.samples(paste0("P[", i, "]"), jm$samples), 
+                          1, 
+                          extract.samples(paste0("max[", i, ",", j, "]"), jm$samples)) 
+      tmp.mat[c, ] <- c(seasons[i], k, quantile(tmp, c(0.025, 0.5, 0.975)))
+      c <- c + 1  
+    }
+  }
+  tmp.df <- data.frame(tmp.mat)
+  tmp.df$Sector <- as.factor(Sectors[j])
+  colnames(tmp.df) <- c("Season", "DOSeason", "Xs_q2.5", "Xs_q50", "Xs_q97.5", "Sector")
+  Girondot_stats[[j]] <- tmp.df
+}
+
+names(Girondot_stats) <-paste0("Xs_", Sectors)
+
+```
+
+Qualitatiely, the functions fit well to the data (Figure 16). These imputed counts for each season were summed to provide the total number of hatchlings per 100 m for each season.   Because the parameters were shared among sectors, estimates were available even when there were limited data. 
+
+```{r Girondot_plotEstimates, echo=FALSE, include=TRUE, warning=FALSE, fig.cap="Figure 16. The fitted functions (medians and their 95% CIs in shaded areas) and observed numbers of hatchlings (dots) per 100 m at different sectors."}
+Girondot.all.data <- do.call(rbind, Girondot_stats)
+
+ggplot() + 
+  geom_path(data = Girondot.all.data,
+            aes(x = DOSeason, 
+                y = Xs_q50,
+                color = as.factor(Season)),
+            size = 1.2) +
+  geom_ribbon(data = Girondot.all.data , 
+                aes(x = DOSeason,
+                    ymin = Xs_q2.5, 
+                    ymax = Xs_q97.5,
+                    fill = as.factor(Season)),
+              alpha = 0.3,
+              show.legend = F) +  
+  geom_point(data = data.3,
+             aes(x = DOSeason, 
+                 y = (Counts_100m),
+                 color = as.factor(Season)),
+             size = 2, shape = 16) +
+  facet_wrap(Sector ~., nrow = 3, scales = "free") + 
+  labs(x = paste0("Days since ", Day1),  
+       y = "Median counts and 95% CI",
+       color = "Season") +
+  guides(color = guide_legend(title.position = "top",
+                              title.hjust = 0.5,
+                              nrow = 2)) +
+  theme(axis.text = element_text(size = 12),
+        legend.position = c(0.75, 0.1),
+        axis.title = element_text(size = 12),
+        legend.direction = "horizontal")
+
+
+```
+
+Assuming that these sample represent the entire sectors, we extrapolated the imputed numers to the entire sectors (Figure 4, Table 2). 
+
+```{r Girondot_extrapolation, echo=FALSE, warning=FALSE, fig.cap="Figure 19. Extrapolated total hatchling abundance at four sectors."}
+Girondot_summary <- summary.stats.nolog(Girondot_stats)
+
+Girondot.total.summary <- Girondot_summary %>% 
+  select(Season, total_q2.5, total_q50, total_q97.5, Sector)
+
+# Girondot.total.summary[(Girondot.total.summary$Season == 2014 & Girondot.total.summary$Sector == "West"), 
+#                    c("total_q2.5", "total_q50", "total_q97.5")]<-NA 
+
+Girondot.total.summary[(Girondot.total.summary$Season != "2017" & Girondot.total.summary$Sector == "2017R"),
+                   c("total_q2.5", "total_q50", "total_q97.5")] <- NA
+
+ggplot(data = Girondot.total.summary) + 
+  geom_point(aes(x = Season, y = log10(total_q50))) + 
+  geom_errorbar(aes(x = Season, 
+                    ymin = log10(total_q2.5), 
+                    ymax = log10(total_q97.5))) +
+  facet_wrap(Sector ~., nrow = 2 ) + 
+  ylab("log10(Median total hatchling) and 95% CI")
+
+```
+
+
+```{r Girondot_summaryTable, echo=FALSE, warning=FALSE}
+Girondot.total.summary %>% select(Season, total_q50, Sector) -> Girondot.total.median
+Girondot.total.summary %>% select(Season, total_q2.5, Sector) -> Girondot.total.q2.5
+Girondot.total.summary %>% select(Season, total_q97.5, Sector) -> Girondot.total.q97.5
+
+Girondot.total.median.wide <- reshape2::acast(Girondot.total.median, 
+                                             Sector ~ Season, 
+                                             value.var = "total_q50")
+
+Girondot.total.q2.5.wide <- reshape2::acast(Girondot.total.q2.5, 
+                                             Sector ~ Season, 
+                                             value.var = "total_q2.5")
+
+Girondot.total.q97.5.wide <- reshape2::acast(Girondot.total.q97.5, 
+                                             Sector ~ Season, 
+                                             value.var = "total_q97.5")
+
+knitr::kable(Girondot.total.median.wide, 
+             digits = 0,
+             format.args = list(big.mark = ","),
+             caption = "Table 6. Median imputed total hatchling production based on Fourier discrete series and random initial values. ")
+```
+
+\newline
+
+```{r Girondot_lowerLimits, echo=FALSE}
+knitr::kable(Girondot.total.q2.5.wide, 
+             digits = 0,
+             format.args = list(big.mark = ","),
+             caption = "Table 6a. Lower 95% CI for imputed total hatchling production based on Fourier discrete series and random initial values. ")
+```
+
+\newline
+
+```{r Girondot_upperLimits, echo=FALSE}
+knitr::kable(Girondot.total.q97.5.wide, digits = 0,
+             format.args = list(big.mark = ","),
+             caption = "Table 6b. Upper 95% CI for imputed total hatchling production based on Fourier discrete series and random initial values. ")
+
+```
 

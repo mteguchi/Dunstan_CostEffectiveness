@@ -37,23 +37,34 @@ summary(data.1)
 # create a data frame that repeats nesting season, which will be merged with data.1 to
 # create missing data. There are 132 days (from 12/20 to 4/30, if not leap year) within
 # each season
-data.0 <- data.frame(Season = rep(unique(data.1$Season), each = 132),
-                     DOSeason = rep(seq(from = 1, to = 132, by = 1), 
-                                    times = length(unique(data.1$Season))),
+Day1 <- "12-20"
+Day2 <- "04-30"
+
+n.days <- as.numeric(as.Date(paste0("2018-", Day2)) - as.Date(paste0("2017-", Day1)))
+
+seasons <- unique(data.1$Season)
+
+data.0 <- data.frame(Season = rep(seasons, each = n.days),
+                     DOSeason = rep(seq(from = 1, to = n.days, by = 1), 
+                                    times = length(seasons)),
                      Counts_100m = NA) %>%
   #mutate(Year = ifelse(DOSeason < 12, Season, Season + 1)) %>%
-  mutate(Date = as.Date(paste0(Season, "-12-20")) + days(DOSeason))
+  mutate(Date = as.Date(paste0(Season, "-", Day1)) + days(DOSeason))
 
 data.0 %>% left_join(data.1.wide, by = "Date") -> data.2
 
 data.2 %>% select(Season, DOSeason, `2014R`, `2017R`, North, South, West) -> data.2.a
 
-obs.y <- array(NA, c(4, 5, 132))
+obs.y <- array(NA, c(length(seasons), 5, n.days))
 
-obs.y[1, ,] <- t(filter(data.2.a, Season == 2014) %>% select(-c("Season", "DOSeason")))
-obs.y[2, ,] <- t(filter(data.2.a, Season == 2015) %>% select(-c("Season", "DOSeason")))
-obs.y[3, ,] <- t(filter(data.2.a, Season == 2016) %>% select(-c("Season", "DOSeason")))
-obs.y[4, ,] <- t(filter(data.2.a, Season == 2017) %>% select(-c("Season", "DOSeason")))
+for (i in 1:length(seasons)){
+  obs.y[i, ,] <- t(filter(data.2.a, Season == seasons[i]) %>% select(-c("Season", "DOSeason")))
+  
+}
+# obs.y[1, ,] <- t(filter(data.2.a, Season == 2014) %>% select(-c("Season", "DOSeason")))
+# obs.y[2, ,] <- t(filter(data.2.a, Season == 2015) %>% select(-c("Season", "DOSeason")))
+# obs.y[3, ,] <- t(filter(data.2.a, Season == 2016) %>% select(-c("Season", "DOSeason")))
+# obs.y[4, ,] <- t(filter(data.2.a, Season == 2017) %>% select(-c("Season", "DOSeason")))
 
 #obs.y <- t(as.matrix(data.2[, c("2014R", "2017R", "North", "South", "West")]))
 
@@ -101,7 +112,7 @@ MCMC.params <- list(n.chains = 3,
                     n.thin = 5)
 
 
-if (!file.exists("RData/Fourier_X0_imputation_dnorm.rds")){
+if (!file.exists(paste0("RData/Fourier_X0_imputation_dnorm_", Day1, "_", Day2, ".rds"))){
   jm <- jags(jags.data,
              inits = NULL,
              parameters.to.save= jags.params,
@@ -112,10 +123,10 @@ if (!file.exists("RData/Fourier_X0_imputation_dnorm.rds")){
              n.iter = MCMC.params$n.samples,
              DIC = T, parallel=T)
   
-  saveRDS(jm, "RData/Fourier_X0_imputation_dnorm.rds")
+  saveRDS(jm, paste0("RData/Fourier_X0_imputation_dnorm_", Day1, "_", Day2, ".rds"))
   
 } else {
-  jm <- readRDS("RData/Fourier_X0_imputation_dnorm.rds")
+  jm <- readRDS(paste0("RData/Fourier_X0_imputation_dnorm_", Day1, "_", Day2, ".rds"))
 }
 
 
@@ -153,7 +164,7 @@ ggplot() +
                  color = as.factor(Season)),
              size = 2, shape = 16) +
   labs(title = "2017R", 
-       x = "Days since December 21", 
+       x = paste0("Days since ", Day1), 
        y = "ln(Median counts) and 95% CI",
        color = "Season") +
   theme(axis.text = element_text(size = 12),
@@ -181,8 +192,8 @@ ggplot() +
              aes(x = DOSeason, y = log(`2014R`),
                  color = as.factor(Season)),
              size = 2, shape = 16) +
-  labs(title = "2014R", x = "Days since December 21", 
-       y = "log(Median counts) and 95% CI",
+  labs(title = "2014R", x = paste0("Days since ", Day1), 
+       y = "ln(Median counts) and 95% CI",
        color = "Season") +
   theme(axis.text = element_text(size = 12),
         legend.position = c(0.1, 0.8),
@@ -209,7 +220,7 @@ ggplot() +
              aes(x = DOSeason, y = log(North),
                  color = as.factor(Season)),
              size = 2, shape = 16)+
-  labs(title = "North", x = "Days since December 21", 
+  labs(title = "North", x = paste0("Days since ", Day1), 
        y = "ln(Median counts) and 95% CI",
        color = "Season") +
   theme(axis.text = element_text(size = 12),
@@ -236,7 +247,7 @@ ggplot() +
              aes(x = DOSeason, y = log(South),
                  color = as.factor(Season)),
              size = 2, shape = 16) +
-  labs(title = "South", x = "Days since December 21", 
+  labs(title = "South", x = paste0("Days since ", Day1), 
        y = "ln(Median counts) and 95% CI",
        color = "Season") +
   theme(axis.text = element_text(size = 12),
@@ -262,7 +273,7 @@ ggplot() +
              aes(x = DOSeason, y = log(West),
                  color = as.factor(Season)),
              size = 2, shape = 16)+
-  labs(title = "West", x = "Days since December 21", 
+  labs(title = "West", x = paste0("Days since ", Day1), 
        y = "ln(Median counts) and 95% CI",
        color = "Season") +
   theme(axis.text = element_text(size = 12),
@@ -285,28 +296,8 @@ ggplot(data = all.summary) +
 We can relax the initial data point as deviates:
 
 ```{r}
-# initial value is -2 for unobserved X0, which is pretty close to zero in anti-log space.  
-# jags.data <- list(y = log(obs.y),
-#                   mu.X0 = array(data = -2, dim = c(dim(obs.y)[1], dim(obs.y)[2])),
-#                   day = data.2$DOSeason,
-#                   period = dim(obs.y)[3],
-#                   n.steps = dim(obs.y)[3],
-#                   n.sectors = dim(obs.y)[2],
-#                   n.years = dim(obs.y)[1],
-#                   pi = pi)
-# 
-# jags.params <- c("beta.cos", "beta.sin",
-#                  #"sigma.X", 
-#                  "sigma.y", 
-#                  "y", "X", "deviance")
-# 
-# MCMC.params <- list(n.chains = 3,
-#                     n.samples = 100000,
-#                     n.burnin = 80000,
-#                     n.thin = 5)
-# 
 
-if (!file.exists("RData/Fourier_imputation_dnorm.rds")){
+if (!file.exists(paste0("RData/Fourier_imputation_dnorm_", Day1, "_", Day2, ".rds"))){
   jm <- jags(jags.data,
              inits = NULL,
              parameters.to.save= jags.params,
@@ -317,10 +308,10 @@ if (!file.exists("RData/Fourier_imputation_dnorm.rds")){
              n.iter = MCMC.params$n.samples,
              DIC = T, parallel=T)
   
-  saveRDS(jm, "RData/Fourier_imputation_dnorm.rds")
+  saveRDS(jm, paste0("RData/Fourier_imputation_dnorm_", Day1, "_", Day2, ".rds"))
   
 } else {
-  jm <- readRDS("RData/Fourier_imputation_dnorm.rds")
+  jm <- readRDS(paste0("RData/Fourier_imputation_dnorm_", Day1, "_", Day2, ".rds"))
 }
 
 
@@ -358,7 +349,7 @@ ggplot() +
                  color = as.factor(Season)),
              size = 2, shape = 16) +
   labs(title = "2017R", 
-       x = "Days since December 21", 
+       x = paste0("Days since ", Day1), 
        y = "ln(Median counts) and 95% CI",
        color = "Season") +
   theme(axis.text = element_text(size = 12),
@@ -386,7 +377,7 @@ ggplot() +
              aes(x = DOSeason, y = log(`2014R`),
                  color = as.factor(Season)),
              size = 2, shape = 16) +
-  labs(title = "2014R", x = "Days since December 21", 
+  labs(title = "2014R", x = paste0("Days since ", Day1), 
        y = "ln(Median counts) and 95% CI",
        color = "Season") +
   theme(axis.text = element_text(size = 12),
@@ -414,7 +405,7 @@ ggplot() +
              aes(x = DOSeason, y = log(North),
                  color = as.factor(Season)),
              size = 2, shape = 16)+
-  labs(title = "North", x = "Days since December 21", 
+  labs(title = "North", x = paste0("Days since ", Day1), 
        y = "ln(Median counts) and 95% CI",
        color = "Season") +
   theme(axis.text = element_text(size = 12),
@@ -441,7 +432,7 @@ ggplot() +
              aes(x = DOSeason, y = log(South),
                  color = as.factor(Season)),
              size = 2, shape = 16) +
-  labs(title = "South", x = "Days since December 21", 
+  labs(title = "South", x = paste0("Days since ", Day1), 
        y = "ln(Median counts) and 95% CI",
        color = "Season") +
   theme(axis.text = element_text(size = 12),
@@ -467,7 +458,7 @@ ggplot() +
              aes(x = DOSeason, y = log(West),
                  color = as.factor(Season)),
              size = 2, shape = 16)+
-  labs(title = "West", x = "Days since December 21", 
+  labs(title = "West", x = paste0("Days since ", Day1), 
        y = "ln(Median counts) and 95% CI",
        color = "Season") +
   theme(axis.text = element_text(size = 12),
@@ -491,28 +482,8 @@ ggplot(data = all.summary) +
 What if we have sector and season specific beta parameters for the Fourier function?
 
 ```{r}
-# initial value is -2 for unobserved X0, which is pretty close to zero in anti-log space.  
-# jags.data <- list(y = log(obs.y),
-#                   mu.X0 = array(data = -2, dim = c(dim(obs.y)[1], dim(obs.y)[2])),
-#                   day = data.2$DOSeason,
-#                   period = dim(obs.y)[3],
-#                   n.steps = dim(obs.y)[3],
-#                   n.sectors = dim(obs.y)[2],
-#                   n.years = dim(obs.y)[1],
-#                   pi = pi)
 
-# jags.params <- c("beta.cos", "beta.sin",
-#                  #"sigma.X", 
-#                  "sigma.y", 
-#                  "y", "X", "deviance")
-
-# MCMC.params <- list(n.chains = 3,
-#                     n.samples = 100000,
-#                     n.burnin = 80000,
-#                     n.thin = 5)
-
-
-if (!file.exists("RData/Fourier_beta_yr_sector_imputation_dnorm.rds")){
+if (!file.exists(paste0("RData/Fourier_beta_yr_sector_imputation_dnorm_", Day1, "_", Day2, ".rds"))){
   jm <- jags(jags.data,
              inits = NULL,
              parameters.to.save= jags.params,
@@ -523,10 +494,10 @@ if (!file.exists("RData/Fourier_beta_yr_sector_imputation_dnorm.rds")){
              n.iter = MCMC.params$n.samples,
              DIC = T, parallel=T)
   
-  saveRDS(jm, "RData/Fourier_beta_yr_sector_imputation_dnorm.rds")
+  saveRDS(jm, paste0("RData/Fourier_beta_yr_sector_imputation_dnorm_", Day1, "_", Day2, ".rds"))
   
 } else {
-  jm <- readRDS("RData/Fourier_beta_yr_sector_imputation_dnorm.rds")
+  jm <- readRDS(paste0("RData/Fourier_beta_yr_sector_imputation_dnorm_", Day1, "_", Day2, ".rds"))
 }
 
 
@@ -561,7 +532,7 @@ ggplot() +
              aes(x = DOSeason, y = log(`2017R`)),
              size = 2, shape = 16) +
   labs(title = "2017R", 
-       x = "Days since December 21", 
+       x = paste0("Days since ", Day1), 
        y = "ln(Median counts) and 95% CI",
        color = "Season") +
   theme(axis.text = element_text(size = 12),
@@ -587,7 +558,7 @@ ggplot() +
              aes(x = DOSeason, y = log(`2014R`),
                  color = as.factor(Season)),
              size = 2, shape = 16) +
-  labs(title = "2014R", x = "Days since December 21", 
+  labs(title = "2014R", x = paste0("Days since ", Day1), 
        y = "log(Median counts) and 95% CI",
        color = "Season") +
   theme(axis.text = element_text(size = 12),
@@ -615,7 +586,7 @@ ggplot() +
              aes(x = DOSeason, y = log(North),
                  color = as.factor(Season)),
              size = 2, shape = 16)+
-  labs(title = "North", x = "Days since December 21", 
+  labs(title = "North", x = paste0("Days since ", Day1), 
        y = "ln(Median counts) and 95% CI",
        color = "Season") +
   theme(axis.text = element_text(size = 12),
@@ -642,7 +613,7 @@ ggplot() +
              aes(x = DOSeason, y = log(South),
                  color = as.factor(Season)),
              size = 2, shape = 16) +
-  labs(title = "South", x = "Days since December 21", 
+  labs(title = "South", x = paste0("Days since ", Day1), 
        y = "ln(Median counts) and 95% CI",
        color = "Season") +
   theme(axis.text = element_text(size = 12),
@@ -668,7 +639,7 @@ ggplot() +
              aes(x = DOSeason, y = log(West),
                  color = as.factor(Season)),
              size = 2, shape = 16)+
-  labs(title = "West", x = "Days since December 21", 
+  labs(title = "West", x = paste0("Days since ", Day1), 
        y = "ln(Median counts) and 95% CI",
        color = "Season") +
   theme(axis.text = element_text(size = 12),
@@ -696,7 +667,8 @@ jags.data <- list(y = log(obs.y),
                   day = data.2$DOSeason,
                   n.steps = dim(obs.y)[3],
                   n.sectors = dim(obs.y)[2],
-                  n.years = dim(obs.y)[1])
+                  n.years = dim(obs.y)[1],
+                  n.days = n.days)
 
 jags.params <- c("sigma.y", "c",
                  "y", "X", "deviance")
@@ -707,7 +679,7 @@ MCMC.params <- list(n.chains = 3,
                     n.thin = 5)
 
 
-if (!file.exists("RData/poly_log_imputation_dnorm.rds")){
+if (!file.exists(paste0("RData/poly_log_imputation_dnorm_", Day1, "_", Day2, ".rds"))){
   jm <- jags(jags.data,
              inits = NULL,
              parameters.to.save= jags.params,
@@ -718,10 +690,10 @@ if (!file.exists("RData/poly_log_imputation_dnorm.rds")){
              n.iter = MCMC.params$n.samples,
              DIC = T, parallel=T)
   
-  saveRDS(jm, "RData/poly_log_imputation_dnorm.rds")
+  saveRDS(jm, paste0("RData/poly_log_imputation_dnorm_", Day1, "_", Day2, ".rds"))
   
 } else {
-  jm <- readRDS("RData/poly_log_imputation_dnorm.rds")
+  jm <- readRDS(paste0("RData/poly_log_imputation_dnorm_", Day1, "_", Day2, ".rds"))
 }
 
 ```
@@ -752,7 +724,7 @@ ggplot() +
                  color = as.factor(Season)),
              size = 2, shape = 16) +
   labs(title = "2017R", 
-       x = "Days since December 21", 
+       x = paste0("Days since ", Day1), 
        y = "ln(Median counts) and 95% CI",
        color = "Season") +
   theme(axis.text = element_text(size = 12),
@@ -780,7 +752,7 @@ ggplot() +
              aes(x = DOSeason, y = log(`2014R`),
                  color = as.factor(Season)),
              size = 2, shape = 16) +
-  labs(title = "2014R", x = "Days since December 21", 
+  labs(title = "2014R", x = paste0("Days since ", Day1), 
        y = "ln(Median counts) and 95% CI",
        color = "Season") +
   theme(axis.text = element_text(size = 12),
@@ -809,7 +781,7 @@ ggplot() +
              aes(x = DOSeason, y = log(North),
                  color = as.factor(Season)),
              size = 2, shape = 16)+
-  labs(title = "North", x = "Days since December 21", 
+  labs(title = "North", x = paste0("Days since ", Day1), 
        y = "ln(Median counts) and 95% CI",
        color = "Season") +
   theme(axis.text = element_text(size = 12),
@@ -836,7 +808,7 @@ ggplot() +
              aes(x = DOSeason, y = log(South),
                  color = as.factor(Season)),
              size = 2, shape = 16) +
-  labs(title = "South", x = "Days since December 21", 
+  labs(title = "South", x = paste0("Days since ", Day1), 
        y = "ln(Median counts) and 95% CI",
        color = "Season") +
   theme(axis.text = element_text(size = 12),
@@ -864,7 +836,7 @@ ggplot() +
              aes(x = DOSeason, y = log(West),
                  color = as.factor(Season)),
              size = 2, shape = 16)+
-  labs(title = "West", x = "Days since December 21", 
+  labs(title = "West", x = paste0("Days since ", Day1), 
        y = "ln(Median counts) and 95% CI",
        color = "Season") +
   theme(axis.text = element_text(size = 12),
@@ -884,3 +856,660 @@ all.summary <- summary.stats(stats_poly_log)
 #   geom_errorbar(aes(x = Season, ymin = (q2.5), ymax = (q97.5))) +
 #   facet_wrap(Sector ~., nrow = 2 )
 ```
+
+
+
+Also try second-order polynomial without log here:
+
+```{r}
+jags.data <- list(y = (obs.y),
+                  day = data.2$DOSeason,
+                  n.steps = dim(obs.y)[3],
+                  n.sectors = dim(obs.y)[2],
+                  n.years = dim(obs.y)[1],
+                  n.days = n.days)
+# 
+# jags.params <- c("sigma.y", "c",
+#                  "y", "X", "deviance")
+# 
+# MCMC.params <- list(n.chains = 3,
+#                     n.samples = 100000,
+#                     n.burnin = 80000,
+#                     n.thin = 5)
+
+
+if (!file.exists(paste0("RData/poly_imputation_dnorm_", Day1, "_", Day2, ".rds"))){
+  jm <- jags(jags.data,
+             inits = NULL,
+             parameters.to.save= jags.params,
+             model.file = 'models/model_poly_imputation_dnorm.txt',
+             n.chains = MCMC.params$n.chains,
+             n.burnin = MCMC.params$n.burnin,
+             n.thin = MCMC.params$n.thin,
+             n.iter = MCMC.params$n.samples,
+             DIC = T, parallel=T)
+  
+  saveRDS(jm, paste0("RData/poly_imputation_dnorm_", Day1, "_", Day2, ".rds"))
+  
+} else {
+  jm <- readRDS(paste0("RData/poly_imputation_dnorm_", Day1, "_", Day2, ".rds"))
+}
+
+```
+
+```{r}
+
+stats_poly <- extract.statistics(jm)
+
+```
+
+
+```{r}
+
+ggplot() + 
+  geom_path(data = filter(stats_poly$Xs_2017R, Season == 2017) ,
+            aes(x = DOSeason, y = Xs_q50,
+                color = as.factor(Season)),
+            size = 1.2) +
+  geom_ribbon(data = filter(stats_poly$Xs_2017R, Season == 2017),
+                aes(x = DOSeason,
+                    ymin = Xs_q2.5,
+                    ymax = Xs_q97.5,
+                    fill = as.factor(Season)),
+              alpha = 0.3,
+              show.legend = F) +
+  geom_point(data = filter(data.2, Season == 2017),
+             aes(x = DOSeason, y = `2017R`,
+                 color = as.factor(Season)),
+             size = 2, shape = 16) +
+  labs(title = "2017R", 
+       x = paste0("Days since ", Day1), 
+       y = "Median counts and 95% CI",
+       color = "Season") +
+  theme(axis.text = element_text(size = 12),
+        legend.position = c(0.1, 0.8),
+        axis.title = element_text(size = 12))
+```
+
+Probably shouldn't have these other years... 
+
+
+```{r}
+
+ggplot() + 
+  geom_path(data = stats_poly$Xs_2014R ,
+            aes(x = DOSeason, y = Xs_q50,
+                color = as.factor(Season))) +
+  geom_ribbon(data = stats_poly$Xs_2014R, 
+                aes(x = DOSeason,
+                    ymin = Xs_q2.5, 
+                    ymax = Xs_q97.5,
+                    fill = as.factor(Season)),
+              alpha = 0.3,
+              show.legend = F) +  
+  geom_point(data = data.2,
+             aes(x = DOSeason, y = `2014R`,
+                 color = as.factor(Season)),
+             size = 2, shape = 16) +
+  labs(title = "2014R", x = paste0("Days since ", Day1), 
+       y = "Median counts and 95% CI",
+       color = "Season") +
+  theme(axis.text = element_text(size = 12),
+        legend.position = c(0.1, 0.8),
+        axis.title = element_text(size = 12))
+
+```
+
+
+
+
+```{r}
+
+ggplot() + 
+  geom_path(data = stats_poly$Xs_North ,
+            aes(x = DOSeason, y = Xs_q50,
+                color = as.factor(Season))) +
+  geom_ribbon(data = stats_poly$Xs_North, 
+                aes(x = DOSeason,
+                    ymin = Xs_q2.5, 
+                    ymax = Xs_q97.5,
+                    fill = as.factor(Season)),
+              alpha = 0.3,
+              show.legend = F) +  
+  geom_point(data = data.2,
+             aes(x = DOSeason, y = (North),
+                 color = as.factor(Season)),
+             size = 2, shape = 16)+
+  labs(title = "North", x = paste0("Days since ", Day1), 
+       y = "Median counts and 95% CI",
+       color = "Season") +
+  theme(axis.text = element_text(size = 12),
+        legend.position = c(0.1, 0.8),
+        axis.title = element_text(size = 12))
+
+```
+
+
+
+```{r}
+ggplot() + 
+  geom_path(data = stats_poly$Xs_South ,
+            aes(x = DOSeason, y = Xs_q50,
+                color = as.factor(Season))) +
+  geom_ribbon(data = stats_poly$Xs_South, 
+                aes(x = DOSeason,
+                    ymin = Xs_q2.5, 
+                    ymax = Xs_q97.5,
+                    fill = as.factor(Season)),
+              alpha = 0.3,
+              show.legend = F) +  
+  geom_point(data = data.2,
+             aes(x = DOSeason, y = (South),
+                 color = as.factor(Season)),
+             size = 2, shape = 16) +
+  labs(title = "South", x = paste0("Days since ", Day1), 
+       y = "Median counts and 95% CI",
+       color = "Season") +
+  theme(axis.text = element_text(size = 12),
+        legend.position = c(0.1, 0.8),
+        axis.title = element_text(size = 12))
+
+
+```
+
+```{r}
+data.no2014.west <- filter(stats_poly$Xs_West, Season != 2014) %>%
+  mutate(f.Season = as.factor(Season))
+ggplot() + 
+  geom_path(data = filter(stats_poly$Xs_West, Season != 2014),
+            aes(x = DOSeason, y = Xs_q50,
+                color = as.factor(Season))) +
+  geom_ribbon(data = filter(stats_poly$Xs_West, Season != 2014),
+                aes(x = DOSeason,
+                    ymin = Xs_q2.5,
+                    ymax = Xs_q97.5,
+                    fill = as.factor(Season)),
+              alpha = 0.3,
+              show.legend = F) +
+  geom_point(data = filter(data.2, Season != 2014),
+             aes(x = DOSeason, y = (West),
+                 color = as.factor(Season)),
+             size = 2, shape = 16)+
+  labs(title = "West", x = paste0("Days since ", Day1), 
+       y = "Median counts and 95% CI",
+       color = "Season") +
+  theme(axis.text = element_text(size = 12),
+        legend.position = c(0.1, 0.8),
+        axis.title = element_text(size = 12))
+
+```
+
+```{r}
+all.summary <- summary.stats(stats_poly)
+
+# ggplot(data = all.summary) + 
+#   geom_point(aes(x = Season, y = (q50))) + 
+#   geom_errorbar(aes(x = Season, ymin = (q2.5), ymax = (q97.5))) +
+#   facet_wrap(Sector ~., nrow = 2 )
+```
+
+
+Next... try the function provided in Girondot et al. (2007).
+Try first with non-log counts as it was done in their paper. Change the data format a little so that we are not "imputing" but estimating the parameters of the functions from data.
+
+```{r}
+data.1 %>% mutate(DOSeason = as.numeric(Date - as.Date(paste0(Season, "-", Day1)))) %>%
+  select(-Date) -> data.3
+Sectors <- unique(data.3$Sector)
+
+obs.t <- obs.y.1 <- matrix(NA, nrow = length(Sectors) * length(seasons), ncol = 10)
+n.vec <- vector(mode = "numeric", length = length(Sectors) * length(seasons))
+season.sector.idx <- matrix(NA, nrow = length(Sectors) * length(seasons), ncol = 2)
+
+max.mat <- matrix(NA, nrow = length(seasons), ncol = length(Sectors))
+
+r <- season_idx <- sector_idx <- 1
+for (season_idx in 1:length(seasons)){
+  for (sector_idx in 1:length(Sectors)){
+    data.3 %>% filter(Season == seasons[season_idx]) %>%
+      filter(Sector == Sectors[sector_idx]) -> tmp
+    if (nrow(tmp) > 0){
+      obs.t[r, 1:nrow(tmp)] <- tmp$DOSeason
+      obs.y.1[r, 1:nrow(tmp)] <- tmp$Counts_100m
+      n.vec[r] <- nrow(tmp)
+      max.mat[season_idx, sector_idx] <- max(tmp$Counts_100m, na.rm = T)      
+    }
+    season.sector.idx[r,] <- c(season_idx, sector_idx)
+    r <- r + 1
+  }
+}
+
+max.mat[max.mat < 0] <- NA
+
+for (k in 1:ncol(max.mat)){
+  max.mat[is.na(max.mat[,k]), k] <- mean(max.mat[, k], na.rm = T)
+}
+
+jags.data <- list(y = (obs.y.1),
+                  t = obs.t,
+                  n.vec = n.vec,
+                  idx = season.sector.idx,
+                  min = rep(1, length(Sectors)),
+                  n = length(n.vec),
+                  n.sectors = length(Sectors),
+                  n.years = length(seasons),
+                  max.mat = max.mat)
+# 
+jags.params <- c("sigma.y", "P", "S", "K", "max",
+                 "y", "X", "deviance")
+# 
+# MCMC.params <- list(n.chains = 3,
+#                     n.samples = 100000,
+#                     n.burnin = 80000,
+#                     n.thin = 5)
+
+
+if (!file.exists(paste0("RData/Girondot_par_estimation_dnorm_", Day1, "_", Day2, ".rds"))){
+  jm <- jags(jags.data,
+             inits = NULL,
+             parameters.to.save= jags.params,
+             model.file = 'models/model_Girondot_Par_estimation_dnorm.txt',
+             n.chains = MCMC.params$n.chains,
+             n.burnin = MCMC.params$n.burnin,
+             n.thin = MCMC.params$n.thin,
+             n.iter = MCMC.params$n.samples,
+             DIC = T, parallel=T)
+  
+  saveRDS(jm, paste0("RData/Girondot_Par_estimation_dnorm_", Day1, "_", Day2, ".rds"))
+  
+} else {
+  jm <- readRDS(paste0("RData/Girondot_Par_estimation_dnorm_", Day1, "_", Day2, ".rds"))
+}
+
+```
+
+Need to compute derived (Xs) values
+```{r}
+
+Girondot_stats <- list(length = 5)
+i <- j <- k <- 1
+#k <- 50
+for (j in 1:length(Sectors)){
+  tmp.mat <- matrix(data = NA, nrow = n.days * length(seasons), ncol = 5)
+  c <- 1
+  for (i in 1:length(seasons)){
+    
+    for (k in 1:n.days){
+      tmp <- Girondot_fcn(k, 
+                          extract.samples("S", jm$samples), 
+                          extract.samples("K", jm$samples), 
+                          extract.samples(paste0("P[", i, "]"), jm$samples), 
+                          jags.data$min[j], 
+                          extract.samples(paste0("max[", i, ",", j, "]"), jm$samples)) 
+      tmp.mat[c, ] <- c(seasons[i], k, quantile(tmp, c(0.025, 0.5, 0.975)))
+      c <- c + 1  
+    }
+  }
+  tmp.df <- data.frame(tmp.mat)
+  colnames(tmp.df) <- c("Season", "DOSeason", "Xs_q2.5", "Xs_q50", "Xs_q97.5")
+  Girondot_stats[[j]] <- tmp.df
+}
+
+names(Girondot_stats) <-paste0("Xs_", Sectors)
+
+
+```
+
+
+```{r}
+
+ggplot() + 
+  geom_path(data = filter(Girondot_stats$Xs_2017R, Season == 2017) ,
+            aes(x = DOSeason, y = Xs_q50),
+            size = 1.2) +
+  geom_ribbon(data = filter(Girondot_stats$Xs_2017R, Season == 2017),
+                aes(x = DOSeason,
+                    ymin = Xs_q2.5,
+                    ymax = Xs_q97.5),
+              alpha = 0.3,
+              show.legend = F) +
+  geom_point(data = filter(data.2, Season == 2017),
+             aes(x = DOSeason, y = `2017R`),
+             size = 2, shape = 16) +
+  labs(title = "2017R", 
+       x = paste0("Days since ", Day1), 
+       y = "Median counts and 95% CI",
+       color = "Season") +
+  theme(axis.text = element_text(size = 12),
+        legend.position = c(0.1, 0.8),
+        axis.title = element_text(size = 12))
+```
+
+Probably shouldn't have these other years... 
+
+
+```{r}
+
+ggplot() + 
+  geom_path(data = Girondot_stats$Xs_2014R,
+            aes(x = DOSeason, y = Xs_q50,
+                color = as.factor(Season))) +
+  geom_ribbon(data = Girondot_stats$Xs_2014R, 
+                aes(x = DOSeason,
+                    ymin = Xs_q2.5, 
+                    ymax = Xs_q97.5,
+                    fill = as.factor(Season)),
+              alpha = 0.3,
+              show.legend = F) +  
+  geom_point(data = data.2,
+             aes(x = DOSeason, y = `2014R`,
+                 color = as.factor(Season)),
+             size = 2, shape = 16) +
+  labs(title = "2014R", x = paste0("Days since ", Day1), 
+       y = "Median counts and 95% CI",
+       color = "Season") +
+  theme(axis.text = element_text(size = 12),
+        legend.position = c(0.1, 0.8),
+        axis.title = element_text(size = 12))
+
+```
+
+
+
+
+```{r}
+
+ggplot() + 
+  geom_path(data = Girondot_stats$Xs_North ,
+            aes(x = DOSeason, y = Xs_q50,
+                color = as.factor(Season))) +
+  geom_ribbon(data = Girondot_stats$Xs_North, 
+                aes(x = DOSeason,
+                    ymin = Xs_q2.5, 
+                    ymax = Xs_q97.5,
+                    fill = as.factor(Season)),
+              alpha = 0.3,
+              show.legend = F) +  
+  geom_point(data = data.2,
+             aes(x = DOSeason, y = (North),
+                 color = as.factor(Season)),
+             size = 2, shape = 16)+
+  labs(title = "North", x = paste0("Days since ", Day1), 
+       y = "Median counts and 95% CI",
+       color = "Season") +
+  theme(axis.text = element_text(size = 12),
+        legend.position = c(0.1, 0.8),
+        axis.title = element_text(size = 12))
+
+```
+
+
+
+```{r}
+ggplot() + 
+  geom_path(data = Girondot_stats$Xs_South ,
+            aes(x = DOSeason, y = Xs_q50,
+                color = as.factor(Season))) +
+  geom_ribbon(data = Girondot_stats$Xs_South, 
+                aes(x = DOSeason,
+                    ymin = Xs_q2.5, 
+                    ymax = Xs_q97.5,
+                    fill = as.factor(Season)),
+              alpha = 0.3,
+              show.legend = F) +  
+  geom_point(data = data.2,
+             aes(x = DOSeason, y = (South),
+                 color = as.factor(Season)),
+             size = 2, shape = 16) +
+  labs(title = "South", x = paste0("Days since ", Day1), 
+       y = "Median counts and 95% CI",
+       color = "Season") +
+  theme(axis.text = element_text(size = 12),
+        legend.position = c(0.1, 0.8),
+        axis.title = element_text(size = 12))
+
+
+```
+
+```{r}
+data.no2014.west <- filter(Girondot_stats$Xs_West, Season != 2014) %>%
+  mutate(f.Season = as.factor(Season))
+ggplot() + 
+  geom_path(data = filter(Girondot_stats$Xs_West, Season != 2014),
+            aes(x = DOSeason, y = Xs_q50,
+                color = as.factor(Season))) +
+  geom_ribbon(data = filter(Girondot_stats$Xs_West, Season != 2014),
+                aes(x = DOSeason,
+                    ymin = Xs_q2.5,
+                    ymax = Xs_q97.5,
+                    fill = as.factor(Season)),
+              alpha = 0.3,
+              show.legend = F) +
+  geom_point(data = filter(data.2, Season != 2014),
+             aes(x = DOSeason, y = (West),
+                 color = as.factor(Season)),
+             size = 2, shape = 16)+
+  labs(title = "West", x = paste0("Days since ", Day1), 
+       y = "Median counts and 95% CI",
+       color = "Season") +
+  theme(axis.text = element_text(size = 12),
+        legend.position = c(0.1, 0.8),
+        axis.title = element_text(size = 12))
+
+```
+
+```{r}
+all.summary <- summary.stats.nolog(Girondot_stats)
+
+# ggplot(data = all.summary) + 
+#   geom_point(aes(x = Season, y = (q50))) + 
+#   geom_errorbar(aes(x = Season, ymin = (q2.5), ymax = (q97.5))) +
+#   facet_wrap(Sector ~., nrow = 2 )
+```
+
+Try it with imputation - doesn't work so well... although Rhat shows convergence, trace plots look quite horrible... 
+```{r}
+
+jags.data <- list(y = (obs.y),
+                  n.vec = n.vec,
+                  min = rep(1, length(Sectors)),
+                  n.sectors = length(Sectors),
+                  n.years = length(seasons),
+                  max.mat = max.mat,
+                  n.steps = n.days)
+# 
+
+# jags.data <- list(y = (obs.y),
+#                   day = data.2$DOSeason,
+#                   n.steps = dim(obs.y)[3],
+#                   n.sectors = dim(obs.y)[2],
+#                   n.years = dim(obs.y)[1],
+#                   n.days = n.days)
+
+jags.params <- c("sigma.y", "P", "S", "K", "max",
+                 "y", "X", "deviance")
+# 
+# MCMC.params <- list(n.chains = 3,
+#                     n.samples = 100000,
+#                     n.burnin = 80000,
+#                     n.thin = 5)
+
+
+if (!file.exists(paste0("RData/Girondot_imputation_dnorm_", Day1, "_", Day2, ".rds"))){
+  jm <- jags(jags.data,
+             inits = NULL,
+             parameters.to.save= jags.params,
+             model.file = 'models/model_Girondot_imputation_dnorm.txt',
+             n.chains = MCMC.params$n.chains,
+             n.burnin = MCMC.params$n.burnin,
+             n.thin = MCMC.params$n.thin,
+             n.iter = MCMC.params$n.samples,
+             DIC = T, parallel=T)
+  
+  saveRDS(jm, paste0("RData/Girondot_imputation_dnorm_", Day1, "_", Day2, ".rds"))
+  
+} else {
+  jm <- readRDS(paste0("RData/Girondot_imputation_dnorm_", Day1, "_", Day2, ".rds"))
+}
+```
+
+```{r}
+
+stats_Girondot <- extract.statistics(jm)
+
+#data.3.long <- rbind(data.2, ys.q2.5, ys.q50, ys.q97.5, Xs.q2.5, Xs.q50, Xs.q97.5)
+#rm(list = c("jm"))
+```
+
+
+```{r}
+
+
+ggplot() + 
+  geom_path(data = stats_Girondot$Xs_2017R ,
+            aes(x = DOSeason, y = Xs_q50,
+                color = as.factor(Season)),
+            size = 1.2) +
+  geom_ribbon(data = stats_Girondot$Xs_2017R, 
+                aes(x = DOSeason,
+                    ymin = Xs_q2.5, 
+                    ymax = Xs_q97.5,
+                    fill = as.factor(Season)),
+              alpha = 0.3,
+              show.legend = F) +  
+  geom_point(data = data.2,
+             aes(x = DOSeason, y = (`2017R`),
+                 color = as.factor(Season)),
+             size = 2, shape = 16) +
+  labs(title = "2017R", 
+       x = paste0("Days since ", Day1), 
+       y = "ln(Median counts) and 95% CI",
+       color = "Season") +
+  theme(axis.text = element_text(size = 12),
+        legend.position = c(0.1, 0.8),
+        axis.title = element_text(size = 12))
+```
+
+Probably shouldn't have these other years... 
+
+
+```{r}
+
+ggplot() + 
+  geom_path(data = stats_Girondot$Xs_2014R ,
+            aes(x = DOSeason, y = Xs_q50,
+                color = as.factor(Season))) +
+  geom_ribbon(data = stats_Girondot$Xs_2014R, 
+                aes(x = DOSeason,
+                    ymin = Xs_q2.5, 
+                    ymax = Xs_q97.5,
+                    fill = as.factor(Season)),
+              alpha = 0.3,
+              show.legend = F) +  
+  geom_point(data = data.2,
+             aes(x = DOSeason, y = (`2014R`),
+                 color = as.factor(Season)),
+             size = 2, shape = 16) +
+  labs(title = "2014R", x = paste0("Days since ", Day1), 
+       y = "ln(Median counts) and 95% CI",
+       color = "Season") +
+  theme(axis.text = element_text(size = 12),
+        legend.position = c(0.1, 0.8),
+        axis.title = element_text(size = 12))
+
+```
+
+
+
+```{r}
+
+ggplot() + 
+  geom_path(data = stats_Girondot$Xs_North ,
+            aes(x = DOSeason, y = Xs_q50,
+                color = as.factor(Season))) +
+  geom_ribbon(data = stats_Girondot$Xs_North, 
+                aes(x = DOSeason,
+                    ymin = Xs_q2.5, 
+                    ymax = Xs_q97.5,
+                    fill = as.factor(Season)),
+              alpha = 0.3,
+              show.legend = F) +  
+  geom_point(data = data.2,
+             aes(x = DOSeason, y = (North),
+                 color = as.factor(Season)),
+             size = 2, shape = 16)+
+  labs(title = "North", x = paste0("Days since ", Day1), 
+       y = "ln(Median counts) and 95% CI",
+       color = "Season") +
+  theme(axis.text = element_text(size = 12),
+        legend.position = c(0.1, 0.8),
+        axis.title = element_text(size = 12))
+
+```
+
+
+
+```{r}
+ggplot() + 
+  geom_path(data = stats_Girondot$Xs_South ,
+            aes(x = DOSeason, y = Xs_q50,
+                color = as.factor(Season))) +
+  geom_ribbon(data = stats_Girondot$Xs_South, 
+                aes(x = DOSeason,
+                    ymin = Xs_q2.5, 
+                    ymax = Xs_q97.5,
+                    fill = as.factor(Season)),
+              alpha = 0.3,
+              show.legend = F) +  
+  geom_point(data = data.2,
+             aes(x = DOSeason, y = (South),
+                 color = as.factor(Season)),
+             size = 2, shape = 16) +
+  labs(title = "South", x = paste0("Days since ", Day1), 
+       y = "ln(Median counts) and 95% CI",
+       color = "Season") +
+  theme(axis.text = element_text(size = 12),
+        legend.position = c(0.1, 0.8),
+        axis.title = element_text(size = 12))
+
+
+```
+
+```{r}
+ggplot() + 
+  geom_path(data = stats_Girondot$Xs_West ,
+            aes(x = DOSeason, y = Xs_q50,
+                color = as.factor(Season))) +
+  geom_ribbon(data = stats_Girondot$Xs_West, 
+                aes(x = DOSeason,
+                    ymin = Xs_q2.5, 
+                    ymax = Xs_q97.5,
+                    fill = as.factor(Season)),
+              alpha = 0.3,
+              show.legend = F) +  
+  geom_point(data = data.2,
+             aes(x = DOSeason, y = (West),
+                 color = as.factor(Season)),
+             size = 2, shape = 16)+
+  labs(title = "West", x = paste0("Days since ", Day1), 
+       y = "ln(Median counts) and 95% CI",
+       color = "Season") +
+  theme(axis.text = element_text(size = 12),
+        legend.position = c(0.1, 0.8),
+        axis.title = element_text(size = 12))
+
+```
+
+Now that we seem to have pretty "believable" models for all these data, we can go ahead and sum the imputed counts with confidence bands.  
+
+```{r}
+all.summary <- summary.stats(stats_X0)
+
+ggplot(data = all.summary) + 
+  geom_point(aes(x = Season, y = log10(q50))) + 
+  geom_errorbar(aes(x = Season, ymin = log10(q2.5), ymax = log10(q97.5))) +
+  facet_wrap(Sector ~., nrow = 2 )
+```
+
+
+
