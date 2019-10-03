@@ -1,13 +1,25 @@
 # JAGS model for imputing missing hatchling counts at Raine Island
 
-# The known cyclical nature of hatching is modeled by 2nd order polynomial
-# functions.  Hatchling production starts
-# December 20 and ends April 30 each season.  Observed counts are 
-# limited so they are used to determine amplitude of each season
-# and for each sector.  Amplitudes for sectors are correlated.
+ known cyclical nature of hatching is modeled by the function
+# provided in Girondot et al. (2007): Modeling approaches to quantify
+# leatherback nesting trends in French Guiana and Suriname. Chelonian
+# Conservation and Biology 6(1): 37-46.
+#
+# The function has the following form:
+# S1 <- -S
+# M1 <- (1 + (2 * exp(K) - 1) * exp((1/S1) * (P - d))) ^ (-1/exp(K))
+# M2 <- (1 + (2 * exp(K) - 1) * exp((1/S) * (P - d))) ^ (-1/exp(K))
+# N <- min + (max - min) * (M1 * M2)
+#
+# d is the number of days from the beginning of nesting season
+# S > 0 and S1 = -S define the "fatness" of the function
+# K > 0 defines the "flatness" at the peak of the function
+# P defines where the peak is relatvie to the range of d min(d) < P < max(d)
+# min is "the basal level of nesting outside the nesting season"
+# max > min
+#
+# Observed counts are assumed to be normally distributed around this function.
 
-# Using the second order polynomial with conditions that y = 0 at t = 0 and n.days,
-# we can solve that y = a + bx + bx^2, where a = 0 and b = -n.days*c. 
 
 model{
 
