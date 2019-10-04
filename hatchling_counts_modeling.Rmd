@@ -1101,7 +1101,7 @@ jags.data <- list(y = (obs.y.1),
                   max.mat = max.mat)
 # 
 jags.params <- c("sigma.y", "P", "S", "K", "max",
-                 "y", "X", "deviance")
+                 "y", "X", "sigma.max", "deviance")
 # 
 # MCMC.params <- list(n.chains = 3,
 #                     n.samples = 100000,
@@ -1306,6 +1306,191 @@ all.summary <- summary.stats.nolog(Girondot_stats)
 #   geom_errorbar(aes(x = Season, ymin = (q2.5), ymax = (q97.5))) +
 #   facet_wrap(Sector ~., nrow = 2 )
 ```
+
+Do the same in the log scale
+```{r}
+jags.data <- list(y = log(obs.y.1),
+                  t = obs.t,
+                  n.vec = n.vec,
+                  idx = season.sector.idx,
+                  min = log(rep(1, length(Sectors))),
+                  n = length(n.vec),
+                  n.sectors = length(Sectors),
+                  n.years = length(seasons),
+                  max.mat = log(max.mat))
+# 
+jags.params <- c("sigma.y", "P", "S", "K", "max",
+                 "y", "X", "sigma.max", "deviance")
+# 
+# MCMC.params <- list(n.chains = 3,
+#                     n.samples = 100000,
+#                     n.burnin = 80000,
+#                     n.thin = 5)
+
+
+if (!file.exists(paste0("RData/Girondot_log_par_estimation_dnorm_", Day1, "_", Day2, ".rds"))){
+  jm <- jags(jags.data,
+             inits = NULL,
+             parameters.to.save= jags.params,
+             model.file = 'models/model_Girondot_Par_estimation_dnorm.txt',
+             n.chains = MCMC.params$n.chains,
+             n.burnin = MCMC.params$n.burnin,
+             n.thin = MCMC.params$n.thin,
+             n.iter = MCMC.params$n.samples,
+             DIC = T, parallel=T)
+  
+  saveRDS(jm, paste0("RData/Girondot_log_Par_estimation_dnorm_", Day1, "_", Day2, ".rds"))
+  
+} else {
+  jm <- readRDS(paste0("RData/Girondot_log_Par_estimation_dnorm_", Day1, "_", Day2, ".rds"))
+}
+
+```
+
+Need to compute derived (Xs) values
+```{r}
+
+Girondot_stats <- list(length = 5)
+i <- j <- k <- 1
+#k <- 50
+for (j in 1:length(Sectors)){
+  tmp.mat <- matrix(data = NA, nrow = n.days * length(seasons), ncol = 5)
+  c <- 1
+  for (i in 1:length(seasons)){
+    
+    for (k in 1:n.days){
+      tmp <- Girondot_fcn(k, 
+                          extract.samples("S", jm$samples), 
+                          extract.samples("K", jm$samples), 
+                          extract.samples(paste0("P[", i, "]"), jm$samples), 
+                          jags.data$min[j], 
+                          extract.samples(paste0("max[", i, ",", j, "]"), jm$samples)) 
+      tmp.mat[c, ] <- c(seasons[i], k, quantile(tmp, c(0.025, 0.5, 0.975)))
+      c <- c + 1  
+    }
+  }
+  tmp.df <- data.frame(tmp.mat)
+  colnames(tmp.df) <- c("Season", "DOSeason", "Xs_q2.5", "Xs_q50", "Xs_q97.5")
+  Girondot_stats[[j]] <- tmp.df
+}
+
+names(Girondot_stats) <-paste0("Xs_", Sectors)
+
+
+```
+
+
+```{r}
+
+ggplot() + 
+  geom_path(data = filter(Girondot_stats$Xs_2017R, Season == 2017) ,
+            aes(x = DOSeason, y = Xs_q50),
+            size = 1.2) +
+  geom_ribbon(data = filter(Girondot_stats$Xs_2017R, Season == 2017),
+                aes(x = DOSeason,
+                    ymin = Xs_q2.5,
+                    ymax = Xs_q97.5),
+              alpha = 0.3,
+              show.legend = F) +
+  geom_point(data = filter(data.2, Season == 2017),
+             aes(x = DOSeason, y = log(`2017R`)),
+             size = 2, shape = 16) +
+  labs(title = "2017R", 
+       x = paste0("Days since ", Day1), 
+       y = "Median counts and 95% CI",
+       color = "Season") +
+  theme(axis.text = element_text(size = 12),
+        legend.position = c(0.1, 0.8),
+        axis.title = element_text(size = 12))
+```
+
+Probably shouldn't have these other years... 
+
+
+```{r}
+
+ggplot() + 
+  geom_path(data = Girondot_stats$Xs_2014R,
+            aes(x = DOSeason, y = Xs_q50,
+                color = as.factor(Season))) +
+  geom_ribbon(data = Girondot_stats$Xs_2014R, 
+                aes(x = DOSeason,
+                    ymin = Xs_q2.5, 
+                    ymax = Xs_q97.5,
+                    fill = as.factor(Season)),
+              alpha = 0.3,
+              show.legend = F) +  
+  geom_point(data = data.2,
+             aes(x = DOSeason, y = log(`2014R`),
+                 color = as.factor(Season)),
+             size = 2, shape = 16) +
+  labs(title = "2014R", x = paste0("Days since ", Day1), 
+       y = "Median counts and 95% CI",
+       color = "Season") +
+  theme(axis.text = element_text(size = 12),
+        legend.position = c(0.1, 0.8),
+        axis.title = element_text(size = 12))
+
+```
+
+
+
+
+```{r}
+
+ggplot() + 
+  geom_path(data = Girondot_stats$Xs_North ,
+            aes(x = DOSeason, y = Xs_q50,
+                color = as.factor(Season))) +
+  geom_ribbon(data = Girondot_stats$Xs_North, 
+                aes(x = DOSeason,
+                    ymin = Xs_q2.5, 
+                    ymax = Xs_q97.5,
+                    fill = as.factor(Season)),
+              alpha = 0.3,
+              show.legend = F) +  
+  geom_point(data = data.2,
+             aes(x = DOSeason, y = log(North),
+                 color = as.factor(Season)),
+             size = 2, shape = 16)+
+  labs(title = "North", x = paste0("Days since ", Day1), 
+       y = "Median counts and 95% CI",
+       color = "Season") +
+  theme(axis.text = element_text(size = 12),
+        legend.position = c(0.1, 0.8),
+        axis.title = element_text(size = 12))
+
+```
+
+
+
+```{r}
+ggplot() + 
+  geom_path(data = Girondot_stats$Xs_South ,
+            aes(x = DOSeason, y = Xs_q50,
+                color = as.factor(Season))) +
+  geom_ribbon(data = Girondot_stats$Xs_South, 
+                aes(x = DOSeason,
+                    ymin = Xs_q2.5, 
+                    ymax = Xs_q97.5,
+                    fill = as.factor(Season)),
+              alpha = 0.3,
+              show.legend = F) +  
+  geom_point(data = data.2,
+             aes(x = DOSeason, y = log(South),
+                 color = as.factor(Season)),
+             size = 2, shape = 16) +
+  labs(title = "South", x = paste0("Days since ", Day1), 
+       y = "Median counts and 95% CI",
+       color = "Season") +
+  theme(axis.text = element_text(size = 12),
+        legend.position = c(0.1, 0.8),
+        axis.title = element_text(size = 12))
+
+
+```
+
+
 
 Try it with imputation - doesn't work so well... although Rhat shows convergence, trace plots look quite horrible... 
 ```{r}

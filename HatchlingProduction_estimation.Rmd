@@ -268,7 +268,7 @@ Fourier.X0.total.median.wide["2017R", c("2014", "2015", "2016")] <- NA
 
 knitr::kable(Fourier.X0.total.median.wide, digits = 0, 
              format.args = list(big.mark = ","),
-             caption = "Table 2. Median imputed total hatchling production based on Fourier discrete series and random initial values. ")
+             caption = "Table 2. Median imputed total hatchling production based on Fourier discrete series and fixed initial values. ")
 ```
 
 \newline
@@ -278,7 +278,7 @@ Fourier.X0.total.q2.5.wide["2017R", c("2014", "2015", "2016")] <- NA
 
 knitr::kable(Fourier.X0.total.q2.5.wide, digits = 0,
              format.args = list(big.mark = ","),
-             caption = "Table 2a. Lower 95% CI for imputed total hatchling production based on Fourier discrete series and random initial values. ")
+             caption = "Table 2a. Lower 95% CI for imputed total hatchling production based on Fourier discrete series and fixed initial values. ")
 ```
 
 \newline
@@ -287,7 +287,7 @@ knitr::kable(Fourier.X0.total.q2.5.wide, digits = 0,
 Fourier.X0.total.q97.5.wide["2017R", c("2014", "2015", "2016")] <- NA
 knitr::kable(Fourier.X0.total.q97.5.wide, digits = 0,
              format.args = list(big.mark = ","),
-             caption = "Table 2b. Upper 95% CI for imputed total hatchling production based on Fourier discrete series and random initial values. ")
+             caption = "Table 2b. Upper 95% CI for imputed total hatchling production based on Fourier discrete series and fixed initial values. ")
 
 ```
 
@@ -448,7 +448,7 @@ beta.yr.sector.median.wide["2017R", c("2014", "2015", "2016")] <- NA
 knitr::kable(beta.yr.sector.median.wide,
              digits = 0,
              format.args = list(big.mark = ","),
-             caption = "Table 3. Median imputed total hatchling production based on Fourier discrete series and random initial values. ")
+             caption = "Table 3. Median imputed total hatchling production based on season and sctor specific Fourier discrete series and random initial values. ")
 ```
 
 \newline
@@ -459,7 +459,7 @@ beta.yr.sector.q2.5.wide["2017R", c("2014", "2015", "2016")] <- NA
 knitr::kable(beta.yr.sector.q2.5.wide,
              digits = 0,
              format.args = list(big.mark = ","),
-             caption = "Table 3a. Lower 95% CI for imputed total hatchling production based on Fourier discrete series and random initial values. ")
+             caption = "Table 3a. Lower 95% CI for imputed total hatchling production based on season and sctor specific Fourier discrete series and random initial values. ")
 ```
 
 \newline
@@ -471,7 +471,7 @@ knitr::kable(beta.yr.sector.q97.5.wide,
              
              digits = 0,
              format.args = list(big.mark = ","),
-             caption = "Table 3b. Upper 95% CI for imputed total hatchling production based on Fourier discrete series and random initial values. ")
+             caption = "Table 3b. Upper 95% CI for imputed total hatchling production based on season and sctor specific Fourier discrete series and random initial values. ")
 
 ```
 
@@ -638,7 +638,7 @@ poly.log.total.q97.5.wide["2017R", c("2014", "2015", "2016")] <- NA
 knitr::kable(poly.log.total.median.wide, 
              digits = 0,
              format.args = list(big.mark = ","),
-             caption = "Table 4. Median imputed total hatchling production based on Fourier discrete series and random initial values. ")
+             caption = "Table 4. Median imputed total hatchling production based on second-order polynomial functions in the natural logarithmic scale.")
 ```
 
 \newline
@@ -647,7 +647,7 @@ knitr::kable(poly.log.total.median.wide,
 knitr::kable(poly.log.total.q2.5.wide, 
              digits = 0,
              format.args = list(big.mark = ","),
-             caption = "Table 4a. Lower 95% CI for imputed total hatchling production based on Fourier discrete series and random initial values. ")
+             caption = "Table 4a. Lower 95% CI for imputed total hatchling production based on second-order polynomial functions in the natural logarithmic scale. ")
 ```
 
 \newline
@@ -655,7 +655,7 @@ knitr::kable(poly.log.total.q2.5.wide,
 ```{r poly_log_upperLimits, echo=FALSE}
 knitr::kable(poly.log.total.q97.5.wide, digits = 0,
              format.args = list(big.mark = ","),
-             caption = "Table 4b. Upper 95% CI for imputed total hatchling production based on Fourier discrete series and random initial values. ")
+             caption = "Table 4b. Upper 95% CI for imputed total hatchling production based on second-order polynomial functions in the natural logarithmic scale. ")
 
 ```
 
@@ -765,7 +765,7 @@ ggplot() +
         axis.title = element_text(size = 12))
 ```
 
-Assuming that these sample represent the entire sectors, we extrapolated the imputed numers to the entire sectors (Figure 15, Table 4). 
+Assuming that these sample represent the entire sectors, we extrapolated the imputed numers to the entire sectors (Figure 15, Table 5). 
 
 ```{r poly_extrapolation, echo=FALSE, warning=FALSE, fig.cap="Figure 15. Extrapolated total hatchling abundance at four sectors."}
 poly_summary <- summary.stats.nolog(poly_stats)
@@ -811,7 +811,7 @@ poly.total.q97.5.wide <- reshape2::acast(poly.total.q97.5,
 knitr::kable(poly.total.median.wide, 
              digits = 0,
              format.args = list(big.mark = ","),
-             caption = "Table 5. Median imputed total hatchling production based on Fourier discrete series and random initial values. ")
+             caption = "Table 5. Median imputed total hatchling production based on second-order polynomial functions. ")
 ```
 
 \newline
@@ -820,7 +820,7 @@ knitr::kable(poly.total.median.wide,
 knitr::kable(poly.total.q2.5.wide, 
              digits = 0,
              format.args = list(big.mark = ","),
-             caption = "Table 5a. Lower 95% CI for imputed total hatchling production based on Fourier discrete series and random initial values. ")
+             caption = "Table 5a. Lower 95% CI for imputed total hatchling production based on second-order polynomial functions. ")
 ```
 
 \newline
@@ -828,7 +828,7 @@ knitr::kable(poly.total.q2.5.wide,
 ```{r poly_upperLimits, echo=FALSE}
 knitr::kable(poly.total.q97.5.wide, digits = 0,
              format.args = list(big.mark = ","),
-             caption = "Table 5b. Upper 95% CI for imputed total hatchling production based on Fourier discrete series and random initial values. ")
+             caption = "Table 5b. Upper 95% CI for imputed total hatchling production based on second-order polynomial functions. ")
 
 ```
 
@@ -844,14 +844,19 @@ M2 <- (1 + (2 * exp(K) - 1) * exp((1/S) * (P - d))) ^ (-1/exp(K))
 
 N <- min + (max - min) * (M1 * M2), where
 
-d is the number of days from the beginning of nesting season
-S > 0 and S1 = -S define the "fatness" of the function
-K > 0 defines the "flatness" at the peak of the function
-P defines where the peak is relatvie to the range of d min(d) < P < max(d)
-min is "the basal level of nesting outside the nesting season"
+d is the number of days from the beginning of nesting season,
+
+S > 0 and S1 = -S define the "fatness" of the function,
+
+K > 0 defines the "flatness" at the peak of the function,
+
+P defines where the peak is relatvie to the range of d min(d) < P < max(d),
+
+min is "the basal level of nesting outside the nesting season" and,
+
 max >> min
 
-For this approach, rather than imputing the missing values, I estimated the parameters of the function from data and predicted the missing values based on the function.  (The similar imputation approach resulted in poor estimation of parameters.)
+For this model, instead of imputing the missing values, I estimated the parameters of the function from data and predicted the missing values based on the function.  (The imputation approach resulted in poor estimation of parameters.)
 
 ```{r Model_Girondot, include=FALSE, echo=FALSE}
 jm <- readRDS(paste0("RData/Girondot_Par_estimation_dnorm_", Day1, "_", Day2, ".rds"))
@@ -923,7 +928,7 @@ ggplot() +
 
 ```
 
-Assuming that these sample represent the entire sectors, we extrapolated the imputed numers to the entire sectors (Figure 4, Table 2). 
+Assuming that these sample represent the entire sectors, we extrapolated the imputed numers to the entire sectors (Figure 19, Table 6). 
 
 ```{r Girondot_extrapolation, echo=FALSE, warning=FALSE, fig.cap="Figure 19. Extrapolated total hatchling abundance at four sectors."}
 Girondot_summary <- summary.stats.nolog(Girondot_stats)
@@ -968,7 +973,7 @@ Girondot.total.q97.5.wide <- reshape2::acast(Girondot.total.q97.5,
 knitr::kable(Girondot.total.median.wide, 
              digits = 0,
              format.args = list(big.mark = ","),
-             caption = "Table 6. Median imputed total hatchling production based on Fourier discrete series and random initial values. ")
+             caption = "Table 6. Median imputed total hatchling production based on modified Richards' eqations. ")
 ```
 
 \newline
@@ -977,7 +982,7 @@ knitr::kable(Girondot.total.median.wide,
 knitr::kable(Girondot.total.q2.5.wide, 
              digits = 0,
              format.args = list(big.mark = ","),
-             caption = "Table 6a. Lower 95% CI for imputed total hatchling production based on Fourier discrete series and random initial values. ")
+             caption = "Table 6a. Lower 95% CI for imputed total hatchling production based on modified Richards' eqations. ")
 ```
 
 \newline
@@ -985,7 +990,144 @@ knitr::kable(Girondot.total.q2.5.wide,
 ```{r Girondot_upperLimits, echo=FALSE}
 knitr::kable(Girondot.total.q97.5.wide, digits = 0,
              format.args = list(big.mark = ","),
-             caption = "Table 6b. Upper 95% CI for imputed total hatchling production based on Fourier discrete series and random initial values. ")
+             caption = "Table 6b. Upper 95% CI for imputed total hatchling production based on modified Richards' eqations. ")
 
 ```
 
+### Modified Richards equation by Girondot et al. (2007) in the natural log space
+
+```{r Model_Girondot_log, include=FALSE, echo=FALSE}
+jm <- readRDS(paste0("RData/Girondot_log_Par_estimation_dnorm_", Day1, "_", Day2, ".rds"))
+Sectors <- unique(data.3$Sector)
+Girondot_stats <- list(length = 5)
+i <- j <- k <- 1
+#k <- 50
+for (j in 1:length(Sectors)){
+  tmp.mat <- matrix(data = NA, nrow = n.days * length(seasons), ncol = 5)
+  c <- 1
+  for (i in 1:length(seasons)){
+    
+    for (k in 1:n.days){
+      tmp <- Girondot_fcn(k, 
+                          extract.samples("S", jm$samples), 
+                          extract.samples("K", jm$samples), 
+                          extract.samples(paste0("P[", i, "]"), jm$samples), 
+                          1, 
+                          extract.samples(paste0("max[", i, ",", j, "]"), jm$samples)) 
+      tmp.mat[c, ] <- c(seasons[i], k, quantile(tmp, c(0.025, 0.5, 0.975)))
+      c <- c + 1  
+    }
+  }
+  tmp.df <- data.frame(tmp.mat)
+  tmp.df$Sector <- as.factor(Sectors[j])
+  colnames(tmp.df) <- c("Season", "DOSeason", "Xs_q2.5", "Xs_q50", "Xs_q97.5", "Sector")
+  Girondot_stats[[j]] <- tmp.df
+}
+
+names(Girondot_stats) <-paste0("Xs_", Sectors)
+
+```
+
+Qualitatiely, the functions fit well to the data, except some years for 2017R and West sectors, where data were limited (Figure 20). These imputed counts for each season were summed to provide the total number of hatchlings per 100 m for each season.   Because the parameters were shared among sectors, estimates were available even when there were limited data. 
+
+```{r Girondot_log_plotEstimates, echo=FALSE, include=TRUE, warning=FALSE, fig.cap="Figure 20. The fitted functions (medians and their 95% CIs in shaded areas) and observed numbers of hatchlings (dots) per 100 m at different sectors."}
+Girondot.all.data <- do.call(rbind, Girondot_stats)
+
+ggplot() + 
+  geom_path(data = Girondot.all.data,
+            aes(x = DOSeason, 
+                y = Xs_q50,
+                color = as.factor(Season)),
+            size = 1.2) +
+  geom_ribbon(data = Girondot.all.data , 
+                aes(x = DOSeason,
+                    ymin = Xs_q2.5, 
+                    ymax = Xs_q97.5,
+                    fill = as.factor(Season)),
+              alpha = 0.3,
+              show.legend = F) +  
+  geom_point(data = data.3,
+             aes(x = DOSeason, 
+                 y = log(Counts_100m),
+                 color = as.factor(Season)),
+             size = 2, shape = 16) +
+  facet_wrap(Sector ~., nrow = 3, scales = "free") + 
+  labs(x = paste0("Days since ", Day1),  
+       y = "Median counts and 95% CI",
+       color = "Season") +
+  guides(color = guide_legend(title.position = "top",
+                              title.hjust = 0.5,
+                              nrow = 2)) +
+  theme(axis.text = element_text(size = 12),
+        legend.position = c(0.75, 0.1),
+        axis.title = element_text(size = 12),
+        legend.direction = "horizontal")
+
+
+```
+
+Assuming that these sample represent the entire sectors, we extrapolated the imputed numers to the entire sectors (Figure 21, Table 7). 
+
+```{r Girondot_log_extrapolation, echo=FALSE, warning=FALSE, fig.cap="Figure 21. Extrapolated total hatchling abundance at four sectors."}
+Girondot_summary <- summary.stats(Girondot_stats)
+
+Girondot.total.summary <- Girondot_summary %>% 
+  select(Season, total_q2.5, total_q50, total_q97.5, Sector)
+
+# Girondot.total.summary[(Girondot.total.summary$Season == 2014 & Girondot.total.summary$Sector == "West"), 
+#                    c("total_q2.5", "total_q50", "total_q97.5")]<-NA 
+
+Girondot.total.summary[(Girondot.total.summary$Season != "2017" & Girondot.total.summary$Sector == "2017R"),
+                   c("total_q2.5", "total_q50", "total_q97.5")] <- NA
+
+ggplot(data = Girondot.total.summary) + 
+  geom_point(aes(x = Season, y = log10(total_q50))) + 
+  geom_errorbar(aes(x = Season, 
+                    ymin = log10(total_q2.5), 
+                    ymax = log10(total_q97.5))) +
+  facet_wrap(Sector ~., nrow = 2 ) + 
+  ylab("log10(Median total hatchling) and 95% CI")
+
+```
+
+
+```{r Girondot_log_summaryTable, echo=FALSE, warning=FALSE}
+Girondot.total.summary %>% select(Season, total_q50, Sector) -> Girondot.total.median
+Girondot.total.summary %>% select(Season, total_q2.5, Sector) -> Girondot.total.q2.5
+Girondot.total.summary %>% select(Season, total_q97.5, Sector) -> Girondot.total.q97.5
+
+Girondot.total.median.wide <- reshape2::acast(Girondot.total.median, 
+                                             Sector ~ Season, 
+                                             value.var = "total_q50")
+
+Girondot.total.q2.5.wide <- reshape2::acast(Girondot.total.q2.5, 
+                                             Sector ~ Season, 
+                                             value.var = "total_q2.5")
+
+Girondot.total.q97.5.wide <- reshape2::acast(Girondot.total.q97.5, 
+                                             Sector ~ Season, 
+                                             value.var = "total_q97.5")
+
+knitr::kable(Girondot.total.median.wide, 
+             digits = 0,
+             format.args = list(big.mark = ","),
+             caption = "Table 7. Median imputed total hatchling production based on modified Richards' eqations in the natural log space. ")
+```
+
+\newline
+
+```{r Girondot_log_lowerLimits, echo=FALSE}
+knitr::kable(Girondot.total.q2.5.wide, 
+             digits = 0,
+             format.args = list(big.mark = ","),
+             caption = "Table 7a. Lower 95% CI for imputed total hatchling production based on modified Richards' eqations in the natural log space. ")
+```
+
+\newline
+
+```{r Girondot_upperLimits, echo=FALSE}
+knitr::kable(Girondot.total.q97.5.wide, digits = 0,
+             format.args = list(big.mark = ","),
+             caption = "Table 7b. Upper 95% CI for imputed total hatchling production based on modified Richards' eqations in the natural log space. ")
+
+```
