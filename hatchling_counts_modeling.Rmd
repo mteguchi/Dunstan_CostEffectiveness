@@ -37,8 +37,10 @@ summary(data.1)
 # create a data frame that repeats nesting season, which will be merged with data.1 to
 # create missing data. There are 132 days (from 12/20 to 4/30, if not leap year) within
 # each season
-data.0 <- data.frame(Season = rep(unique(data.1$Season), each = 132),
-                     DOSeason = rep(seq(from = 1, to = 132, by = 1), 
+n.days <- as.numeric(as.Date("2014-04-30") - as.Date("2013-12-20")) + 1
+
+data.0 <- data.frame(Season = rep(unique(data.1$Season), each = n.days),
+                     DOSeason = rep(seq(from = 1, to = n.days, by = 1), 
                                     times = length(unique(data.1$Season))),
                      Counts_100m = NA) %>%
   #mutate(Year = ifelse(DOSeason < 12, Season, Season + 1)) %>%
@@ -57,23 +59,22 @@ jags.data <- list(y = log(obs.y),
                   mu.X0 = as.vector(c(8,7,6,5,4)),
                   tau.X0 = as.vector(rep(0.1, times = 5)),
                   day = data.2$DOSeason,
-                  period = 132,
-                  n.days = 132,
+                  period = n.days,
+                  n.days = n.days,
                   n.sectors = 5,
                   n.steps = ncol(obs.y),
                   pi = pi)
-
-jags.params <- c("c", "beta.cos", "beta.sin",
-                 "sigma.X", "sigma.y", "y",
-                  "X", "deviance")
 
 MCMC.params <- list(n.chains = 5,
                     n.samples = 1000000,
                     n.burnin = 700000,
                     n.thin = 5)
 
-
-if (!file.exists("RData/Fourier_imputatoin_dnorm.rds")){
+if (!file.exists("RData/Fourier_imputation_dnorm.rds")){
+  jags.params <- c("c", "beta.cos", "beta.sin",
+                   "sigma.X", "sigma.y", "y",
+                   "X", "deviance")
+  
   jm <- jags(jags.data,
              inits = NULL,
              parameters.to.save= jags.params,
@@ -84,24 +85,66 @@ if (!file.exists("RData/Fourier_imputatoin_dnorm.rds")){
              n.iter = MCMC.params$n.samples,
              DIC = T, parallel=T)
   
-  # jm <- autojags(jags.data,
-  #                inits = NULL,
-  #                parameters.to.save= jags.params,
-  #                model.file = 'models/model_Fourier_imputation_dnorm.txt',
-  #                n.chains = MCMC.params$n.chains,
-  #                n.burnin = MCMC.params$n.burnin,
-  #                n.thin = MCMC.params$n.thin,
-  #                
-  #                max.iter = 500000,
-  #                DIC = T, parallel=T)
-  saveRDS(jm, "RData/Fourier_imputatoin_dnorm.rds")
+  saveRDS(jm, "RData/Fourier_imputation_dnorm.rds")
   
 } else {
-  jm <- readRDS("RData/Fourier_imputatoin_dnorm.rds")
+  jm <- readRDS("RData/Fourier_imputation_dnorm.rds")
 }
 
 
 ```
+
+
+```{r}
+if (!file.exists("RData/Fourier_imputation_dt.rds")){
+  jags.params <- c("c", "beta.cos", "beta.sin",
+                   "sigma.X", "sigma.y", "y",
+                   "X", "df.X", "deviance")
+  
+  jm <- jags(jags.data,
+             inits = NULL,
+             parameters.to.save= jags.params,
+             model.file = 'models/model_Fourier_imputation_dt.txt',
+             n.chains = MCMC.params$n.chains,
+             n.burnin = MCMC.params$n.burnin,
+             n.thin = MCMC.params$n.thin,
+             n.iter = MCMC.params$n.samples,
+             DIC = T, parallel=T)
+  
+  saveRDS(jm, "RData/Fourier_imputation_dt.rds")
+  
+} else {
+  jm <- readRDS("RData/Fourier_imputation_dt.rds")
+}
+
+```
+
+
+
+```{r}
+if (!file.exists("RData/Fourier_imputation_dt_dt.rds")){
+  jags.params <- c("c", "beta.cos", "beta.sin",
+                   "sigma.X", "sigma.y", "y",
+                   "X", "df.X", "df.y", "deviance")
+  
+  jm <- jags(jags.data,
+             inits = NULL,
+             parameters.to.save= jags.params,
+             model.file = 'models/model_Fourier_imputation_dt_dt.txt',
+             n.chains = MCMC.params$n.chains,
+             n.burnin = MCMC.params$n.burnin,
+             n.thin = MCMC.params$n.thin,
+             n.iter = MCMC.params$n.samples,
+             DIC = T, parallel=T)
+  
+  saveRDS(jm, "RData/Fourier_imputation_dt_dt.rds")
+  
+} else {
+  jm <- readRDS("RData/Fourier_imputation_dt_dt.rds")
+}
+
+```
+
 
 ```{r}
 mcmc_trace(jm$samples, "c[1]")
