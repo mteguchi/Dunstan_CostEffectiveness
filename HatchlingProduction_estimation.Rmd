@@ -5,6 +5,8 @@ output: word_document
 
 ```{r setup, include=FALSE}
 rm(list=ls())
+Somehow this file does not show up on git. 
+
 knitr::opts_chunk$set(echo = TRUE)
 
 library(tidyverse)
