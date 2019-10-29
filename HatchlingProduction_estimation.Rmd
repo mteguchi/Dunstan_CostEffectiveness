@@ -930,7 +930,7 @@ ggplot() +
 
 ```
 
-Assuming that these sample represent the entire sectors, we extrapolated the imputed numers to the entire sectors (Figure 19, Table 6). 
+Assuming that these sample represent the entire sectors, we extrapolated the imputed numbers to the entire sectors (Figure 19, Table 6). 
 
 ```{r Girondot_extrapolation, echo=FALSE, warning=FALSE, fig.cap="Figure 19. Extrapolated total hatchling abundance at four sectors."}
 Girondot_summary <- summary.stats.nolog(Girondot_stats)
@@ -1055,7 +1055,7 @@ ggplot() +
              size = 2, shape = 16) +
   facet_wrap(Sector ~., nrow = 3, scales = "free") + 
   labs(x = paste0("Days since ", Day1),  
-       y = "Median counts and 95% CI",
+       y = "ln(Median counts) and 95% CI",
        color = "Season") +
   guides(color = guide_legend(title.position = "top",
                               title.hjust = 0.5,
@@ -1088,7 +1088,7 @@ ggplot(data = Girondot.total.summary) +
                     ymin = log10(total_q2.5), 
                     ymax = log10(total_q97.5))) +
   facet_wrap(Sector ~., nrow = 2 ) + 
-  ylab("log10(Median total hatchling) and 95% CI")
+  ylab("ln(Median total hatchling) and 95% CI")
 
 ```
 
@@ -1127,7 +1127,7 @@ knitr::kable(Girondot.total.q2.5.wide,
 
 \newline
 
-```{r Girondot_upperLimits, echo=FALSE}
+```{r Girondot_log_upperLimits, echo=FALSE}
 knitr::kable(Girondot.total.q97.5.wide, digits = 0,
              format.args = list(big.mark = ","),
              caption = "Table 7b. Upper 95% CI for imputed total hatchling production based on modified Richards' eqations in the natural log space. ")

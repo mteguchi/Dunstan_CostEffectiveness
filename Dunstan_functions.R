@@ -163,6 +163,8 @@ summary.stats <- function(out.stats){
 
 
 summary.stats.nolog <- function(out.stats){
+  # estimated numbers are in per 100 m. So, the total number for the entire sector is computed
+  # by multiplying the estimates with (total length)/100.  
   out.stats$Xs_2014R %>% group_by(as.factor(Season)) %>%
     summarise(q50 = sum((Xs_q50)),
               q2.5 = sum((Xs_q2.5)),

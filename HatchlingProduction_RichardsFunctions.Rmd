@@ -1,0 +1,315 @@
+---
+title: "Hatchling production estimation using Richards functions"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+rm(list=ls())
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(ggplot2)
+library(lubridate)
+library(readr)
+library(reshape2)
+library(jagsUI)
+library(bayesplot)
+
+source("Dunstan_functions.R")
+
+col.def <- cols(Date = col_date(format = "%m/%d/%Y"),
+                Counts_100m = col_double(),
+                Season = col_integer(),
+                Sector = col_character())
+
+data.1 <- read_csv(file = "data/Hatchling_Data_v2.csv",
+                   col_types = col.def)
+
+# These two need to be changed when different runs are used
+Day1 <- "12-20"
+Day2 <- "04-30"
+
+n.days <- as.numeric(as.Date(paste0("2018-", Day2)) - as.Date(paste0("2017-", Day1)))
+
+seasons <- unique(data.1$Season)
+
+data.1 %>% mutate(DOSeason = as.numeric(Date - as.Date(paste0(Season, "-", Day1)))) -> data.3
+```
+
+In this document, I describe the steps I used to estimate the number of annual hatchling production from several observations during each nesting season at four sections of Raine Island.  In a separate analysis, I fitted various functions to hatchling counts and found that using modified Richards functions (Girondot et al. 2007) provided the most precise estimates.  Results of the comparison of these models are available upon request.  
+
+# Modified Richards equation by Girondot et al. (2007)
+
+In this approach, I used the model described by Girondot et al. (2007). It has two symmetrical functions that are connected at the peak of nesting.  
+
+The function has the following form:
+
+M1 = (1 + (2 * exp(K) - 1) * exp((1/(-S)) * (P - d))) ^ (-1/exp(K))
+
+M2 = (1 + (2 * exp(K) - 1) * exp((1/S) * (P - d))) ^ (-1/exp(K))
+
+N = min_N + (max_N - min_N) * (M1 * M2), where
+
+d is the number of days from the beginning of nesting season,
+
+S defines the "fatness" of the function (S > 0),
+
+K > 0 defines the "flatness" at the peak of the function (K > 0),
+
+P defines where the peak is relatvie to the range of d, where min(d) < P < max(d),
+
+min_N is "the basal level of nesting outside the nesting season" and,
+
+max_N >> min_N
+
+This model was fitted to observed hatchling counts per 100 m in each sector and estimated parameters and their uncertainties were used to compute the total number of hatchlings and its uncertainties from each sector.  
+
+
+```{r Model_Girondot, include=FALSE, echo=FALSE}
+jm <- readRDS(paste0("RData/Girondot_Par_estimation_dnorm_", Day1, "_", Day2, ".rds"))
+Sectors <- unique(data.3$Sector)
+Girondot_stats <- list(length = 5)
+i <- j <- k <- 1
+#k <- 50
+for (j in 1:length(Sectors)){
+  tmp.mat <- matrix(data = NA, nrow = n.days * length(seasons), ncol = 5)
+  c <- 1
+  for (i in 1:length(seasons)){
+    
+    for (k in 1:n.days){
+      tmp <- Girondot_fcn(k, 
+                          extract.samples("S", jm$samples), 
+                          extract.samples("K", jm$samples), 
+                          extract.samples(paste0("P[", i, "]"), jm$samples), 
+                          1, 
+                          extract.samples(paste0("max[", i, ",", j, "]"), jm$samples)) 
+      tmp.mat[c, ] <- c(seasons[i], k, quantile(tmp, c(0.025, 0.5, 0.975)))
+      c <- c + 1  
+    }
+  }
+  tmp.df <- data.frame(tmp.mat)
+  tmp.df$Sector <- as.factor(Sectors[j])
+  colnames(tmp.df) <- c("Season", "DOSeason", "Xs_q2.5", "Xs_q50", "Xs_q97.5", "Sector")
+  Girondot_stats[[j]] <- tmp.df
+}
+
+names(Girondot_stats) <-paste0("Xs_", Sectors)
+
+```
+
+
+Fitted functions to the data are shown in Figure 1.  Although no formal model fitting test was conducted, qualitatiely, the functions fit reasonable to the data (Figure 11).  The fitted function, then, was used for each season to estimate the hatchling counts per 100 m.  Because the parameters of the function were shared among sectors, estimates were available even when there were limited data. 
+
+```{r Girondot_plotEstimates, echo=FALSE, include=TRUE, warning=FALSE,fig.width=8, fig.height=6, fig.cap="Figure 1. The fitted functions (medians and their 95% CIs in shaded areas) and observed numbers of hatchlings (dots) per 100 m at different sectors."}
+Girondot.all.data <- do.call(rbind, Girondot_stats)
+
+p.fig1 <- ggplot() + 
+  geom_path(data = Girondot.all.data,
+            aes(x = DOSeason, 
+                y = Xs_q50,
+                color = as.factor(Season)),
+            size = 1.2) +
+  geom_ribbon(data = Girondot.all.data , 
+                aes(x = DOSeason,
+                    ymin = Xs_q2.5, 
+                    ymax = Xs_q97.5,
+                    fill = as.factor(Season)),
+              alpha = 0.3,
+              show.legend = F) +  
+  geom_point(data = data.3,
+             aes(x = DOSeason, 
+                 y = (Counts_100m),
+                 color = as.factor(Season)),
+             size = 2, shape = 16) +
+  facet_wrap(Sector ~., nrow = 3, scales = "free") + 
+  labs(x = paste0("Days since ", Day1),  
+       y = "Median counts and 95% CI",
+       color = "Season") +
+  guides(color = guide_legend(title.position = "top",
+                              title.hjust = 0.5,
+                              nrow = 2)) +
+  theme(axis.text = element_text(size = 12),
+        legend.position = c(0.75, 0.1),
+        axis.title = element_text(size = 12),
+        legend.direction = "horizontal")
+
+
+plot(p.fig1)
+```
+
+```{r Girondot_extrapolation, echo=FALSE, warning=FALSE, fig.width=8, fig.height=6, fig.cap="Figure 2. Extrapolated total hatchling abundance at four sectors using estimated Richards function."}
+Girondot_summary <- summary.stats.nolog(Girondot_stats)
+
+Girondot.total.summary <- Girondot_summary %>% 
+  select(Season, total_q2.5, total_q50, total_q97.5, Sector)
+
+Girondot.total.summary[(Girondot.total.summary$Season != "2017" & Girondot.total.summary$Sector == "2017R"),
+                   c("total_q2.5", "total_q50", "total_q97.5")] <- NA
+
+p.fig2 <- ggplot(data = Girondot.total.summary) + 
+  geom_point(aes(x = Season, y = log10(total_q50))) + 
+  geom_errorbar(aes(x = Season, 
+                    ymin = log10(total_q2.5), 
+                    ymax = log10(total_q97.5))) +
+  facet_wrap(Sector ~., nrow = 2 ) + 
+  ylab("log10(Median total hatchling) and 95% CI")
+
+plot(p.fig2)
+```
+
+
+```{r Girondot_summaryTable, echo=FALSE, warning=FALSE}
+Girondot.total.summary %>% select(Season, total_q50, Sector) -> Girondot.total.median
+Girondot.total.summary %>% select(Season, total_q2.5, Sector) -> Girondot.total.q2.5
+Girondot.total.summary %>% select(Season, total_q97.5, Sector) -> Girondot.total.q97.5
+
+total.median.wide <- as.data.frame(reshape2::acast(Girondot.total.median, 
+                                                   Sector ~ Season, 
+                                                   value.var = "total_q50"))
+
+total.q2.5.wide <- as.data.frame(reshape2::acast(Girondot.total.q2.5, 
+                                                 Sector ~ Season, 
+                                                 value.var = "total_q2.5"))
+
+total.q97.5.wide <- as.data.frame(reshape2::acast(Girondot.total.q97.5, 
+                                                  Sector ~ Season, 
+                                                  value.var = "total_q97.5"))
+
+total.wide <- data.frame(Sectors = row.names(total.median.wide),
+                         "2014" = total.median.wide$`2014`,
+                         "2014_L" = total.q2.5.wide$`2014`,
+                         "2014_H" = total.q97.5.wide$`2014`,
+                         "2015" = total.median.wide$`2015`,
+                         "2015_L" = total.q2.5.wide$`2015`,
+                         "2015_H" = total.q97.5.wide$`2015`,
+                         "2016" = total.median.wide$`2016`,
+                         "2016_L" = total.q2.5.wide$`2016`,
+                         "2016_H" = total.q97.5.wide$`2016`,
+                         "2017" = total.median.wide$`2017`,
+                         "2017_L" = total.q2.5.wide$`2017`,
+                         "2017_H" = total.q97.5.wide$`2017`)
+
+```
+
+
+
+
+Assuming that observed counts per 100 m represent the entire sectors, we extrapolated the estimated numbers to the entire sectors (Figure 2). The total number of hatchlings produced in 2014 ranged from ```r format(ceiling(min(total.median.wide[, "2014"], na.rm = T)), big.mark = ",", trim = TRUE, scientific = FALSE)``` (95% CI = [```r format(ceiling(na.omit(total.q2.5.wide[total.median.wide[, "2014"] == min(total.median.wide[, "2014"], na.rm = T), "2014"])), big.mark = ",", trim = TRUE, scientific = FALSE)```, ```r format(ceiling(na.omit(total.q97.5.wide[total.median.wide[, "2014"] == min(total.median.wide[, "2014"], na.rm = T), "2014"])), big.mark = ",", trim = TRUE, scientific = FALSE)```]) in the ```r na.omit(row.names(total.median.wide)[total.median.wide[, "2014"] == min(total.median.wide[, "2014"], na.rm = T)])``` sector to ```r format(ceiling(max(total.median.wide[, "2014"], na.rm = T)), big.mark = ",", trim = TRUE, scientific = FALSE)``` (95% CI = [```r format(ceiling(na.omit(total.q2.5.wide[total.median.wide[, "2014"] == max(total.median.wide[, "2014"], na.rm = T), "2014"])), big.mark = ",", trim = TRUE, scientific = FALSE)```, ```r format(ceiling(na.omit(total.q97.5.wide[total.median.wide[, "2014"] == max(total.median.wide[, "2014"], na.rm = T), "2014"])), big.mark = ",", trim = TRUE, scientific = FALSE)```]) in the ```r na.omit(row.names(total.median.wide)[total.median.wide[, "2014"] == max(total.median.wide[, "2014"], na.rm = T)])``` sector.  In 2017, they ranged from ```r format(ceiling(min(total.median.wide[, "2017"], na.rm = T)), big.mark = ",", trim = TRUE, scientific = FALSE)``` (95% CI = [```r format(ceiling(na.omit(total.q2.5.wide[total.median.wide[, "2017"] == min(total.median.wide[, "2017"], na.rm = T), "2017"])), big.mark = ",", trim = TRUE, scientific = FALSE)```, ```r format(ceiling(na.omit(total.q97.5.wide[total.median.wide[, "2017"] == min(total.median.wide[, "2017"], na.rm = T), "2017"])), big.mark = ",", trim = TRUE, scientific = FALSE)```]) in the ```r na.omit(row.names(total.median.wide)[total.median.wide[, "2017"] == min(total.median.wide[, "2017"], na.rm = T)])``` sector to ```r format(ceiling(max(total.median.wide[, "2017"], na.rm = T)), big.mark = ",", trim = TRUE, scientific = FALSE)``` (95% CI = [```r format(ceiling(na.omit(total.q2.5.wide[total.median.wide[, "2017"] == max(total.median.wide[, "2017"], na.rm = T), "2017"])), big.mark = ",", trim = TRUE, scientific = FALSE)```, ```r format(ceiling(na.omit(total.q97.5.wide[total.median.wide[, "2017"] == max(total.median.wide[, "2017"], na.rm = T), "2017"])), big.mark = ",", trim = TRUE, scientific = FALSE)```]) in the ```r na.omit(row.names(total.median.wide)[total.median.wide[, "2017"] == max(total.median.wide[, "2017"], na.rm = T)])``` sector (Table 1).
+
+```{r Table_total_median, echo=FALSE, warning=FALSE}
+knitr::kable(total.median.wide, 
+             digits = 0,
+             format.args = list(big.mark = ",", scientific = FALSE),
+             caption = "Table 1. Median estimated total hatchling production based on modified Richards' equations. ")
+```
+
+
+```{r Table_total_q2.5, echo=FALSE, warning=FALSE}
+knitr::kable(total.q2.5.wide, 
+             digits = 0,
+             format.args = list(big.mark = ",", scientific = FALSE),
+             caption = "Table 1a. Lower credibility limits of estimated total hatchling production based on modified Richards' equations. ")
+```
+
+
+```{r Table_total_q97.5, echo=FALSE, warning=FALSE}
+knitr::kable(total.q97.5.wide, 
+             digits = 0,
+             format.args = list(big.mark = ",", scientific = FALSE),
+             caption = "Table 1b. Upper credibility limits of estimated total hatchling production based on modified Richards' equations. ")
+```
+
+## Effects of reprofiling
+To determine the effects of reprofiling the beach, the number of estimated hatchlings per 100 m was compared between 2014R and the South sector and between 2017R and the South sector.  The reprofiled areas (2014 and 2017) experience the same environmental effects and nesting activities as the South sector.  
+
+```{r effects_reprofiling, echo=FALSE, include=FALSE, warning=FALSE}
+Girondot.100m.summary <- Girondot_summary %>% 
+  select(Season, q2.5, q50, q97.5, Sector)
+
+Girondot.100m.summary[(Girondot.100m.summary$Season != "2017" & Girondot.100m.summary$Sector == "2017R"),
+                   c("q2.5", "q50", "q97.5")] <- NA
+
+Girondot.100m.summary %>% select(Season, q50, Sector) -> median_100m
+Girondot.100m.summary %>% select(Season, q2.5, Sector) -> q2.5_100m
+Girondot.100m.summary %>% select(Season, q97.5, Sector) -> q97.5_100m
+
+median.100m.wide <- as.data.frame(reshape2::acast(median_100m, 
+                                                   Sector ~ Season, 
+                                                   value.var = "q50"))
+
+q2.5.100m.wide <- as.data.frame(reshape2::acast(q2.5_100m, 
+                                                 Sector ~ Season, 
+                                                 value.var = "q2.5"))
+
+q97.5.100m.wide <- as.data.frame(reshape2::acast(q97.5_100m, 
+                                                  Sector ~ Season, 
+                                                  value.var = "q97.5"))
+
+increase.2014R <- median.100m.wide["2014R",]/median.100m.wide["South",]
+
+```
+
+
+
+```{r Table_100m_median, echo=FALSE, warning=FALSE}
+knitr::kable(median.100m.wide, 
+             digits = 0,
+             format.args = list(big.mark = ",", scientific = FALSE),
+             caption = "Table 2. Median estimated total hatchling production per 100 m based on modified Richards' equations. ")
+```
+
+
+```{r Table_100m_q2.5, echo=FALSE, warning=FALSE}
+knitr::kable(q2.5.100m.wide, 
+             digits = 0,
+             format.args = list(big.mark = ",", scientific = FALSE),
+             caption = "Table 2a. Lower credibility limits of estimated hatchling production per 100 m based on modified Richards' equations. ")
+```
+
+
+```{r Table_100m_q97.5, echo=FALSE, warning=FALSE}
+knitr::kable(q97.5.100m.wide, 
+             digits = 0,
+             format.args = list(big.mark = ",", scientific = FALSE),
+             caption = "Table 2b. Upper credibility limits of estimated hatchling production per 100 m based on modified Richards' equations. ")
+```
+
+
+```{r compute_increase, echo=FALSE, include=FALSE}
+# To compute the uncertainty in the amount of increase in hatchling production, I need to find the number of
+# hatchlings per season for 2014R, 2017R, and South sectors using all MCMC samples.
+#Seasons_stats <- list(length = length(seasons))
+i <- j <- k <- 1
+#k <- 50
+tmp.ratios.2014R <- tmp.ratios.2017R <- matrix(data = NA, ncol = length(seasons), nrow = jm$mcmc.info$n.samples)
+for (i in 1:length(seasons)){
+  tmp.sectors <- matrix(data = NA, ncol = length(Sectors), nrow = jm$mcmc.info$n.samples)
+  for (j in 1:length(Sectors)){
+    tmp <- matrix(data = NA, ncol = n.days, nrow = jm$mcmc.info$n.samples)
+    
+    for (k in 1:n.days){
+      tmp[,k] <- Girondot_fcn(k, 
+                              extract.samples("S", jm$samples), 
+                              extract.samples("K", jm$samples), 
+                              extract.samples(paste0("P[", i, "]"), jm$samples), 
+                              1, 
+                              extract.samples(paste0("max[", i, ",", j, "]"), jm$samples)) 
+      
+    
+    }
+    
+    tmp.sectors[, j] <- rowSums(tmp)
+  }
+  
+  tmp.ratios.2014R[, i] <- tmp.sectors[, 4]/tmp.sectors[, 1]
+  tmp.ratios.2017R[, i] <- tmp.sectors[, 5]/tmp.sectors[, 1]
+  
+}
+
+# Compute the quantiles of increase for each year - start here 2019-10-29
+
+
+```
+
+The reprofiled sectors consistently produced more hatchlings than the unmodified South sector over the four year period (Tables 2, 2a, 2b). The increase in hatchling productions in the 2014R sector ranged from ```r signif(min(increase.2014R), digits = 2)``` in ```r colnames(increase.2014R)[increase.2014R == min(increase.2014R)]``` to ```r signif(max(increase.2014R), digits = 2)``` in ```r colnames(increase.2014R)[increase.2014R == max(increase.2014R)]``` (Table 2).  For the 2017R sector, the hatchling production per 100 m was ```r signif(median.100m.wide["2017R", "2017"]/median.100m.wide["South", "2017"], 2)``` times greater than that from the South section.  
+
