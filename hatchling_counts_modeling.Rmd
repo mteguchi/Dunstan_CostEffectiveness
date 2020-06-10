@@ -58,7 +58,8 @@ data.2 %>% select(Season, DOSeason, `2014R`, `2017R`, North, South, West) -> dat
 obs.y <- array(NA, c(length(seasons), 5, n.days))
 
 for (i in 1:length(seasons)){
-  obs.y[i, ,] <- t(filter(data.2.a, Season == seasons[i]) %>% select(-c("Season", "DOSeason")))
+  obs.y[i, ,] <- t(filter(data.2.a, Season == seasons[i]) %>% 
+                     select(-c("Season", "DOSeason")))
   
 }
 # obs.y[1, ,] <- t(filter(data.2.a, Season == 2014) %>% select(-c("Season", "DOSeason")))
@@ -99,7 +100,8 @@ jags.data <- list(y = log(obs.y),
                   n.steps = dim(obs.y)[3],
                   n.sectors = dim(obs.y)[2],
                   n.years = dim(obs.y)[1],
-                  pi = pi)
+                  pi = pi,
+                  n.days = n.days)
 
 jags.params <- c("beta.cos", "beta.sin",
                  #"sigma.X", 
