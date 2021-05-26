@@ -1,6 +1,6 @@
 # JAGS model for imputing missing hatchling counts at Raine Island
 
- known cyclical nature of hatching is modeled by the function
+# known cyclical nature of hatching is modeled by the function
 # provided in Girondot et al. (2007): Modeling approaches to quantify
 # leatherback nesting trends in French Guiana and Suriname. Chelonian
 # Conservation and Biology 6(1): 37-46.
