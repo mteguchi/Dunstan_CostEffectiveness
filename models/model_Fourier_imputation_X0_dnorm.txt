@@ -21,15 +21,12 @@ model{
       X0[yr, j] <- mu.X0[yr, j]   #~ dnorm(mu.X0[yr, j], 1.0)  #tau.X0[j])
       X[yr, j, 1] <- c[yr, day[1]] + X0[yr, j]  # day 1 should be 12/21
 
-      #X[j,1] ~ dnorm(predX[j,1], 2.0)  # tau.X[j]
-
       # observation
       y[yr,j,1] ~  dnorm(X[yr,j,1], tau.y)
 
        for (t in 2:n.steps){
            # state
            X[yr,j,t] <-  c[yr, day[t]] + X[yr, j, t-1]
-           #X[j, t] ~ dnorm(predX[j,t], 2.0)  #tau.X[j])
 
            # observation
            y[yr, j,t] ~ dnorm(X[yr,j,t], tau.y)

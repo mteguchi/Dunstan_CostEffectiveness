@@ -303,7 +303,7 @@ if (!file.exists(paste0("RData/Fourier_imputation_dnorm_", Day1, "_", Day2, ".rd
   jm <- jags(jags.data,
              inits = NULL,
              parameters.to.save= jags.params,
-             model.file = 'models/model_Fourier_imputation_X0_dnorm.txt',
+             model.file = 'models/model_Fourier_imputation_dnorm.txt',
              n.chains = MCMC.params$n.chains,
              n.burnin = MCMC.params$n.burnin,
              n.thin = MCMC.params$n.thin,
@@ -323,7 +323,7 @@ put together estimated Xs and observed ys.
 
 ```{r}
 
-stats_X0 <- extract.statistics(jm)
+stats_X <- extract.statistics(jm)
 
 #data.3.long <- rbind(data.2, ys.q2.5, ys.q50, ys.q97.5, Xs.q2.5, Xs.q50, Xs.q97.5)
 #rm(list = c("jm"))
@@ -335,11 +335,11 @@ Plot estimates:
 
 
 ggplot() + 
-  geom_path(data = stats_X0$Xs_2017R ,
+  geom_path(data = stats_X$Xs_2017R ,
             aes(x = DOSeason, y = Xs_q50,
                 color = as.factor(Season)),
             size = 1.2) +
-  geom_ribbon(data = stats_X0$Xs_2017R, 
+  geom_ribbon(data = stats_X$Xs_2017R, 
                 aes(x = DOSeason,
                     ymin = Xs_q2.5, 
                     ymax = Xs_q97.5,
@@ -365,10 +365,10 @@ Probably shouldn't have these other years...
 ```{r}
 
 ggplot() + 
-  geom_path(data = stats_X0$Xs_2014R ,
+  geom_path(data = stats_X$Xs_2014R ,
             aes(x = DOSeason, y = Xs_q50,
                 color = as.factor(Season))) +
-  geom_ribbon(data = stats_X0$Xs_2014R, 
+  geom_ribbon(data = stats_X$Xs_2014R, 
                 aes(x = DOSeason,
                     ymin = Xs_q2.5, 
                     ymax = Xs_q97.5,
@@ -393,10 +393,10 @@ ggplot() +
 ```{r}
 
 ggplot() + 
-  geom_path(data = stats_X0$Xs_North ,
+  geom_path(data = stats_X$Xs_North ,
             aes(x = DOSeason, y = Xs_q50,
                 color = as.factor(Season))) +
-  geom_ribbon(data = stats_X0$Xs_North, 
+  geom_ribbon(data = stats_X$Xs_North, 
                 aes(x = DOSeason,
                     ymin = Xs_q2.5, 
                     ymax = Xs_q97.5,
@@ -420,10 +420,10 @@ ggplot() +
 
 ```{r}
 ggplot() + 
-  geom_path(data = stats_X0$Xs_South ,
+  geom_path(data = stats_X$Xs_South ,
             aes(x = DOSeason, y = Xs_q50,
                 color = as.factor(Season))) +
-  geom_ribbon(data = stats_X0$Xs_South, 
+  geom_ribbon(data = stats_X$Xs_South, 
                 aes(x = DOSeason,
                     ymin = Xs_q2.5, 
                     ymax = Xs_q97.5,
@@ -446,10 +446,10 @@ ggplot() +
 
 ```{r}
 ggplot() + 
-  geom_path(data = stats_X0$Xs_West ,
+  geom_path(data = stats_X$Xs_West ,
             aes(x = DOSeason, y = Xs_q50,
                 color = as.factor(Season))) +
-  geom_ribbon(data = stats_X0$Xs_West, 
+  geom_ribbon(data = stats_X$Xs_West, 
                 aes(x = DOSeason,
                     ymin = Xs_q2.5, 
                     ymax = Xs_q97.5,
@@ -472,7 +472,7 @@ ggplot() +
 Now that we seem to have pretty "believable" models for all these data, we can go ahead and sum the imputed counts with confidence bands.  
 
 ```{r}
-all.summary <- summary.stats(stats_X0)
+all.summary <- summary.stats(stats_X)
 
 ggplot(data = all.summary) + 
   geom_point(aes(x = Season, y = log10(q50))) + 
