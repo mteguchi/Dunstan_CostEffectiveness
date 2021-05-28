@@ -47,10 +47,15 @@ model{
   
   # priors
   for (yr in 1:n.years){
-    beta.cos[yr] ~ dnorm(0, 1)
-    beta.sin[yr] ~ dnorm(0, 1)
+    beta.cos[yr] ~ dnorm(0, tau.cos)
+    beta.sin[yr] ~ dnorm(0, tau.sin)
   }
 
+  sigma.cos ~ dgamma(1, 0.1)
+  sigma.sin ~ dgamma(1, 0.1)
+  
+  tau.cos <- 1/(sigma.cos * sigma.cos)
+  tau.sin <- 1/(sigma.sin * sigma.sin)
   sigma.y ~ dgamma(1, 0.1)
   tau.y <- 1/(sigma.y * sigma.y)
 

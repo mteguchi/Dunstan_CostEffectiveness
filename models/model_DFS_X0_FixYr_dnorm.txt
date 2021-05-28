@@ -6,28 +6,32 @@
 # limited so they are used to determine amplitude of each season
 # and for each sector.  Amplitudes for sectors are correlated.
 
+# In this model, the first and last dates are fixed (X0) and DFS coefficients
+# are assumed to be the same for all years. 
+
 # First, tried with mvnorm but jags does not allow partially missing observations
 # in mvnorm. So, changing it to five separate normals but a common slope
 # parameter
+
+
 
 model{
 
   for (yr in 1:n.years){
     for (j in 1:n.sectors){
       # Initial states
-      
-      X0[yr, j] ~ dnorm(mu.X0[yr, j], 1.0)  #tau.X0[j])
-      X[yr, j, 1] <- c[yr, j, day[1]] + X0[yr, j]  # day 1 should be 12/21
-
-      #X[j,1] ~ dnorm(predX[j,1], 2.0)  # tau.X[j]
+      # To set the first reading almost exactly zero, rather than making 
+      # the first value a random deviate, I fix them. The output of this one
+      # is denoted with _X0_ in output filename
+      X0[yr, j] <- mu.X0[yr, j]   #~ dnorm(mu.X0[yr, j], 1.0)  #tau.X0[j])
+      X[yr, j, 1] <- c[day[1]] + X0[yr, j]  # day 1 should be 12/21
 
       # observation
       y[yr,j,1] ~  dnorm(X[yr,j,1], tau.y)
 
        for (t in 2:n.steps){
            # state
-           X[yr,j,t] <-  c[yr, j, day[t]] + X[yr, j, t-1]
-           #X[j, t] ~ dnorm(predX[j,t], 2.0)  #tau.X[j])
+           X[yr,j,t] <-  c[day[t]] + X[yr, j, t-1]
 
            # observation
            y[yr, j,t] ~ dnorm(X[yr,j,t], tau.y)
@@ -39,23 +43,21 @@ model{
   # n.days = from 12/21 to 4/30. Provide it through jags.data
   # also provide period (should be same as n.days) through jags.data
 
-  for (yr in 1:n.years){
-    for (j in 1:n.sectors){
-      for (t in 1:n.steps){
-        
-        c[yr, j, t] <- beta.cos[yr, j] * cos(2 * pi * t / period) + beta.sin[yr, j] * sin(2 * pi * t / period)
-      }  
-    }
+  for (d in 1:n.steps){
+    #c.const[d] <-  2 * pi * d / period
+    c[d] <- beta.cos * cos(2 * pi * d / period) + beta.sin * sin(2 * pi * d / period)
   }
+
     
   # priors
-  for (yr in 1:n.years){
-    for (j in 1:n.sectors){
-      beta.cos[yr, j] ~ dnorm(0, 1)
-      beta.sin[yr, j] ~ dnorm(0, 1)
+  beta.cos ~ dnorm(0, tau.cos)
+  beta.sin ~ dnorm(0, tau.sin)
 
-    }
-  }
+   sigma.cos ~ dgamma(1, 0.1)
+  sigma.sin ~ dgamma(1, 0.1)
+  
+  tau.cos <- 1/(sigma.cos * sigma.cos)
+  tau.sin <- 1/(sigma.sin * sigma.sin)
   
   sigma.y ~ dgamma(1, 0.1)
   tau.y <- 1/(sigma.y * sigma.y)

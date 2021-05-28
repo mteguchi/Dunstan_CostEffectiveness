@@ -60,8 +60,7 @@ seasons <- as.numeric(as.vector(unique(data.1$Season)))
 
 data.0 <- data.frame(Season = rep(seasons, each = n.days),
                      DOSeason = rep(seq(from = 1, to = n.days, by = 1), 
-                                    times = length(seasons)),
-                     Counts_100m = NA) %>%
+                                    times = length(seasons))) %>%
   #mutate(Year = ifelse(DOSeason < 12, Season, Season + 1)) %>%
   mutate(Date = as.Date(paste0(Season, "-", Day1)) + days(DOSeason))
 
@@ -98,7 +97,7 @@ ggplot(data = data.1) +
 Data are limited but there are correlations among locations.  This makes sense because nesting occurs all at once.  So, one function can be used to describe the nesting pattern but the magnitude is different among locations.  The estimaed correlations can be helpful in imputing missing data points. 
 
 ```{r}
-pairs(data.2[, c(5:10)])
+pairs(data.2[, c(4:9)])
   
 
 ```
@@ -107,7 +106,6 @@ I have a tentative model that uses a discrete Fourier series with normal observa
 
 To set the first reading almost exactly zero, rather than making the first value a random deviate, I fix them. The output of this one is denoted with X0 in output file name.
 
-For the new dataset, this model doesn't work well. It crashes during MCMC. 
 
 
 ```{r}
@@ -125,8 +123,8 @@ jags.data <- list(y = log(obs.y + 0.01),
                   n.days = n.days)
 
 jags.params <- c("beta.cos", "beta.sin",
-                 #"sigma.X", 
-                 "sigma.y", 
+                 "sigma.cos", "sigma.sin",
+                 "sigma.y",
                  "y", "X", "deviance")
 
 MCMC.params <- list(n.chains = 3,
@@ -135,21 +133,21 @@ MCMC.params <- list(n.chains = 3,
                     n.thin = 50)
 
 
-if (!file.exists(paste0("RData/Fourier_X0_imputation_dnorm_", Day1, "_", Day2, "_2021.rds"))){
+if (!file.exists(paste0("RData/DFS_X0_dnorm_", Day1, "_", Day2, "_2021.rds"))){
   jm <- jags(jags.data,
              inits = NULL,
              parameters.to.save= jags.params,
-             model.file = 'models/model_Fourier_imputation_X0_dnorm.txt',
+             model.file = 'models/model_DFS_X0_dnorm.txt',
              n.chains = MCMC.params$n.chains,
              n.burnin = MCMC.params$n.burnin,
              n.thin = MCMC.params$n.thin,
              n.iter = MCMC.params$n.samples,
              DIC = T, parallel=T)
   
-  saveRDS(jm, paste0("RData/Fourier_X0_imputation_dnorm_", Day1, "_", Day2, "_2021.rds"))
+  saveRDS(jm, paste0("RData/DFS_X0_dnorm_", Day1, "_", Day2, "_2021.rds"))
   
 } else {
-  jm <- readRDS(paste0("RData/Fourier_X0_imputation_dnorm_", Day1, "_", Day2, "_2021.rds"))
+  jm <- readRDS(paste0("RData/DFS_X0_dnorm_", Day1, "_", Day2, "_2021.rds"))
 }
 
 
@@ -168,7 +166,6 @@ stats_X0 <- extract.statistics.2021(jm)
 Plot estimates:
 
 ```{r}
-
 
 ggplot() + 
   geom_path(data = stats_X0$Xs_2017R ,
@@ -190,9 +187,11 @@ ggplot() +
        x = paste0("Days since ", Day1), 
        y = "ln(Median counts) and 95% CI",
        color = "Season") +
-  theme(axis.text = element_text(size = 12),
-        legend.position = c(0.1, 0.8),
-        axis.title = element_text(size = 12))
+  theme(axis.text = element_text(size = 10),
+        legend.position = c(0.3, 0.9),
+        legend.direction = "horizontal",
+        axis.title = element_text(size = 12)) + 
+  ylim(c(-20, 50))
 ```
 
 
@@ -325,17 +324,17 @@ if (!file.exists(paste0("RData/Fourier_imputation_dnorm_", Day1, "_", Day2, "_20
   jm <- jags(jags.data,
              inits = NULL,
              parameters.to.save= jags.params,
-             model.file = 'models/model_Fourier_imputation_dnorm.txt',
+             model.file = 'models/model_DFS_dnorm.txt',
              n.chains = MCMC.params$n.chains,
              n.burnin = MCMC.params$n.burnin,
              n.thin = MCMC.params$n.thin,
              n.iter = MCMC.params$n.samples,
              DIC = T, parallel=T)
   
-  saveRDS(jm, paste0("RData/Fourier_imputation_dnorm_", Day1, "_", Day2, "_2021.rds"))
+  saveRDS(jm, paste0("RData/DFS_dnorm_", Day1, "_", Day2, "_2021.rds"))
   
 } else {
-  jm <- readRDS(paste0("RData/Fourier_imputation_dnorm_", Day1, "_", Day2, "_2021.rds"))
+  jm <- readRDS(paste0("RData/DFS_dnorm_", Day1, "_", Day2, "_2021.rds"))
 }
 
 
@@ -354,7 +353,6 @@ stats_X <- extract.statistics.2021(jm)
 Plot estimates:
 
 ```{r}
-
 
 ggplot() + 
   geom_path(data = stats_X$Xs_2017R ,
@@ -507,21 +505,21 @@ What if we have sector and season specific beta parameters for the Fourier funct
 
 ```{r}
 
-if (!file.exists(paste0("RData/Fourier_beta_yr_sector_imputation_dnorm_", Day1, "_", Day2, "_2021.rds"))){
+if (!file.exists(paste0("RData/DFS_beta_yr_sector_dnorm_", Day1, "_", Day2, "_2021.rds"))){
   jm <- jags(jags.data,
              inits = NULL,
              parameters.to.save= jags.params,
-             model.file = 'models/model_Fourier_beta_yr_sector_imputation_dnorm.txt',
+             model.file = 'models/model_DFS_beta_yr_sector_dnorm.txt',
              n.chains = MCMC.params$n.chains,
              n.burnin = MCMC.params$n.burnin,
              n.thin = MCMC.params$n.thin,
              n.iter = MCMC.params$n.samples,
              DIC = T, parallel=T)
   
-  saveRDS(jm, paste0("RData/Fourier_beta_yr_sector_imputation_dnorm_", Day1, "_", Day2, "_2021.rds"))
+  saveRDS(jm, paste0("RData/DFS_beta_yr_sector_dnorm_", Day1, "_", Day2, "_2021.rds"))
   
 } else {
-  jm <- readRDS(paste0("RData/Fourier_beta_yr_sector_imputation_dnorm_", Day1, "_", Day2, "_2021.rds"))
+  jm <- readRDS(paste0("RData/DFS_beta_yr_sector_dnorm_", Day1, "_", Day2, "_2021.rds"))
 }
 
 
