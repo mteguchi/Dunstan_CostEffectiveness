@@ -16,16 +16,16 @@ model{
     for (j in 1:n.sectors){
        # Initial states
        X0[yr, j] ~ dnorm(mu.X0[yr, j], 1.0)  # make it pretty tight rather than trying to estimate var
-       X[yr, j, 1] <- c[yr, day[1]] + X0[yr, j]  # day 1 should be 12/21
+       X[yr, j, 1] <- c[yr, day[1]] + X0[yr, j]  + eps.X[yr, j, 1]  # day 1 should be 12/21
+       eps.X[yr, j, 1] ~ dnorm(0, tau.X)  # day 1 should be 12/21
       
        # observation
        y[yr,j,1] ~  dnorm(X[yr,j,1], tau.y)
                 
        for (t in 2:n.steps){
            # state
-           X[yr,j,t] <-  c[yr, day[t]] + X[yr, j, t-1]
-           #predX[yr, j,t] <-  c[day[t]] + X[yr, j, t-1]
-           #X[yr, j, t] ~ dnorm(predX[yr, j,t], tau.X[j])
+           X[yr,j,t] <-  c[yr, day[t]] + X[yr, j, t-1]  + eps.X[yr, j, t]
+           eps.X[yr,j,t] ~ dnorm(0, tau.X)
 
            # observation
            y[yr, j, t] ~ dnorm(X[yr, j,t], tau.y)
@@ -56,7 +56,11 @@ model{
   
   tau.cos <- 1/(sigma.cos * sigma.cos)
   tau.sin <- 1/(sigma.sin * sigma.sin)
+  
   sigma.y ~ dgamma(1, 0.1)
   tau.y <- 1/(sigma.y * sigma.y)
+  
+  sigma.X ~ dgamma(1, 0.1)
+  tau.X <- 1/(sigma.X * sigma.X)
 
 }

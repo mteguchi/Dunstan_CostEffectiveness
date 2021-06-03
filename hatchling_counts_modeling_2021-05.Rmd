@@ -68,6 +68,8 @@ data.0 %>% left_join(data.1.wide, by = "Date") -> data.2
 
 data.2 %>% select(Season, DOSeason, `2014R`, `2017R`, `2019R`, North, South, West) -> data.2.a
 
+# obs.y = season x sectors x #days
+# sectors = 2014R, 2017R, 2019R, North, South,  
 obs.y <- array(NA, c(length(seasons), nlevels(data.1$Sector), n.days))
 
 for (i in 1:length(seasons)){
@@ -75,12 +77,6 @@ for (i in 1:length(seasons)){
                      select(-c("Season", "DOSeason")))
   
 }
-# obs.y[1, ,] <- t(filter(data.2.a, Season == 2014) %>% select(-c("Season", "DOSeason")))
-# obs.y[2, ,] <- t(filter(data.2.a, Season == 2015) %>% select(-c("Season", "DOSeason")))
-# obs.y[3, ,] <- t(filter(data.2.a, Season == 2016) %>% select(-c("Season", "DOSeason")))
-# obs.y[4, ,] <- t(filter(data.2.a, Season == 2017) %>% select(-c("Season", "DOSeason")))
-
-#obs.y <- t(as.matrix(data.2[, c("2014R", "2017R", "North", "South", "West")]))
 
 ```
 
@@ -188,10 +184,10 @@ ggplot() +
        y = "ln(Median counts) and 95% CI",
        color = "Season") +
   theme(axis.text = element_text(size = 10),
-        legend.position = c(0.3, 0.9),
+        legend.position = "top", #c(0.3, 0.9),
         legend.direction = "horizontal",
-        axis.title = element_text(size = 12)) + 
-  ylim(c(-20, 50))
+        axis.title = element_text(size = 12))  
+  #ylim(c(-20, 50))
 ```
 
 
@@ -219,7 +215,8 @@ ggplot() +
        y = "ln(Median counts) and 95% CI",
        color = "Season") +
   theme(axis.text = element_text(size = 12),
-        legend.position = c(0.1, 0.8),
+        legend.position = "top", #c(0.1, 0.8),
+        legend.direction = "horizontal",
         axis.title = element_text(size = 12))
 
 ```
@@ -247,7 +244,8 @@ ggplot() +
        y = "ln(Median counts) and 95% CI",
        color = "Season") +
   theme(axis.text = element_text(size = 12),
-        legend.position = c(0.1, 0.8),
+        legend.position = "top", #c(0.1, 0.8),
+        legend.direction = "horizontal",
         axis.title = element_text(size = 12))
 
 ```
@@ -274,7 +272,8 @@ ggplot() +
        y = "ln(Median counts) and 95% CI",
        color = "Season") +
   theme(axis.text = element_text(size = 12),
-        legend.position = c(0.1, 0.8),
+        legend.position = "top", #c(0.1, 0.8),
+        legend.direction = "horizontal",
         axis.title = element_text(size = 12))
 
 
@@ -300,7 +299,8 @@ ggplot() +
        y = "ln(Median counts) and 95% CI",
        color = "Season") +
   theme(axis.text = element_text(size = 12),
-        legend.position = c(0.1, 0.8),
+        legend.position = "top", #c(0.1, 0.8),
+        legend.direction = "horizontal",
         axis.title = element_text(size = 12))
 
 ```
@@ -308,7 +308,7 @@ ggplot() +
 Now that we seem to have pretty "believable" models for all these data, we can go ahead and sum the imputed counts with confidence bands.  
 
 ```{r}
-all.summary <- summary.stats(stats_X0)
+all.summary <- summary.stats.2021(stats_X0)
 
 ggplot(data = all.summary) + 
   geom_point(aes(x = Season, y = log10(q50))) + 
@@ -320,7 +320,7 @@ We can relax the initial data point as deviates (not X0):
 
 ```{r}
 
-if (!file.exists(paste0("RData/Fourier_imputation_dnorm_", Day1, "_", Day2, "_2021.rds"))){
+if (!file.exists(paste0("RData/DFS_dnorm_", Day1, "_", Day2, "_2021.rds"))){
   jm <- jags(jags.data,
              inits = NULL,
              parameters.to.save= jags.params,
@@ -375,7 +375,7 @@ ggplot() +
        y = "ln(Median counts) and 95% CI",
        color = "Season") +
   theme(axis.text = element_text(size = 12),
-        legend.position = c(0.1, 0.8),
+        legend.position = "top", #c(0.1, 0.8),
         axis.title = element_text(size = 12))
 ```
 
@@ -403,7 +403,7 @@ ggplot() +
        y = "ln(Median counts) and 95% CI",
        color = "Season") +
   theme(axis.text = element_text(size = 12),
-        legend.position = c(0.1, 0.8),
+        legend.position = "top", #c(0.1, 0.8),
         axis.title = element_text(size = 12))
 
 ```
@@ -431,7 +431,7 @@ ggplot() +
        y = "ln(Median counts) and 95% CI",
        color = "Season") +
   theme(axis.text = element_text(size = 12),
-        legend.position = c(0.1, 0.8),
+        legend.position = "top", #c(0.1, 0.8),
         axis.title = element_text(size = 12))
 
 ```
@@ -458,7 +458,7 @@ ggplot() +
        y = "ln(Median counts) and 95% CI",
        color = "Season") +
   theme(axis.text = element_text(size = 12),
-        legend.position = c(0.1, 0.8),
+        legend.position = "top", #c(0.1, 0.8),
         axis.title = element_text(size = 12))
 
 
@@ -484,7 +484,7 @@ ggplot() +
        y = "ln(Median counts) and 95% CI",
        color = "Season") +
   theme(axis.text = element_text(size = 12),
-        legend.position = c(0.1, 0.8),
+        legend.position = "top", #c(0.1, 0.8),
         axis.title = element_text(size = 12))
 
 ```
@@ -492,7 +492,7 @@ ggplot() +
 Now that we seem to have pretty "believable" models for all these data, we can go ahead and sum the imputed counts with confidence bands.  
 
 ```{r}
-all.summary <- summary.stats(stats_X)
+all.summary <- summary.stats.2021(stats_X)
 
 ggplot(data = all.summary) + 
   geom_point(aes(x = Season, y = log10(q50))) + 
@@ -539,6 +539,185 @@ Plot estimates:
 
 ```{r}
 
+ggplot() + 
+  geom_path(data = filter(stats_beta_yr_sector$Xs_2017R, Season == 2017),
+            aes(x = DOSeason, y = Xs_q50),
+            size = 1.2) +
+  geom_ribbon(data = filter(stats_beta_yr_sector$Xs_2017R, Season == 2017), 
+                aes(x = DOSeason,
+                    ymin = Xs_q2.5, 
+                    ymax = Xs_q97.5),
+              alpha = 0.3,
+              show.legend = F) +  
+  geom_point(data = data.2,
+             aes(x = DOSeason, y = log(`2017R`)),
+             size = 2, shape = 16) +
+  labs(title = "2017R", 
+       x = paste0("Days since ", Day1), 
+       y = "ln(Median counts) and 95% CI",
+       color = "Season") +
+  theme(axis.text = element_text(size = 12),
+        legend.position = c(0.1, 0.8),
+        axis.title = element_text(size = 12))
+```
+
+
+```{r}
+
+ggplot() + 
+  geom_path(data = stats_beta_yr_sector$Xs_2014R ,
+            aes(x = DOSeason, y = Xs_q50,
+                color = as.factor(Season))) +
+  geom_ribbon(data = stats_beta_yr_sector$Xs_2014R, 
+                aes(x = DOSeason,
+                    ymin = Xs_q2.5, 
+                    ymax = Xs_q97.5,
+                    fill = as.factor(Season)),
+              alpha = 0.3,
+              show.legend = F) +  
+  geom_point(data = data.2,
+             aes(x = DOSeason, y = log(`2014R`),
+                 color = as.factor(Season)),
+             size = 2, shape = 16) +
+  labs(title = "2014R", x = paste0("Days since ", Day1), 
+       y = "log(Median counts) and 95% CI",
+       color = "Season") +
+  theme(axis.text = element_text(size = 12),
+        legend.position = "top", #c(0.1, 0.8),
+        axis.title = element_text(size = 12))
+
+```
+
+
+
+```{r}
+
+ggplot() + 
+  geom_path(data = stats_beta_yr_sector$Xs_North ,
+            aes(x = DOSeason, y = Xs_q50,
+                color = as.factor(Season))) +
+  geom_ribbon(data = stats_beta_yr_sector$Xs_North, 
+                aes(x = DOSeason,
+                    ymin = Xs_q2.5, 
+                    ymax = Xs_q97.5,
+                    fill = as.factor(Season)),
+              alpha = 0.3,
+              show.legend = F) +  
+  geom_point(data = data.2,
+             aes(x = DOSeason, y = log(North),
+                 color = as.factor(Season)),
+             size = 2, shape = 16)+
+  labs(title = "North", x = paste0("Days since ", Day1), 
+       y = "ln(Median counts) and 95% CI",
+       color = "Season") +
+  theme(axis.text = element_text(size = 12),
+        legend.position = "top", #c(0.1, 0.8),
+        axis.title = element_text(size = 12))
+
+```
+
+
+
+```{r}
+ggplot() + 
+  geom_path(data = stats_beta_yr_sector$Xs_South ,
+            aes(x = DOSeason, y = Xs_q50,
+                color = as.factor(Season))) +
+  geom_ribbon(data = stats_beta_yr_sector$Xs_South, 
+                aes(x = DOSeason,
+                    ymin = Xs_q2.5, 
+                    ymax = Xs_q97.5,
+                    fill = as.factor(Season)),
+              alpha = 0.3,
+              show.legend = F) +  
+  geom_point(data = data.2,
+             aes(x = DOSeason, y = log(South),
+                 color = as.factor(Season)),
+             size = 2, shape = 16) +
+  labs(title = "South", x = paste0("Days since ", Day1), 
+       y = "ln(Median counts) and 95% CI",
+       color = "Season") +
+  theme(axis.text = element_text(size = 12),
+        legend.position = "top", #c(0.1, 0.8),
+        axis.title = element_text(size = 12))
+
+
+```
+
+```{r}
+ggplot() + 
+  geom_path(data = filter(stats_beta_yr_sector$Xs_West, Season == 2017),
+            aes(x = DOSeason, y = Xs_q50,
+                color = as.factor(Season))) +
+  geom_ribbon(data = filter(stats_beta_yr_sector$Xs_West, Season == 2017), 
+                aes(x = DOSeason,
+                    ymin = Xs_q2.5, 
+                    ymax = Xs_q97.5,
+                    fill = as.factor(Season)),
+              alpha = 0.3,
+              show.legend = F) +  
+  geom_point(data = filter(data.2, Season == 2017),
+             aes(x = DOSeason, y = log(West),
+                 color = as.factor(Season)),
+             size = 2, shape = 16)+
+  labs(title = "West", x = paste0("Days since ", Day1), 
+       y = "ln(Median counts) and 95% CI",
+       color = "Season") +
+  theme(axis.text = element_text(size = 12),
+        legend.position = "top", #c(0.1, 0.8),
+        axis.title = element_text(size = 12))
+
+```
+
+Now that we seem to have pretty "believable" models for all these data, we can go ahead and sum the imputed counts with confidence bands.  
+
+```{r}
+all.summary <- summary.stats.2021(stats_beta_yr_sector)
+
+ggplot(data = all.summary) + 
+  geom_point(aes(x = Season, y = log10(q50))) + 
+  geom_errorbar(aes(x = Season, ymin = log10(q2.5), ymax = log10(q97.5))) +
+  facet_wrap(Sector ~., nrow = 2 )
+```
+
+Assume the DFS is the same over years
+
+
+```{r}
+
+if (!file.exists(paste0("RData/DFS_X0_FixYr_dnorm_", Day1, "_", Day2, "_2021.rds"))){
+  jm <- jags(jags.data,
+             inits = NULL,
+             parameters.to.save= jags.params,
+             model.file = 'models/model_DFS_X0_FixYr_dnorm.txt',
+             n.chains = MCMC.params$n.chains,
+             n.burnin = MCMC.params$n.burnin,
+             n.thin = MCMC.params$n.thin,
+             n.iter = MCMC.params$n.samples,
+             DIC = T, parallel=T)
+  
+  saveRDS(jm, paste0("RData/DFS_X0_FixYr_dnorm_", Day1, "_", Day2, "_2021.rds"))
+  
+} else {
+  jm <- readRDS(paste0("RData/DFS_X0_FixYr_dnorm_", Day1, "_", Day2, "_2021.rds"))
+}
+
+
+```
+
+put together estimated Xs and observed ys.
+
+```{r}
+
+stats_beta_yr_sector <- extract.statistics.2021(jm)
+
+#data.3.long <- rbind(data.2, ys.q2.5, ys.q50, ys.q97.5, Xs.q2.5, Xs.q50, Xs.q97.5)
+#rm(list = c("jm"))
+```
+
+Plot estimates:
+
+```{r}
 
 ggplot() + 
   geom_path(data = filter(stats_beta_yr_sector$Xs_2017R, Season == 2017),
@@ -584,7 +763,7 @@ ggplot() +
        y = "log(Median counts) and 95% CI",
        color = "Season") +
   theme(axis.text = element_text(size = 12),
-        legend.position = c(0.1, 0.8),
+        legend.position = "top", #c(0.1, 0.8),
         axis.title = element_text(size = 12))
 
 ```
@@ -612,7 +791,7 @@ ggplot() +
        y = "ln(Median counts) and 95% CI",
        color = "Season") +
   theme(axis.text = element_text(size = 12),
-        legend.position = c(0.1, 0.8),
+        legend.position = "top", #c(0.1, 0.8),
         axis.title = element_text(size = 12))
 
 ```
@@ -639,7 +818,7 @@ ggplot() +
        y = "ln(Median counts) and 95% CI",
        color = "Season") +
   theme(axis.text = element_text(size = 12),
-        legend.position = c(0.1, 0.8),
+        legend.position = "top", #c(0.1, 0.8),
         axis.title = element_text(size = 12))
 
 
@@ -665,15 +844,15 @@ ggplot() +
        y = "ln(Median counts) and 95% CI",
        color = "Season") +
   theme(axis.text = element_text(size = 12),
-        legend.position = c(0.1, 0.8),
+        legend.position = "top", #c(0.1, 0.8),
         axis.title = element_text(size = 12))
 
 ```
 
-Now that we seem to have pretty "believable" models for all these data, we can go ahead and sum the imputed counts with confidence bands.  
+
 
 ```{r}
-all.summary <- summary.stats(stats_beta_yr_sector)
+all.summary <- summary.stats.2021(stats_beta_yr_sector)
 
 ggplot(data = all.summary) + 
   geom_point(aes(x = Season, y = log10(q50))) + 

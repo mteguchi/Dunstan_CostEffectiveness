@@ -115,10 +115,6 @@ extract.statistics.2021 <- function(jm){
   ys_q2.5 <- apply(jm$q2.5$y, MARGIN = 1, FUN = define.df_q2.5)
   ys_q97.5 <- apply(jm$q97.5$y, MARGIN = 1, FUN = define.df_q97.5)
   
-  # ys_q2.5.long <- melt(ys_q2.5, value.name = "y_q2.5")
-  # ys_q50.long <- melt(ys_q50, value.name = "y_q50")
-  # ys_q97.5.long <- melt(ys_q97.5, value.name = "y_q97.5")
-  
   Xs_q50 <- apply(jm$q50$X, MARGIN = 1, 
                   FUN = define.df_q50)
   
@@ -186,8 +182,9 @@ extract.statistics.2021 <- function(jm){
   
 }
 
-Beach.Length <- data.frame(name = c("2017R", "2014R", "South", "North", "West"),
-                           length = c(250, 150, 350, 700, 350))
+# Beach length for 2019R needs to be corrected when I have the info. 2021-06-02
+Beach.Length <- data.frame(name = c("2019R", "2017R", "2014R", "South", "North", "West"),
+                           length = c(160, 250, 150, 350, 700, 350))
 
 summary.stats <- function(out.stats){
   out.stats$Xs_2014R %>% group_by(as.factor(Season)) %>%
@@ -255,6 +252,82 @@ summary.stats <- function(out.stats){
   return(all.summary)
 }
 
+summary.stats.2021 <- function(out.stats){
+  out.stats$Xs_2014R %>% group_by(as.factor(Season)) %>%
+    summarise(q50 = sum(exp(Xs_q50)),
+              q2.5 = sum(exp(Xs_q2.5)),
+              q97.5 = sum(exp(Xs_q97.5)),
+              total_q50 = sum(exp(Xs_q50)) * Beach.Length[which(Beach.Length$name == "2014R"), "length"]/100,
+              total_q2.5 = sum(exp(Xs_q2.5)) * Beach.Length[which(Beach.Length$name == "2014R"), "length"]/100,
+              total_q97.5 = sum(exp(Xs_q97.5)) * Beach.Length[which(Beach.Length$name == "2014R"), "length"]/100) %>%
+    mutate(Sector = "2014R") -> Xs_2014R_summary
+  
+  colnames(Xs_2014R_summary) <- c("Season", "q50", "q2.5", "q97.5", 
+                                  "total_q50", "total_q2.5", "total_q97.5", "Sector")
+  
+  out.stats$Xs_North %>% group_by(as.factor(Season)) %>%
+    summarise(q50 = sum(exp(Xs_q50)),
+              q2.5 = sum(exp(Xs_q2.5)),
+              q97.5 = sum(exp(Xs_q97.5)),
+              total_q50 = sum(exp(Xs_q50)) * Beach.Length[which(Beach.Length$name == "North"), "length"]/100,
+              total_q2.5 = sum(exp(Xs_q2.5)) * Beach.Length[which(Beach.Length$name == "North"), "length"]/100,
+              total_q97.5 = sum(exp(Xs_q97.5)) * Beach.Length[which(Beach.Length$name == "North"), "length"]/100) %>%
+    mutate(Sector = "North") -> Xs_North_summary
+  colnames(Xs_North_summary) <- c("Season", "q50", "q2.5", "q97.5", 
+                                  "total_q50", "total_q2.5", "total_q97.5", "Sector")
+  
+  out.stats$Xs_South %>% group_by(as.factor(Season)) %>%
+    summarise(q50 = sum(exp(Xs_q50)),
+              q2.5 = sum(exp(Xs_q2.5)),
+              q97.5 = sum(exp(Xs_q97.5)),
+              total_q50 = sum(exp(Xs_q50)) * Beach.Length[which(Beach.Length$name == "South"), "length"]/100,
+              total_q2.5 = sum(exp(Xs_q2.5)) * Beach.Length[which(Beach.Length$name == "South"), "length"]/100,
+              total_q97.5 = sum(exp(Xs_q97.5)) * Beach.Length[which(Beach.Length$name == "South"), "length"]/100) %>%
+    mutate(Sector = "South") -> Xs_South_summary
+  colnames(Xs_South_summary) <- c("Season", "q50", "q2.5", "q97.5", 
+                                  "total_q50", "total_q2.5", "total_q97.5", "Sector")
+  
+  out.stats$Xs_West %>% group_by(as.factor(Season)) %>%
+    summarise(q50 = sum(exp(Xs_q50)),
+              q2.5 = sum(exp(Xs_q2.5)),
+              q97.5 = sum(exp(Xs_q97.5)),
+              total_q50 = sum(exp(Xs_q50)) * Beach.Length[which(Beach.Length$name == "West"), "length"]/100,
+              total_q2.5 = sum(exp(Xs_q2.5)) * Beach.Length[which(Beach.Length$name == "West"), "length"]/100,
+              total_q97.5 = sum(exp(Xs_q97.5)) * Beach.Length[which(Beach.Length$name == "West"), "length"]/100) %>%
+    mutate(Sector = "West") -> Xs_West_summary
+  colnames(Xs_West_summary) <- c("Season", "q50", "q2.5", "q97.5", 
+                                 "total_q50", "total_q2.5", "total_q97.5", "Sector")
+  
+  out.stats$Xs_2017R %>% group_by(as.factor(Season)) %>%
+    summarise(q50 = sum(exp(Xs_q50)),
+              q2.5 = sum(exp(Xs_q2.5)),
+              q97.5 = sum(exp(Xs_q97.5)),
+              total_q50 = sum(exp(Xs_q50)) * Beach.Length[which(Beach.Length$name == "2017R"), "length"]/100,
+              total_q2.5 = sum(exp(Xs_q2.5)) * Beach.Length[which(Beach.Length$name == "2017R"), "length"]/100,
+              total_q97.5 = sum(exp(Xs_q97.5)) * Beach.Length[which(Beach.Length$name == "2017R"), "length"]/100) %>%
+    mutate(Sector = "2017R") -> Xs_2017R_summary
+  colnames(Xs_2017R_summary) <- c("Season", "q50", "q2.5", "q97.5", 
+                                  "total_q50", "total_q2.5", "total_q97.5", "Sector")
+  
+  out.stats$Xs_2019R %>% group_by(as.factor(Season)) %>%
+    summarise(q50 = sum(exp(Xs_q50)),
+              q2.5 = sum(exp(Xs_q2.5)),
+              q97.5 = sum(exp(Xs_q97.5)),
+              total_q50 = sum(exp(Xs_q50)) * Beach.Length[which(Beach.Length$name == "2019R"), "length"]/100,
+              total_q2.5 = sum(exp(Xs_q2.5)) * Beach.Length[which(Beach.Length$name == "2019R"), "length"]/100,
+              total_q97.5 = sum(exp(Xs_q97.5)) * Beach.Length[which(Beach.Length$name == "2019R"), "length"]/100) %>%
+    mutate(Sector = "2019R") -> Xs_2019R_summary
+  colnames(Xs_2019R_summary) <- c("Season", "q50", "q2.5", "q97.5", 
+                                  "total_q50", "total_q2.5", "total_q97.5", "Sector")
+  all.summary <- rbind(Xs_2014R_summary, 
+                       Xs_2017R_summary,
+                       Xs_2019R_summary,
+                       Xs_North_summary,
+                       Xs_South_summary,
+                       Xs_West_summary)
+  
+  return(all.summary)
+}
 
 summary.stats.nolog <- function(out.stats){
   # estimated numbers are in per 100 m. So, the total number for the entire sector is computed
@@ -326,6 +399,88 @@ summary.stats.nolog <- function(out.stats){
   return(all.summary)
 }
 
+
+summary.stats.nolog.2021 <- function(out.stats){
+  # estimated numbers are in per 100 m. So, the total number for the entire sector is computed
+  # by multiplying the estimates with (total length)/100.  
+  out.stats$Xs_2014R %>% group_by(as.factor(Season)) %>%
+    summarise(q50 = sum((Xs_q50)),
+              q2.5 = sum((Xs_q2.5)),
+              q97.5 = sum((Xs_q97.5)),
+              total_q50 = sum((Xs_q50)) * Beach.Length[which(Beach.Length$name == "2014R"), "length"]/100,
+              total_q2.5 = sum((Xs_q2.5)) * Beach.Length[which(Beach.Length$name == "2014R"), "length"]/100,
+              total_q97.5 = sum((Xs_q97.5)) * Beach.Length[which(Beach.Length$name == "2014R"), "length"]/100) %>%
+    mutate(Sector = "2014R") -> Xs_2014R_summary
+  
+  colnames(Xs_2014R_summary) <- c("Season", "q50", "q2.5", "q97.5", 
+                                  "total_q50", "total_q2.5", "total_q97.5", "Sector")
+  
+  out.stats$Xs_North %>% group_by(as.factor(Season)) %>%
+    summarise(q50 = sum((Xs_q50)),
+              q2.5 = sum((Xs_q2.5)),
+              q97.5 = sum((Xs_q97.5)),
+              total_q50 = sum((Xs_q50)) * Beach.Length[which(Beach.Length$name == "North"), "length"]/100,
+              total_q2.5 = sum((Xs_q2.5)) * Beach.Length[which(Beach.Length$name == "North"), "length"]/100,
+              total_q97.5 = sum((Xs_q97.5)) * Beach.Length[which(Beach.Length$name == "North"), "length"]/100) %>%
+    mutate(Sector = "North") -> Xs_North_summary
+  colnames(Xs_North_summary) <- c("Season", "q50", "q2.5", "q97.5", 
+                                  "total_q50", "total_q2.5", "total_q97.5", "Sector")
+  
+  out.stats$Xs_South %>% group_by(as.factor(Season)) %>%
+    summarise(q50 = sum((Xs_q50)),
+              q2.5 = sum((Xs_q2.5)),
+              q97.5 = sum((Xs_q97.5)),
+              total_q50 = sum((Xs_q50)) * Beach.Length[which(Beach.Length$name == "South"), "length"]/100,
+              total_q2.5 = sum((Xs_q2.5)) * Beach.Length[which(Beach.Length$name == "South"), "length"]/100,
+              total_q97.5 = sum((Xs_q97.5)) * Beach.Length[which(Beach.Length$name == "South"), "length"]/100) %>%
+    mutate(Sector = "South") -> Xs_South_summary
+  colnames(Xs_South_summary) <- c("Season", "q50", "q2.5", "q97.5", 
+                                  "total_q50", "total_q2.5", "total_q97.5", "Sector")
+  
+  out.stats$Xs_West %>% group_by(as.factor(Season)) %>%
+    summarise(q50 = sum((Xs_q50)),
+              q2.5 = sum((Xs_q2.5)),
+              q97.5 = sum((Xs_q97.5)),
+              total_q50 = sum((Xs_q50)) * Beach.Length[which(Beach.Length$name == "West"), "length"]/100,
+              total_q2.5 = sum((Xs_q2.5)) * Beach.Length[which(Beach.Length$name == "West"), "length"]/100,
+              total_q97.5 = sum((Xs_q97.5)) * Beach.Length[which(Beach.Length$name == "West"), "length"]/100) %>%
+    mutate(Sector = "West") -> Xs_West_summary
+  colnames(Xs_West_summary) <- c("Season", "q50", "q2.5", "q97.5", 
+                                 "total_q50", "total_q2.5", "total_q97.5", "Sector")
+  
+  out.stats$Xs_2017R %>% group_by(as.factor(Season)) %>%
+    summarise(q50 = sum((Xs_q50)),
+              q2.5 = sum((Xs_q2.5)),
+              q97.5 = sum((Xs_q97.5)),
+              total_q50 = sum((Xs_q50)) * Beach.Length[which(Beach.Length$name == "2017R"), "length"]/100,
+              total_q2.5 = sum((Xs_q2.5)) * Beach.Length[which(Beach.Length$name == "2017R"), "length"]/100,
+              total_q97.5 = sum((Xs_q97.5)) * Beach.Length[which(Beach.Length$name == "2017R"), "length"]/100) %>%
+    mutate(Sector = "2017R") -> Xs_2017R_summary
+  colnames(Xs_2017R_summary) <- c("Season", "q50", "q2.5", "q97.5", 
+                                  "total_q50", "total_q2.5", "total_q97.5", "Sector")
+  
+  out.stats$Xs_2019R %>% group_by(as.factor(Season)) %>%
+    summarise(q50 = sum((Xs_q50)),
+              q2.5 = sum((Xs_q2.5)),
+              q97.5 = sum((Xs_q97.5)),
+              total_q50 = sum((Xs_q50)) * Beach.Length[which(Beach.Length$name == "2019R"), "length"]/100,
+              total_q2.5 = sum((Xs_q2.5)) * Beach.Length[which(Beach.Length$name == "2019R"), "length"]/100,
+              total_q97.5 = sum((Xs_q97.5)) * Beach.Length[which(Beach.Length$name == "2019R"), "length"]/100) %>%
+    mutate(Sector = "2019R") -> Xs_2019R_summary
+  
+  colnames(Xs_2019R_summary) <- c("Season", "q50", "q2.5", "q97.5", 
+                                  "total_q50", "total_q2.5", "total_q97.5", "Sector")
+  all.summary <- rbind(Xs_2014R_summary,
+                       Xs_2017R_summary,
+                       Xs_2019R_summary,
+                       Xs_North_summary,
+                       Xs_South_summary,
+                       Xs_West_summary)
+  
+  all.summary[all.summary < 0] <- 0
+  
+  return(all.summary)
+}
 
 Girondot_fcn <- function(d, S, K, P, min, max){
   K <- abs(K)

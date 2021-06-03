@@ -19,14 +19,16 @@ model{
       # the first value a random deviate, I fix them. The output of this one
       # is denoted with _X0_ in output filename
       X0[yr, j] <- mu.X0[yr, j]   #~ dnorm(mu.X0[yr, j], 1.0)  #tau.X0[j])
-      X[yr, j, 1] <- c[yr, day[1]] + X0[yr, j]  # day 1 should be 12/21
+      X[yr, j, 1] <- c[yr, day[1]] + X0[yr, j] + eps.X[yr, j, 1]  # day 1 should be 12/21
+      eps.X[yr, j, 1] ~ dnorm(0, tau.X) 
 
       # observation
       y[yr,j,1] ~  dnorm(X[yr,j,1], tau.y)
 
        for (t in 2:n.steps){
            # state
-           X[yr,j,t] <-  c[yr, day[t]] + X[yr, j, t-1]
+           X[yr,j,t] <-  c[yr, day[t]] + X[yr, j, t-1] + eps.X[yr, j, t]
+           eps.X[yr,j,t] ~ dnorm(0, tau.X)
 
            # observation
            y[yr, j,t] ~ dnorm(X[yr,j,t], tau.y)
@@ -60,6 +62,8 @@ model{
   sigma.y ~ dgamma(1, 0.1)
   tau.y <- 1/(sigma.y * sigma.y)
 
+  sigma.X ~ dgamma(1, 0.1)
+  tau.X <- 1/(sigma.X * sigma.X)
   #for (j in 1:n.sectors){
     # observation SD and precision - needs to be petty tight 
     # for convergence because data are so limited
