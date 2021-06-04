@@ -1,11 +1,14 @@
 ---
 title: "Hatchling production estimation using Richards functions"
-output: pdf_document
+author: "Tomo Eguchi"
+output: bookdown::pdf_document2
+toc: FALSE 
 ---
 
 ```{r setup, include=FALSE}
 rm(list=ls())
-knitr::opts_chunk$set(echo = TRUE)
+#bookdown::html_document2: default
+#knitr::opts_chunk$set(echo = TRUE)
 
 library(tidyverse)
 library(ggplot2)
@@ -13,7 +16,9 @@ library(lubridate)
 library(readr)
 library(reshape2)
 library(jagsUI)
-library(bayesplot)
+library(kableExtra)
+#library(bayesplot)
+#library(bookdown)
 
 source("Dunstan_functions.R")
 
@@ -36,9 +41,35 @@ seasons <- unique(data.1$Season)
 data.1 %>% mutate(DOSeason = as.numeric(Date - as.Date(paste0(Season, "-", Day1)))) -> data.3
 ```
 
+# Introduction 
+
 This is a preliminary analysis and results may change in the future. 
 
-In this document, I describe the steps I used to estimate the number of annual hatchling production from several observations during each nesting season at six sectors (2014R, 2017R, North, South, West, 2019R) on Raine Island. In a separate analysis, I fitted various functions to hatchling counts and found that using modified Richards functions (Girondot et al. 2007) provided the most precise estimates.  Results of the comparison of these models are available upon request.  
+In this document, I describe the steps I used to estimate the number of annual hatchling production from several observations during each nesting season at six sectors (2014R, 2017R, North, South, West, 2019R) on Raine Island. In a separate analysis, I fitted various functions to hatchling counts and found that using the modified Richards functions (Girondot et al. 2007) provided the most precise estimates. Results of the comparison of these models are available upon request.  
+
+# Data
+
+Data for this analysis are the number of observed hatchlings in a 100-m long section within each sector during a few nights of observations from sunset to sunrise when the beach monitoring crew was on the island. For logistical reasons, these trips were made only twice at most during a nesting season. Consequently, some seasons lacked sufficient data points to fill in the missing data (e.g., the 2020 season; Figure \@ref(fig:observed-counts)).
+
+Each nesting season starts on December 20th and ends on April 30th in the following year. In this analysis, a season is defined by the beginning year. For example the 2018 season starts on 2018-12-20 and ends on 2019-04-30. 
+
+Beach lengths of the six sectors were `r Beach.Length %>% filter(name == "2014R") %>% select(length)` m (2014R), `r Beach.Length %>% filter(name == "2017R") %>% select(length)` m (2017R), `r Beach.Length %>% filter(name == "2019R") %>% select(length)` m (2019R), `r Beach.Length %>% filter(name == "North") %>% select(length)` m (North), `r Beach.Length %>% filter(name == "South") %>% select(length)` m (South), and `r Beach.Length %>% filter(name == "West") %>% select(length)` m (West),
+
+
+```{r observed-counts, fig.cap="Observed numbers of hatchling per 100 m within six sectors (2014R, 2017R, 2019R, South, North, and West) on Raine Island. 2014R, 2017R, and 2019R sectors were re-profied in respective years, whereas the other three have not been modified.", echo=FALSE, warning=FALSE}
+
+p.fig0 <- ggplot(data.1) +
+  geom_point(aes(x = Date, y = Counts_100m, color = as.factor(Season))) +
+  facet_wrap(Sector ~.) +
+   labs(x = "",  
+       y = "Observed counts per 100 m",
+       color = "Season") +
+  theme(axis.text = element_text(size = 12),
+        legend.position = "top", #c(0.75, 0.1),
+        axis.title = element_text(size = 12))
+
+plot(p.fig0)
+```
 
 # Modified Richards equation by Girondot et al. (2007)
 
@@ -46,28 +77,28 @@ In this approach, I used the model described by Girondot et al. (2007). It has t
 
 The function has the following form:
 
-M1 = (1 + (2 * exp(K) - 1) * exp((1/(-S)) * (P - d))) ^ (-1/exp(K))
+$$M_1 = (1 + (2 e^K - 1) * e^{(P-d)/(-S)}) ^ {(-1/e^K)}$$
 
-M2 = (1 + (2 * exp(K) - 1) * exp((1/S) * (P - d))) ^ (-1/exp(K))
+$$M_2 = (1 + (2 e^K - 1) * e^{(P-d)/(S)}) ^ {(-1/e^K)}$$
 
-N = min_N + (max_N - min_N) * (M1 * M2), where
+$$N = min_N + (max_N - min_N) * (M_1 * M_2),$$ 
 
-d is the number of days from the beginning of nesting season,
+where $d$ is the number of days from the beginning of nesting season,
 
-S defines the "fatness" of the function (S > 0),
+$S$ defines the "fatness" of the function ($S > 0$),
 
-K > 0 defines the "flatness" at the peak of the function (K > 0),
+$K > 0$ defines the "flatness" at the peak of the function,
 
-P defines where the peak is relative to the range of d, where min(d) < P < max(d),
+$P$ defines where the peak is relative to the range of $d$, where $min(d) < P < max(d)$,
 
-min_N is "the basal level of nesting outside the nesting season" and,
+$min_N$ is "the basal level of nesting outside the nesting season" and,
 
-max_N >> min_N
+$max_N >> min_N$
 
-This model was fitted to observed hatchling counts per 100 m in each sector and estimated parameters (S, K, P) and their uncertainties were used to compute the total number of hatchlings and its uncertainties from each sector.  
+This model was fitted to observed hatchling counts per 100 m in each sector using the state-space approach. In this approach, the state-space (X) was modeled with the modified Richards function, whereas the observation (y) was assumed as a random deviate from the normal distribution with mean X and unknown observation variance ($\sigma^2_y$). Two parameters $K$ (flatness) and $S$ (fatness) were assumed to be constant among years and sectors, whereas $P$ (location of the peak) was assumed year and sector dependent. Code for this analysis in JAGS language is available in the supplementary material. Estimated parameters ($S$, $K$, and $P$s) and their uncertainties were used to compute the total number of hatchlings and its uncertainties for each year and sector combination.  
 
 
-```{r Model_Girondot, include=FALSE, echo=FALSE}
+```{r Model-Girondot, include=FALSE, echo=FALSE}
 jm <- readRDS(paste0("RData/Girondot_Par_estimation_dnorm_", Day1, "_", Day2, "_2021.rds"))
 
 Sectors <- unique(data.3$Sector)
@@ -101,9 +132,9 @@ names(Girondot_stats) <-paste0("Xs_", Sectors)
 ```
 
 
-Although no formal goodness-of-fit test was conducted, the functions fit qualitatively reasonable to the data (Figure 1).  The fitted function, then, was used for each combinatin of a sector and a season to estimate the number of hatchlings per 100 m. Because the parameters of the function were shared among sectors, estimates were available even when there were limited data (this extrapolation is not presented in this report). 
+Although no formal goodness-of-fit test was conducted, the functions fit qualitatively reasonable to the data (Figure \@ref(fig:Girondot-plotEstimates)). The fitted function, then, was used for each combination of a sector and a season to estimate the number of hatchlings per 100 m and the entire sector. Because the two parameters ($K$ and $S$) of the function were shared among sectors, estimates were available even when there were limited data (this extrapolation is not presented in this report). 
 
-```{r Girondot_plotEstimates, echo=FALSE, include=TRUE, warning=FALSE,fig.width=8, fig.height=6, fig.cap="Figure 1. The fitted functions (medians in solid lines and their 95% CIs in shaded areas) and observed numbers of hatchlings (dots) per 100 m at six sectors."}
+```{r Girondot-plotEstimates, echo=FALSE, include=TRUE, warning=FALSE,fig.width=8, fig.height=6, fig.cap="Fitted modified Richards functions (medians in solid lines and their 95% CIs in shaded areas) and observed numbers of hatchlings (dots) per 100 m at the six sectors."}
 Girondot.all.data <- do.call(rbind, Girondot_stats)
 
 p.fig1 <- ggplot() + 
@@ -133,23 +164,128 @@ p.fig1 <- ggplot() +
                               nrow = 2)) +
   theme(axis.text = element_text(size = 12),
         legend.position = "top", #c(0.75, 0.1),
-        axis.title = element_text(size = 12),
-        legend.direction = "horizontal")
+        axis.title = element_text(size = 12))
 
+#,    legend.direction = "horizontal"
 
 plot(p.fig1)
 ```
 
-```{r Girondot_extrapolation, echo=FALSE, warning=FALSE, fig.width=8, fig.height=6, fig.cap="Figure 2. Extrapolated total hatchling abundance at six sectors using estimated Richards function. Year-sector combinations with little or no data were excluded from computing the hatchling abundance."}
+
+```{r summary-100m, echo=FALSE, include=TRUE, warning=FALSE, fig.width=8, fig.height=6, fig.cap="Estimated hatchling counts at the six sectors using the modified Richards function. Year-sector combinations with little or no data were excluded from computing the hatchling abundance."}
+
 Girondot_summary <- summary.stats.nolog.2021(Girondot_stats)
+
+Girondot.100m.summary <- Girondot_summary %>% 
+  select(Season, q2.5, q50, q97.5, Sector) %>%
+  mutate(SeasonNum = as.numeric(Season) + 2013)
+
+Girondot.100m.summary[((Girondot.100m.summary$SeasonNum < 2017) & Girondot.100m.summary$Sector == "2017R"),
+                   c("q2.5", "q50", "q97.5")] <- NA
+
+Girondot.100m.summary[(Girondot.100m.summary$Sector == "2019R" & 
+                          Girondot.100m.summary$SeasonNum < 2019), 
+                       c("q2.5", "q50", "q97.5")] <- NA
+
+Girondot.100m.summary[(Girondot.100m.summary$Sector == "West" & 
+                          (Girondot.100m.summary$SeasonNum < 2017 |
+                             Girondot.100m.summary$SeasonNum > 2018)), 
+                       c("q2.5", "q50", "q97.5")] <- NA
+
+Girondot.100m.summary %>% select(Season, q50, Sector) -> median_100m
+Girondot.100m.summary %>% select(Season, q2.5, Sector) -> q2.5_100m
+Girondot.100m.summary %>% select(Season, q97.5, Sector) -> q97.5_100m
+
+median.100m.wide <- as.data.frame(reshape2::acast(median_100m, 
+                                                   Sector ~ Season, 
+                                                   value.var = "q50"))
+
+q2.5.100m.wide <- as.data.frame(reshape2::acast(q2.5_100m, 
+                                                 Sector ~ Season, 
+                                                 value.var = "q2.5"))
+
+q97.5.100m.wide <- as.data.frame(reshape2::acast(q97.5_100m, 
+                                                  Sector ~ Season, 
+                                                  value.var = "q97.5"))
+
+#increase.2014R <- median.100m.wide["2014R",]/median.100m.wide["South",]
+
+p.fig.100m <- ggplot(data = Girondot.100m.summary) + 
+  geom_point(aes(x = Season, y = (q50))) + 
+  geom_errorbar(aes(x = Season, 
+                    ymin = (q2.5), 
+                    ymax = (q97.5))) +
+  facet_wrap(Sector ~., nrow = 2 ) + 
+  ylab("Median hatchling counts per 100 m and 95% CI")
+
+plot(p.fig.100m)
+```
+
+
+**2014**
+The estimated number of hatchlings per 100 m in 2014 ranged from ```r format(ceiling(min(median.100m.wide[, "2014"], na.rm = T)), big.mark = ",", trim = TRUE, scientific = FALSE)``` (95% CI = [```r format(ceiling(na.omit(q2.5.100m.wide[median.100m.wide[, "2014"] == min(median.100m.wide[, "2014"], na.rm = T), "2014"])), big.mark = ",", trim = TRUE, scientific = FALSE)``` - ```r format(ceiling(na.omit(q97.5.100m.wide[median.100m.wide[, "2014"] == min(median.100m.wide[, "2014"], na.rm = T), "2014"])), big.mark = ",", trim = TRUE, scientific = FALSE)```]) in the ```r na.omit(row.names(median.100m.wide)[median.100m.wide[, "2014"] == min(median.100m.wide[, "2014"], na.rm = T)])``` sector to ```r format(ceiling(max(median.100m.wide[, "2014"], na.rm = T)), big.mark = ",", trim = TRUE, scientific = FALSE)``` (95% CI = [```r format(ceiling(na.omit(q2.5.100m.wide[median.100m.wide[, "2014"] == max(median.100m.wide[, "2014"], na.rm = T), "2014"])), big.mark = ",", trim = TRUE, scientific = FALSE)``` - ```r format(ceiling(na.omit(q97.5.100m.wide[median.100m.wide[, "2014"] == max(median.100m.wide[, "2014"], na.rm = T), "2014"])), big.mark = ",", trim = TRUE, scientific = FALSE)```]) in the ```r na.omit(row.names(median.100m.wide)[median.100m.wide[, "2014"] == max(median.100m.wide[, "2014"], na.rm = T)])``` sector (Figure \@ref(fig:summary-100m), Tables \@ref(tab:Table-100m-median), \@ref(tab:Table-100m-q25), \@ref(tab:Table-100m-q975)).  
+
+**2015**
+The estimated number of hatchlings per 100 m in 2015 ranged from ```r format(ceiling(min(median.100m.wide[, "2015"], na.rm = T)), big.mark = ",", trim = TRUE, scientific = FALSE)``` (95% CI = [```r format(ceiling(na.omit(q2.5.100m.wide[median.100m.wide[, "2015"] == min(median.100m.wide[, "2015"], na.rm = T), "2015"])), big.mark = ",", trim = TRUE, scientific = FALSE)``` - ```r format(ceiling(na.omit(q97.5.100m.wide[median.100m.wide[, "2015"] == min(median.100m.wide[, "2015"], na.rm = T), "2015"])), big.mark = ",", trim = TRUE, scientific = FALSE)```]) in the ```r na.omit(row.names(median.100m.wide)[median.100m.wide[, "2015"] == min(median.100m.wide[, "2015"], na.rm = T)])``` sector to ```r format(ceiling(max(median.100m.wide[, "2015"], na.rm = T)), big.mark = ",", trim = TRUE, scientific = FALSE)``` (95% CI = [```r format(ceiling(na.omit(q2.5.100m.wide[median.100m.wide[, "2015"] == max(median.100m.wide[, "2015"], na.rm = T), "2015"])), big.mark = ",", trim = TRUE, scientific = FALSE)``` - ```r format(ceiling(na.omit(q97.5.100m.wide[median.100m.wide[, "2015"] == max(median.100m.wide[, "2015"], na.rm = T), "2015"])), big.mark = ",", trim = TRUE, scientific = FALSE)```]) in the ```r na.omit(row.names(median.100m.wide)[median.100m.wide[, "2015"] == max(median.100m.wide[, "2015"], na.rm = T)])``` sector (Figure \@ref(fig:summary-100m), Tables \@ref(tab:Table-100m-median), \@ref(tab:Table-100m-q25), \@ref(tab:Table-100m-q975)).  
+
+
+**2016**
+The estimated number of hatchlings per 100 m in 2016 ranged from ```r format(ceiling(min(median.100m.wide[, "2016"], na.rm = T)), big.mark = ",", trim = TRUE, scientific = FALSE)``` (95% CI = [```r format(ceiling(na.omit(q2.5.100m.wide[median.100m.wide[, "2016"] == min(median.100m.wide[, "2016"], na.rm = T), "2016"])), big.mark = ",", trim = TRUE, scientific = FALSE)``` - ```r format(ceiling(na.omit(q97.5.100m.wide[median.100m.wide[, "2016"] == min(median.100m.wide[, "2016"], na.rm = T), "2016"])), big.mark = ",", trim = TRUE, scientific = FALSE)```]) in the ```r na.omit(row.names(median.100m.wide)[median.100m.wide[, "2016"] == min(median.100m.wide[, "2016"], na.rm = T)])``` sector to ```r format(ceiling(max(median.100m.wide[, "2016"], na.rm = T)), big.mark = ",", trim = TRUE, scientific = FALSE)``` (95% CI = [```r format(ceiling(na.omit(q2.5.100m.wide[median.100m.wide[, "2016"] == max(median.100m.wide[, "2016"], na.rm = T), "2016"])), big.mark = ",", trim = TRUE, scientific = FALSE)``` - ```r format(ceiling(na.omit(q97.5.100m.wide[median.100m.wide[, "2016"] == max(median.100m.wide[, "2016"], na.rm = T), "2016"])), big.mark = ",", trim = TRUE, scientific = FALSE)```]) in the ```r na.omit(row.names(median.100m.wide)[median.100m.wide[, "2016"] == max(median.100m.wide[, "2016"], na.rm = T)])``` sector (Tables \@ref(tab:Table-100m-median), \@ref(tab:Table-100m-q25), \@ref(tab:Table-100m-q975)).  
+sector (Figure \@ref(fig:summary-100m), Tables \@ref(tab:Table-total-median), \@ref(tab:Table-total-q25), \@ref(tab:Table-total-q975)).  
+
+**2017**
+The estimated number of hatchlings per 100 m in 2017 ranged from ```r format(ceiling(min(median.100m.wide[, "2017"], na.rm = T)), big.mark = ",", trim = TRUE, scientific = FALSE)``` (95% CI = [```r format(ceiling(na.omit(q2.5.100m.wide[median.100m.wide[, "2017"] == min(median.100m.wide[, "2017"], na.rm = T), "2017"])), big.mark = ",", trim = TRUE, scientific = FALSE)``` - ```r format(ceiling(na.omit(q97.5.100m.wide[median.100m.wide[, "2017"] == min(median.100m.wide[, "2017"], na.rm = T), "2017"])), big.mark = ",", trim = TRUE, scientific = FALSE)```]) in the ```r na.omit(row.names(median.100m.wide)[median.100m.wide[, "2017"] == min(median.100m.wide[, "2017"], na.rm = T)])``` sector to ```r format(ceiling(max(median.100m.wide[, "2017"], na.rm = T)), big.mark = ",", trim = TRUE, scientific = FALSE)``` (95% CI = [```r format(ceiling(na.omit(q2.5.100m.wide[median.100m.wide[, "2017"] == max(median.100m.wide[, "2017"], na.rm = T), "2017"])), big.mark = ",", trim = TRUE, scientific = FALSE)``` - ```r format(ceiling(na.omit(q97.5.100m.wide[median.100m.wide[, "2017"] == max(median.100m.wide[, "2017"], na.rm = T), "2017"])), big.mark = ",", trim = TRUE, scientific = FALSE)```]) in the ```r na.omit(row.names(median.100m.wide)[median.100m.wide[, "2017"] == max(median.100m.wide[, "2017"], na.rm = T)])``` sector (Figure \@ref(fig:summary-100m), Tables \@ref(tab:Table-100m-median), \@ref(tab:Table-100m-q25), \@ref(tab:Table-100m-q975)).  
+
+
+**2018**
+The estimated number of hatchlings per 100 m in 2018 ranged from ```r format(ceiling(min(median.100m.wide[, "2018"], na.rm = T)), big.mark = ",", trim = TRUE, scientific = FALSE)``` (95% CI = [```r format(ceiling(na.omit(q2.5.100m.wide[median.100m.wide[, "2018"] == min(median.100m.wide[, "2018"], na.rm = T), "2018"])), big.mark = ",", trim = TRUE, scientific = FALSE)``` - ```r format(ceiling(na.omit(q97.5.100m.wide[median.100m.wide[, "2018"] == min(median.100m.wide[, "2018"], na.rm = T), "2018"])), big.mark = ",", trim = TRUE, scientific = FALSE)```]) in the ```r na.omit(row.names(median.100m.wide)[median.100m.wide[, "2018"] == min(median.100m.wide[, "2018"], na.rm = T)])``` sector to ```r format(ceiling(max(median.100m.wide[, "2018"], na.rm = T)), big.mark = ",", trim = TRUE, scientific = FALSE)``` (95% CI = [```r format(ceiling(na.omit(q2.5.100m.wide[median.100m.wide[, "2018"] == max(median.100m.wide[, "2018"], na.rm = T), "2018"])), big.mark = ",", trim = TRUE, scientific = FALSE)``` - ```r format(ceiling(na.omit(q97.5.100m.wide[median.100m.wide[, "2018"] == max(median.100m.wide[, "2018"], na.rm = T), "2018"])), big.mark = ",", trim = TRUE, scientific = FALSE)```]) in the ```r na.omit(row.names(median.100m.wide)[median.100m.wide[, "2018"] == max(median.100m.wide[, "2018"], na.rm = T)])``` sector (Figure \@ref(fig:summary-100m), Tables \@ref(tab:Table-100m-median), \@ref(tab:Table-100m-q25), \@ref(tab:Table-100m-q975)).  
+
+
+**2019**
+The estimated number of hatchlings per 100 m in 2019 ranged from ```r format(ceiling(min(median.100m.wide[, "2019"], na.rm = T)), big.mark = ",", trim = TRUE, scientific = FALSE)``` (95% CI = [```r format(ceiling(na.omit(q2.5.100m.wide[median.100m.wide[, "2019"] == min(median.100m.wide[, "2019"], na.rm = T), "2019"])), big.mark = ",", trim = TRUE, scientific = FALSE)``` - ```r format(ceiling(na.omit(q97.5.100m.wide[median.100m.wide[, "2019"] == min(median.100m.wide[, "2019"], na.rm = T), "2019"])), big.mark = ",", trim = TRUE, scientific = FALSE)```]) in the ```r na.omit(row.names(median.100m.wide)[median.100m.wide[, "2019"] == min(median.100m.wide[, "2019"], na.rm = T)])``` sector to ```r format(ceiling(max(median.100m.wide[, "2019"], na.rm = T)), big.mark = ",", trim = TRUE, scientific = FALSE)``` (95% CI = [```r format(ceiling(na.omit(q2.5.100m.wide[median.100m.wide[, "2019"] == max(median.100m.wide[, "2019"], na.rm = T), "2019"])), big.mark = ",", trim = TRUE, scientific = FALSE)``` - ```r format(ceiling(na.omit(q97.5.100m.wide[median.100m.wide[, "2019"] == max(median.100m.wide[, "2019"], na.rm = T), "2019"])), big.mark = ",", trim = TRUE, scientific = FALSE)```]) in the ```r na.omit(row.names(median.100m.wide)[median.100m.wide[, "2019"] == max(median.100m.wide[, "2019"], na.rm = T)])``` sector (Tables \@ref(tab:Table-100m-median), \@ref(tab:Table-100m-q25), \@ref(tab:Table-100m-q975)).  
+tor (Figure \@ref(fig:summary-100m), Tables \@ref(tab:Table-total-median), \@ref(tab:Table-total-q25), \@ref(tab:Table-total-q975)).
+
+
+**2020**
+The estimated number of hatchlings per 100 m in 2020 ranged from ```r format(ceiling(min(median.100m.wide[, "2020"], na.rm = T)), big.mark = ",", trim = TRUE, scientific = FALSE)``` (95% CI = [```r format(ceiling(na.omit(q2.5.100m.wide[median.100m.wide[, "2020"] == min(median.100m.wide[, "2020"], na.rm = T), "2020"])), big.mark = ",", trim = TRUE, scientific = FALSE)``` - ```r format(ceiling(na.omit(q97.5.100m.wide[median.100m.wide[, "2020"] == min(median.100m.wide[, "2020"], na.rm = T), "2020"])), big.mark = ",", trim = TRUE, scientific = FALSE)```]) in the ```r na.omit(row.names(median.100m.wide)[median.100m.wide[, "2020"] == min(median.100m.wide[, "2020"], na.rm = T)])``` sector to ```r format(ceiling(max(median.100m.wide[, "2020"], na.rm = T)), big.mark = ",", trim = TRUE, scientific = FALSE)``` (95% CI = [```r format(ceiling(na.omit(q2.5.100m.wide[median.100m.wide[, "2020"] == max(median.100m.wide[, "2020"], na.rm = T), "2020"])), big.mark = ",", trim = TRUE, scientific = FALSE)``` - ```r format(ceiling(na.omit(q97.5.100m.wide[median.100m.wide[, "2020"] == max(median.100m.wide[, "2020"], na.rm = T), "2020"])), big.mark = ",", trim = TRUE, scientific = FALSE)```]) in the ```r na.omit(row.names(median.100m.wide)[median.100m.wide[, "2020"] == max(median.100m.wide[, "2020"], na.rm = T)])``` sector (Figure \@ref(fig:summary-100m), Tables \@ref(tab:Table-100m-median), \@ref(tab:Table-100m-q25), \@ref(tab:Table-100m-q975)).  
+
+
+```{r Table-100m-median, echo=FALSE, warning=FALSE}
+knitr::kable(median.100m.wide, 
+             digits = 0,
+             format.args = list(big.mark = ",", scientific = FALSE),
+             caption = "Median estimated total hatchling production per 100 m based on modified Richards' equations. ")
+```
+
+
+```{r Table-100m-q25, echo=FALSE, warning=FALSE}
+knitr::kable(q2.5.100m.wide, 
+             digits = 0,
+             format.args = list(big.mark = ",", scientific = FALSE),
+             caption = "Lower credibility limits of estimated hatchling production per 100 m based on modified Richards' equations. ")
+```
+
+
+```{r Table-100m-q975, echo=FALSE, warning=FALSE}
+knitr::kable(q97.5.100m.wide, 
+             digits = 0,
+             format.args = list(big.mark = ",", scientific = FALSE),
+             caption = "Upper credibility limits of estimated hatchling production per 100 m based on modified Richards' equations. ")
+```
+
+
+# Total hatchling production per sector
+
+Assuming that observed counts per 100 m represent the entire sectors, we extrapolated the estimated numbers per 100 m to the entire sectors (Figure \@ref(fig:Girondot-extrapolation)).
+
+```{r Girondot-extrapolation, echo=FALSE, warning=FALSE, fig.width=8, fig.height=6, fig.cap="Extrapolated total hatchling abundance at six sectors using estimated Richards function. Year-sector combinations with little or no data were excluded from computing the hatchling abundance."}
 
 Girondot.total.summary <- Girondot_summary %>% 
   select(Season, total_q2.5, total_q50, total_q97.5, Sector)%>%
   mutate(SeasonNum = as.numeric(Season) + 2013)
 
 
-Girondot.total.summary[((Girondot.total.summary$SeasonNum < 2017 |
-                           Girondot.total.summary$SeasonNum > 2018) & 
+Girondot.total.summary[((Girondot.total.summary$SeasonNum < 2017) & 
                           Girondot.total.summary$Sector == "2017R"),
                    c("total_q2.5", "total_q50", "total_q97.5")] <- NA
 
@@ -175,7 +311,6 @@ p.fig2 <- ggplot(data = Girondot.total.summary) +
 
 plot(p.fig2)
 ```
-
 
 ```{r Girondot_summaryTable, echo=FALSE, warning=FALSE}
 Girondot.total.summary %>% select(Season, total_q50, Sector) -> Girondot.total.median
@@ -219,40 +354,39 @@ total.wide <- data.frame(Sectors = row.names(total.median.wide),
 
 ```
 
-Assuming that observed counts per 100 m represent the entire sectors, we extrapolated the estimated numbers to the entire sectors (Figure 2).
+**2014**
+The total number of hatchlings produced per sector in 2014 ranged from ```r format(ceiling(min(total.median.wide[, "2014"], na.rm = T)), big.mark = ",", trim = TRUE, scientific = FALSE)``` (95% CI = [```r format(ceiling(na.omit(total.q2.5.wide[total.median.wide[, "2014"] == min(total.median.wide[, "2014"], na.rm = T), "2014"])), big.mark = ",", trim = TRUE, scientific = FALSE)``` - ```r format(ceiling(na.omit(total.q97.5.wide[total.median.wide[, "2014"] == min(total.median.wide[, "2014"], na.rm = T), "2014"])), big.mark = ",", trim = TRUE, scientific = FALSE)```]) in the ```r na.omit(row.names(total.median.wide)[total.median.wide[, "2014"] == min(total.median.wide[, "2014"], na.rm = T)])``` sector to ```r format(ceiling(max(total.median.wide[, "2014"], na.rm = T)), big.mark = ",", trim = TRUE, scientific = FALSE)``` (95% CI = [```r format(ceiling(na.omit(total.q2.5.wide[total.median.wide[, "2014"] == max(total.median.wide[, "2014"], na.rm = T), "2014"])), big.mark = ",", trim = TRUE, scientific = FALSE)``` - ```r format(ceiling(na.omit(total.q97.5.wide[total.median.wide[, "2014"] == max(total.median.wide[, "2014"], na.rm = T), "2014"])), big.mark = ",", trim = TRUE, scientific = FALSE)```]) in the ```r na.omit(row.names(total.median.wide)[total.median.wide[, "2014"] == max(total.median.wide[, "2014"], na.rm = T)])``` sector (Tables \@ref(tab:Table-total-median), \@ref(tab:Table-total-q25), \@ref(tab:Table-total-q975)).  
 
-#### 2014
- The total number of hatchlings produced in 2014 ranged from ```r format(ceiling(min(total.median.wide[, "2014"], na.rm = T)), big.mark = ",", trim = TRUE, scientific = FALSE)``` (95% CI = [```r format(ceiling(na.omit(total.q2.5.wide[total.median.wide[, "2014"] == min(total.median.wide[, "2014"], na.rm = T), "2014"])), big.mark = ",", trim = TRUE, scientific = FALSE)``` - ```r format(ceiling(na.omit(total.q97.5.wide[total.median.wide[, "2014"] == min(total.median.wide[, "2014"], na.rm = T), "2014"])), big.mark = ",", trim = TRUE, scientific = FALSE)```]) in the ```r na.omit(row.names(total.median.wide)[total.median.wide[, "2014"] == min(total.median.wide[, "2014"], na.rm = T)])``` sector to ```r format(ceiling(max(total.median.wide[, "2014"], na.rm = T)), big.mark = ",", trim = TRUE, scientific = FALSE)``` (95% CI = [```r format(ceiling(na.omit(total.q2.5.wide[total.median.wide[, "2014"] == max(total.median.wide[, "2014"], na.rm = T), "2014"])), big.mark = ",", trim = TRUE, scientific = FALSE)``` - ```r format(ceiling(na.omit(total.q97.5.wide[total.median.wide[, "2014"] == max(total.median.wide[, "2014"], na.rm = T), "2014"])), big.mark = ",", trim = TRUE, scientific = FALSE)```]) in the ```r na.omit(row.names(total.median.wide)[total.median.wide[, "2014"] == max(total.median.wide[, "2014"], na.rm = T)])``` sector (Tables 1, 2, 3).  
+**2015**
+The total number of hatchlings produced in 2015 ranged from ```r format(ceiling(min(total.median.wide[, "2015"], na.rm = T)), big.mark = ",", trim = TRUE, scientific = FALSE)``` (95% CI = [```r format(ceiling(na.omit(total.q2.5.wide[total.median.wide[, "2015"] == min(total.median.wide[, "2015"], na.rm = T), "2015"])), big.mark = ",", trim = TRUE, scientific = FALSE)``` - ```r format(ceiling(na.omit(total.q97.5.wide[total.median.wide[, "2015"] == min(total.median.wide[, "2015"], na.rm = T), "2015"])), big.mark = ",", trim = TRUE, scientific = FALSE)```]) in the ```r na.omit(row.names(total.median.wide)[total.median.wide[, "2015"] == min(total.median.wide[, "2015"], na.rm = T)])``` sector to ```r format(ceiling(max(total.median.wide[, "2015"], na.rm = T)), big.mark = ",", trim = TRUE, scientific = FALSE)``` (95% CI = [```r format(ceiling(na.omit(total.q2.5.wide[total.median.wide[, "2015"] == max(total.median.wide[, "2015"], na.rm = T), "2015"])), big.mark = ",", trim = TRUE, scientific = FALSE)``` - ```r format(ceiling(na.omit(total.q97.5.wide[total.median.wide[, "2015"] == max(total.median.wide[, "2015"], na.rm = T), "2015"])), big.mark = ",", trim = TRUE, scientific = FALSE)```]) in the ```r na.omit(row.names(total.median.wide)[total.median.wide[, "2015"] == max(total.median.wide[, "2015"], na.rm = T)])``` sector (Tables \@ref(tab:Table-total-median), \@ref(tab:Table-total-q25), \@ref(tab:Table-total-q975)).  
 
-#### 2015
-The total number of hatchlings produced in 2015 ranged from ```r format(ceiling(min(total.median.wide[, "2015"], na.rm = T)), big.mark = ",", trim = TRUE, scientific = FALSE)``` (95% CI = [```r format(ceiling(na.omit(total.q2.5.wide[total.median.wide[, "2015"] == min(total.median.wide[, "2015"], na.rm = T), "2015"])), big.mark = ",", trim = TRUE, scientific = FALSE)``` - ```r format(ceiling(na.omit(total.q97.5.wide[total.median.wide[, "2015"] == min(total.median.wide[, "2015"], na.rm = T), "2015"])), big.mark = ",", trim = TRUE, scientific = FALSE)```]) in the ```r na.omit(row.names(total.median.wide)[total.median.wide[, "2015"] == min(total.median.wide[, "2015"], na.rm = T)])``` sector to ```r format(ceiling(max(total.median.wide[, "2015"], na.rm = T)), big.mark = ",", trim = TRUE, scientific = FALSE)``` (95% CI = [```r format(ceiling(na.omit(total.q2.5.wide[total.median.wide[, "2015"] == max(total.median.wide[, "2015"], na.rm = T), "2015"])), big.mark = ",", trim = TRUE, scientific = FALSE)``` - ```r format(ceiling(na.omit(total.q97.5.wide[total.median.wide[, "2015"] == max(total.median.wide[, "2015"], na.rm = T), "2015"])), big.mark = ",", trim = TRUE, scientific = FALSE)```]) in the ```r na.omit(row.names(total.median.wide)[total.median.wide[, "2015"] == max(total.median.wide[, "2015"], na.rm = T)])``` sector (Tables 1, 2, 3).  
+**2016**
+The total number of hatchlings produced in 2016 ranged from ```r format(ceiling(min(total.median.wide[, "2016"], na.rm = T)), big.mark = ",", trim = TRUE, scientific = FALSE)``` (95% CI = [```r format(ceiling(na.omit(total.q2.5.wide[total.median.wide[, "2016"] == min(total.median.wide[, "2016"], na.rm = T), "2016"])), big.mark = ",", trim = TRUE, scientific = FALSE)``` - ```r format(ceiling(na.omit(total.q97.5.wide[total.median.wide[, "2016"] == min(total.median.wide[, "2016"], na.rm = T), "2016"])), big.mark = ",", trim = TRUE, scientific = FALSE)```]) in the ```r na.omit(row.names(total.median.wide)[total.median.wide[, "2016"] == min(total.median.wide[, "2016"], na.rm = T)])``` sector to ```r format(ceiling(max(total.median.wide[, "2016"], na.rm = T)), big.mark = ",", trim = TRUE, scientific = FALSE)``` (95% CI = [```r format(ceiling(na.omit(total.q2.5.wide[total.median.wide[, "2016"] == max(total.median.wide[, "2016"], na.rm = T), "2016"])), big.mark = ",", trim = TRUE, scientific = FALSE)``` - ```r format(ceiling(na.omit(total.q97.5.wide[total.median.wide[, "2016"] == max(total.median.wide[, "2016"], na.rm = T), "2016"])), big.mark = ",", trim = TRUE, scientific = FALSE)```]) in the ```r na.omit(row.names(total.median.wide)[total.median.wide[, "2016"] == max(total.median.wide[, "2016"], na.rm = T)])``` sector (Tables \@ref(tab:Table-total-median), \@ref(tab:Table-total-q25), \@ref(tab:Table-total-q975)).  
 
-#### 2016
-The total number of hatchlings produced in 2016 ranged from ```r format(ceiling(min(total.median.wide[, "2016"], na.rm = T)), big.mark = ",", trim = TRUE, scientific = FALSE)``` (95% CI = [```r format(ceiling(na.omit(total.q2.5.wide[total.median.wide[, "2016"] == min(total.median.wide[, "2016"], na.rm = T), "2016"])), big.mark = ",", trim = TRUE, scientific = FALSE)``` - ```r format(ceiling(na.omit(total.q97.5.wide[total.median.wide[, "2016"] == min(total.median.wide[, "2016"], na.rm = T), "2016"])), big.mark = ",", trim = TRUE, scientific = FALSE)```]) in the ```r na.omit(row.names(total.median.wide)[total.median.wide[, "2016"] == min(total.median.wide[, "2016"], na.rm = T)])``` sector to ```r format(ceiling(max(total.median.wide[, "2016"], na.rm = T)), big.mark = ",", trim = TRUE, scientific = FALSE)``` (95% CI = [```r format(ceiling(na.omit(total.q2.5.wide[total.median.wide[, "2016"] == max(total.median.wide[, "2016"], na.rm = T), "2016"])), big.mark = ",", trim = TRUE, scientific = FALSE)``` - ```r format(ceiling(na.omit(total.q97.5.wide[total.median.wide[, "2016"] == max(total.median.wide[, "2016"], na.rm = T), "2016"])), big.mark = ",", trim = TRUE, scientific = FALSE)```]) in the ```r na.omit(row.names(total.median.wide)[total.median.wide[, "2016"] == max(total.median.wide[, "2016"], na.rm = T)])``` sector (Tables 1, 2, 3).  
+**2017**
+In 2017, they ranged from ```r format(ceiling(min(total.median.wide[, "2017"], na.rm = T)), big.mark = ",", trim = TRUE, scientific = FALSE)``` (95% CI = [```r format(ceiling(na.omit(total.q2.5.wide[total.median.wide[, "2017"] == min(total.median.wide[, "2017"], na.rm = T), "2017"])), big.mark = ",", trim = TRUE, scientific = FALSE)``` - ```r format(ceiling(na.omit(total.q97.5.wide[total.median.wide[, "2017"] == min(total.median.wide[, "2017"], na.rm = T), "2017"])), big.mark = ",", trim = TRUE, scientific = FALSE)```]) in the ```r na.omit(row.names(total.median.wide)[total.median.wide[, "2017"] == min(total.median.wide[, "2017"], na.rm = T)])``` sector to ```r format(ceiling(max(total.median.wide[, "2017"], na.rm = T)), big.mark = ",", trim = TRUE, scientific = FALSE)``` (95% CI = [```r format(ceiling(na.omit(total.q2.5.wide[total.median.wide[, "2017"] == max(total.median.wide[, "2017"], na.rm = T), "2017"])), big.mark = ",", trim = TRUE, scientific = FALSE)``` - ```r format(ceiling(na.omit(total.q97.5.wide[total.median.wide[, "2017"] == max(total.median.wide[, "2017"], na.rm = T), "2017"])), big.mark = ",", trim = TRUE, scientific = FALSE)```]) in the ```r na.omit(row.names(total.median.wide)[total.median.wide[, "2017"] == max(total.median.wide[, "2017"], na.rm = T)])``` sector (Tables \@ref(tab:Table-total-median), \@ref(tab:Table-total-q25), \@ref(tab:Table-total-q975)). 
 
-#### 2017
-In 2017, they ranged from ```r format(ceiling(min(total.median.wide[, "2017"], na.rm = T)), big.mark = ",", trim = TRUE, scientific = FALSE)``` (95% CI = [```r format(ceiling(na.omit(total.q2.5.wide[total.median.wide[, "2017"] == min(total.median.wide[, "2017"], na.rm = T), "2017"])), big.mark = ",", trim = TRUE, scientific = FALSE)``` - ```r format(ceiling(na.omit(total.q97.5.wide[total.median.wide[, "2017"] == min(total.median.wide[, "2017"], na.rm = T), "2017"])), big.mark = ",", trim = TRUE, scientific = FALSE)```]) in the ```r na.omit(row.names(total.median.wide)[total.median.wide[, "2017"] == min(total.median.wide[, "2017"], na.rm = T)])``` sector to ```r format(ceiling(max(total.median.wide[, "2017"], na.rm = T)), big.mark = ",", trim = TRUE, scientific = FALSE)``` (95% CI = [```r format(ceiling(na.omit(total.q2.5.wide[total.median.wide[, "2017"] == max(total.median.wide[, "2017"], na.rm = T), "2017"])), big.mark = ",", trim = TRUE, scientific = FALSE)``` - ```r format(ceiling(na.omit(total.q97.5.wide[total.median.wide[, "2017"] == max(total.median.wide[, "2017"], na.rm = T), "2017"])), big.mark = ",", trim = TRUE, scientific = FALSE)```]) in the ```r na.omit(row.names(total.median.wide)[total.median.wide[, "2017"] == max(total.median.wide[, "2017"], na.rm = T)])``` sector (Tables 1, 2, 3). 
+**2018**
+In 2018, they ranged from ```r format(ceiling(min(total.median.wide[, "2018"], na.rm = T)), big.mark = ",", trim = TRUE, scientific = FALSE)``` (95% CI = [```r format(ceiling(na.omit(total.q2.5.wide[total.median.wide[, "2018"] == min(total.median.wide[, "2018"], na.rm = T), "2018"])), big.mark = ",", trim = TRUE, scientific = FALSE)``` - ```r format(ceiling(na.omit(total.q97.5.wide[total.median.wide[, "2018"] == min(total.median.wide[, "2018"], na.rm = T), "2018"])), big.mark = ",", trim = TRUE, scientific = FALSE)```]) in the ```r na.omit(row.names(total.median.wide)[total.median.wide[, "2018"] == min(total.median.wide[, "2018"], na.rm = T)])``` sector to ```r format(ceiling(max(total.median.wide[, "2018"], na.rm = T)), big.mark = ",", trim = TRUE, scientific = FALSE)``` (95% CI = [```r format(ceiling(na.omit(total.q2.5.wide[total.median.wide[, "2018"] == max(total.median.wide[, "2018"], na.rm = T), "2018"])), big.mark = ",", trim = TRUE, scientific = FALSE)``` - ```r format(ceiling(na.omit(total.q97.5.wide[total.median.wide[, "2018"] == max(total.median.wide[, "2018"], na.rm = T), "2018"])), big.mark = ",", trim = TRUE, scientific = FALSE)```]) in the ```r na.omit(row.names(total.median.wide)[total.median.wide[, "2018"] == max(total.median.wide[, "2018"], na.rm = T)])``` sector (Tables \@ref(tab:Table-total-median), \@ref(tab:Table-total-q25), \@ref(tab:Table-total-q975)). 
 
-#### 2018
-In 2018, they ranged from ```r format(ceiling(min(total.median.wide[, "2018"], na.rm = T)), big.mark = ",", trim = TRUE, scientific = FALSE)``` (95% CI = [```r format(ceiling(na.omit(total.q2.5.wide[total.median.wide[, "2018"] == min(total.median.wide[, "2018"], na.rm = T), "2018"])), big.mark = ",", trim = TRUE, scientific = FALSE)``` - ```r format(ceiling(na.omit(total.q97.5.wide[total.median.wide[, "2018"] == min(total.median.wide[, "2018"], na.rm = T), "2018"])), big.mark = ",", trim = TRUE, scientific = FALSE)```]) in the ```r na.omit(row.names(total.median.wide)[total.median.wide[, "2018"] == min(total.median.wide[, "2018"], na.rm = T)])``` sector to ```r format(ceiling(max(total.median.wide[, "2018"], na.rm = T)), big.mark = ",", trim = TRUE, scientific = FALSE)``` (95% CI = [```r format(ceiling(na.omit(total.q2.5.wide[total.median.wide[, "2018"] == max(total.median.wide[, "2018"], na.rm = T), "2018"])), big.mark = ",", trim = TRUE, scientific = FALSE)``` - ```r format(ceiling(na.omit(total.q97.5.wide[total.median.wide[, "2018"] == max(total.median.wide[, "2018"], na.rm = T), "2018"])), big.mark = ",", trim = TRUE, scientific = FALSE)```]) in the ```r na.omit(row.names(total.median.wide)[total.median.wide[, "2018"] == max(total.median.wide[, "2018"], na.rm = T)])``` sector (Tables 1, 2, 3). 
-
-#### 2019
-In 2019, they ranged from ```r format(ceiling(min(total.median.wide[, "2019"], na.rm = T)), big.mark = ",", trim = TRUE, scientific = FALSE)``` (95% CI = [```r format(ceiling(na.omit(total.q2.5.wide[total.median.wide[, "2019"] == min(total.median.wide[, "2019"], na.rm = T), "2019"])), big.mark = ",", trim = TRUE, scientific = FALSE)``` - ```r format(ceiling(na.omit(total.q97.5.wide[total.median.wide[, "2019"] == min(total.median.wide[, "2019"], na.rm = T), "2019"])), big.mark = ",", trim = TRUE, scientific = FALSE)```]) in the ```r na.omit(row.names(total.median.wide)[total.median.wide[, "2019"] == min(total.median.wide[, "2019"], na.rm = T)])``` sector to ```r format(ceiling(max(total.median.wide[, "2019"], na.rm = T)), big.mark = ",", trim = TRUE, scientific = FALSE)``` (95% CI = [```r format(ceiling(na.omit(total.q2.5.wide[total.median.wide[, "2019"] == max(total.median.wide[, "2019"], na.rm = T), "2019"])), big.mark = ",", trim = TRUE, scientific = FALSE)``` - ```r format(ceiling(na.omit(total.q97.5.wide[total.median.wide[, "2019"] == max(total.median.wide[, "2019"], na.rm = T), "2019"])), big.mark = ",", trim = TRUE, scientific = FALSE)```]) in the ```r na.omit(row.names(total.median.wide)[total.median.wide[, "2019"] == max(total.median.wide[, "2019"], na.rm = T)])``` sector (Tables 1, 2, 3).
+**2019**
+In 2019, they ranged from ```r format(ceiling(min(total.median.wide[, "2019"], na.rm = T)), big.mark = ",", trim = TRUE, scientific = FALSE)``` (95% CI = [```r format(ceiling(na.omit(total.q2.5.wide[total.median.wide[, "2019"] == min(total.median.wide[, "2019"], na.rm = T), "2019"])), big.mark = ",", trim = TRUE, scientific = FALSE)``` - ```r format(ceiling(na.omit(total.q97.5.wide[total.median.wide[, "2019"] == min(total.median.wide[, "2019"], na.rm = T), "2019"])), big.mark = ",", trim = TRUE, scientific = FALSE)```]) in the ```r na.omit(row.names(total.median.wide)[total.median.wide[, "2019"] == min(total.median.wide[, "2019"], na.rm = T)])``` sector to ```r format(ceiling(max(total.median.wide[, "2019"], na.rm = T)), big.mark = ",", trim = TRUE, scientific = FALSE)``` (95% CI = [```r format(ceiling(na.omit(total.q2.5.wide[total.median.wide[, "2019"] == max(total.median.wide[, "2019"], na.rm = T), "2019"])), big.mark = ",", trim = TRUE, scientific = FALSE)``` - ```r format(ceiling(na.omit(total.q97.5.wide[total.median.wide[, "2019"] == max(total.median.wide[, "2019"], na.rm = T), "2019"])), big.mark = ",", trim = TRUE, scientific = FALSE)```]) in the ```r na.omit(row.names(total.median.wide)[total.median.wide[, "2019"] == max(total.median.wide[, "2019"], na.rm = T)])``` sector (Tables \@ref(tab:Table-total-median), \@ref(tab:Table-total-q25), \@ref(tab:Table-total-q975)).
 
 
-#### 2020
-In 2020, they ranged from ```r format(ceiling(min(total.median.wide[, "2020"], na.rm = T)), big.mark = ",", trim = TRUE, scientific = FALSE)``` (95% CI = [```r format(ceiling(na.omit(total.q2.5.wide[total.median.wide[, "2020"] == min(total.median.wide[, "2020"], na.rm = T), "2020"])), big.mark = ",", trim = TRUE, scientific = FALSE)``` - ```r format(ceiling(na.omit(total.q97.5.wide[total.median.wide[, "2020"] == min(total.median.wide[, "2020"], na.rm = T), "2020"])), big.mark = ",", trim = TRUE, scientific = FALSE)```]) in the ```r na.omit(row.names(total.median.wide)[total.median.wide[, "2020"] == min(total.median.wide[, "2020"], na.rm = T)])``` sector to ```r format(ceiling(max(total.median.wide[, "2020"], na.rm = T)), big.mark = ",", trim = TRUE, scientific = FALSE)``` (95% CI = [```r format(ceiling(na.omit(total.q2.5.wide[total.median.wide[, "2020"] == max(total.median.wide[, "2020"], na.rm = T), "2020"])), big.mark = ",", trim = TRUE, scientific = FALSE)``` - ```r format(ceiling(na.omit(total.q97.5.wide[total.median.wide[, "2020"] == max(total.median.wide[, "2020"], na.rm = T), "2020"])), big.mark = ",", trim = TRUE, scientific = FALSE)```]) in the ```r na.omit(row.names(total.median.wide)[total.median.wide[, "2020"] == max(total.median.wide[, "2020"], na.rm = T)])``` sector (Tables 1, 2, 3).
+**2020**
+In 2020, they ranged from ```r format(ceiling(min(total.median.wide[, "2020"], na.rm = T)), big.mark = ",", trim = TRUE, scientific = FALSE)``` (95% CI = [```r format(ceiling(na.omit(total.q2.5.wide[total.median.wide[, "2020"] == min(total.median.wide[, "2020"], na.rm = T), "2020"])), big.mark = ",", trim = TRUE, scientific = FALSE)``` - ```r format(ceiling(na.omit(total.q97.5.wide[total.median.wide[, "2020"] == min(total.median.wide[, "2020"], na.rm = T), "2020"])), big.mark = ",", trim = TRUE, scientific = FALSE)```]) in the ```r na.omit(row.names(total.median.wide)[total.median.wide[, "2020"] == min(total.median.wide[, "2020"], na.rm = T)])``` sector to ```r format(ceiling(max(total.median.wide[, "2020"], na.rm = T)), big.mark = ",", trim = TRUE, scientific = FALSE)``` (95% CI = [```r format(ceiling(na.omit(total.q2.5.wide[total.median.wide[, "2020"] == max(total.median.wide[, "2020"], na.rm = T), "2020"])), big.mark = ",", trim = TRUE, scientific = FALSE)``` - ```r format(ceiling(na.omit(total.q97.5.wide[total.median.wide[, "2020"] == max(total.median.wide[, "2020"], na.rm = T), "2020"])), big.mark = ",", trim = TRUE, scientific = FALSE)```]) in the ```r na.omit(row.names(total.median.wide)[total.median.wide[, "2020"] == max(total.median.wide[, "2020"], na.rm = T)])``` sector (Tables \@ref(tab:Table-total-median), \@ref(tab:Table-total-q25), \@ref(tab:Table-total-q975)).
 
 
-```{r Table_total_median, echo=FALSE, warning=FALSE}
+```{r Table-total-median, echo=FALSE, warning=FALSE}
 knitr::kable(total.median.wide, 
              digits = 0,
+             #format = "rst",
              format.args = list(big.mark = ",", scientific = FALSE),
              caption = "Median estimated total hatchling production per sector based on modified Richards' equations. ")
 ```
 
 
-```{r Table_total_q2.5, echo=FALSE, warning=FALSE}
+```{r Table-total-q25, echo=FALSE, warning=FALSE}
 knitr::kable(total.q2.5.wide, 
              digits = 0,
              format.args = list(big.mark = ",", scientific = FALSE),
@@ -260,7 +394,7 @@ knitr::kable(total.q2.5.wide,
 ```
 
 
-```{r Table_total_q97.5, echo=FALSE, warning=FALSE}
+```{r Table-total-q975, echo=FALSE, warning=FALSE}
 knitr::kable(total.q97.5.wide, 
              digits = 0,
              format.args = list(big.mark = ",", scientific = FALSE),
@@ -268,73 +402,11 @@ knitr::kable(total.q97.5.wide,
 ```
 
 ## Effects of reprofiling
-To determine the effects of re-profiling the beach, the number of estimated hatchlings per 100 m was compared between 2014R and the South sector and between 2017R and the South sector.  The re-profiled areas (2014 and 2017) experience the same environmental effects and nesting activities as the South sector.  
-
-```{r effects_reprofiling, echo=FALSE, include=FALSE, warning=FALSE}
-Girondot.100m.summary <- Girondot_summary %>% 
-  select(Season, q2.5, q50, q97.5, Sector) %>%
-  mutate(SeasonNum = as.numeric(Season) + 2013)
-
-Girondot.100m.summary[((Girondot.100m.summary$SeasonNum < 2017 |
-                          Girondot.100m.summary$SeasonNum > 2018) & Girondot.100m.summary$Sector == "2017R"),
-                   c("q2.5", "q50", "q97.5")] <- NA
-
-Girondot.100m.summary[(Girondot.100m.summary$Sector == "2019R" & 
-                          Girondot.100m.summary$SeasonNum < 2019), 
-                       c("q2.5", "q50", "q97.5")] <- NA
-
-Girondot.100m.summary[(Girondot.100m.summary$Sector == "West" & 
-                          (Girondot.100m.summary$SeasonNum < 2017 |
-                             Girondot.100m.summary$SeasonNum > 2018)), 
-                       c("q2.5", "q50", "q97.5")] <- NA
-
-Girondot.100m.summary %>% select(Season, q50, Sector) -> median_100m
-Girondot.100m.summary %>% select(Season, q2.5, Sector) -> q2.5_100m
-Girondot.100m.summary %>% select(Season, q97.5, Sector) -> q97.5_100m
-
-median.100m.wide <- as.data.frame(reshape2::acast(median_100m, 
-                                                   Sector ~ Season, 
-                                                   value.var = "q50"))
-
-q2.5.100m.wide <- as.data.frame(reshape2::acast(q2.5_100m, 
-                                                 Sector ~ Season, 
-                                                 value.var = "q2.5"))
-
-q97.5.100m.wide <- as.data.frame(reshape2::acast(q97.5_100m, 
-                                                  Sector ~ Season, 
-                                                  value.var = "q97.5"))
-
-#increase.2014R <- median.100m.wide["2014R",]/median.100m.wide["South",]
-
-```
+To determine the effects of re-profiling the beach, the number of estimated hatchlings per 100 m was compared between 2014R and the South sector, between 2017R and the South sector, and between 2019R and the South sector. The re-profiled areas (2014R, 2017R, and 2019R) experience the same environmental effects and nesting activities as the South sector.  
 
 
 
-```{r Table_100m_median, echo=FALSE, warning=FALSE}
-knitr::kable(median.100m.wide, 
-             digits = 0,
-             format.args = list(big.mark = ",", scientific = FALSE),
-             caption = "Median estimated total hatchling production per 100 m based on modified Richards' equations. ")
-```
-
-
-```{r Table_100m_q2.5, echo=FALSE, warning=FALSE}
-knitr::kable(q2.5.100m.wide, 
-             digits = 0,
-             format.args = list(big.mark = ",", scientific = FALSE),
-             caption = "Lower credibility limits of estimated hatchling production per 100 m based on modified Richards' equations. ")
-```
-
-
-```{r Table_100m_q97.5, echo=FALSE, warning=FALSE}
-knitr::kable(q97.5.100m.wide, 
-             digits = 0,
-             format.args = list(big.mark = ",", scientific = FALSE),
-             caption = "Upper credibility limits of estimated hatchling production per 100 m based on modified Richards' equations. ")
-```
-
-
-```{r compute_increase, echo=FALSE, include=FALSE}
+```{r compute-increase, echo=FALSE, include=FALSE}
 # To compute the uncertainty in the amount of increase in hatchling production, I need to find the number of
 # hatchlings per season for 2014R, 2017R, and South sectors using all MCMC samples.
 #Seasons_stats <- list(length = length(seasons))
@@ -390,23 +462,35 @@ stats.ratios.2017R %>% select(c("2017", "2018", "2019", "2020")) -> stats.ratios
 # Although I compute stats for all years, only 2019 matters for the 2019R sector
 stats.ratios.2019R <- data.frame(apply(tmp.ratios.2019R, MARGIN = 2, FUN = quantile, c(0.025, 0.5, 0.975)))
 colnames(stats.ratios.2019R) <- c("2014", "2015", "2016", "2017", "2018", "2019", "2020")
-
+stats.ratios.2019R %>% select(c("2019", "2020")) -> stats.ratios.2019R
 ```
 
-The reprofiled sectors consistently produced more hatchlings than the unmodified South sector over the four year period (Tables 4, 5, 6). The increase in hatchling productions in the 2014R sector ranged from ```r format(signif(min(stats.ratios.2014R["50%",]), digits = 3), nsmall = 2)``` (95% CI = [```r format(signif(stats.ratios.2014R["2.5%", stats.ratios.2014R["50%", ] == min(stats.ratios.2014R["50%",])], digits = 3), nsmall = 2)``` - ```r format(signif(stats.ratios.2014R["97.5%", stats.ratios.2014R["50%", ] == min(stats.ratios.2014R["50%",])], digits = 3), nsmall = 2)```]) in ```r colnames(stats.ratios.2014R)[stats.ratios.2014R["50%", ] == min(stats.ratios.2014R["50%",])]``` to ```r format(signif(max(stats.ratios.2014R["50%",]), digits = 3), nsmall = 2)``` (95% CI = [```r format(signif(stats.ratios.2014R["2.5%", stats.ratios.2014R["50%", ] == max(stats.ratios.2014R["50%",])], digits = 3), nsmall = 2)``` - ```r format(signif(stats.ratios.2014R["97.5%", stats.ratios.2014R["50%", ] == max(stats.ratios.2014R["50%",])], digits = 3), nsmall =2 )```]) in ```r colnames(stats.ratios.2014R)[stats.ratios.2014R["50%", ] == max(stats.ratios.2014R["50%",])]``` (Table 7).  
+The reprofiled 2014R sector consistently produced more hatchlings than the unmodified South sector over the seven year period (Tables 4, 5, 6). The increase in hatchling productions in the 2014R sector relative to the South sector ranged from ```r format(signif(min(stats.ratios.2014R["50%",]), digits = 3), nsmall = 2)``` (95% CI = [```r format(signif(stats.ratios.2014R["2.5%", stats.ratios.2014R["50%", ] == min(stats.ratios.2014R["50%",])], digits = 3), nsmall = 2)``` - ```r format(signif(stats.ratios.2014R["97.5%", stats.ratios.2014R["50%", ] == min(stats.ratios.2014R["50%",])], digits = 3), nsmall = 2)```]) in ```r colnames(stats.ratios.2014R)[stats.ratios.2014R["50%", ] == min(stats.ratios.2014R["50%",])]``` to ```r format(signif(max(stats.ratios.2014R["50%",]), digits = 3), nsmall = 2)``` (95% CI = [```r format(signif(stats.ratios.2014R["2.5%", stats.ratios.2014R["50%", ] == max(stats.ratios.2014R["50%",])], digits = 3), nsmall = 2)``` - ```r format(signif(stats.ratios.2014R["97.5%", stats.ratios.2014R["50%", ] == max(stats.ratios.2014R["50%",])], digits = 3), nsmall =2 )```]) in ```r colnames(stats.ratios.2014R)[stats.ratios.2014R["50%", ] == max(stats.ratios.2014R["50%",])]``` (Table \@ref(tab:Table-increase-2014R)).  
 
-```{r Table_increase_2014R, echo=FALSE, warning=FALSE}
+```{r Table-increase-2014R, echo=FALSE, warning=FALSE}
 knitr::kable(stats.ratios.2014R, 
              digits = 2,
              format.args = list(big.mark = ",", scientific = FALSE),
-             caption = "Amount of increase in hatchling productions at the 2014R sector compared with the South sector.")
+             caption = "Amount of increase in hatchling productions at the 2014R sector compared with the South sector.") %>%   kable_styling(latex_options = "hold_position")
 ```
 
-The increase in hatchling productions in the 2017R sector ranged from ```r format(signif(min(stats.ratios.2017R["50%",]), digits = 3), nsmall = 2)``` (95% CI = [```r format(signif(stats.ratios.2017R["2.5%", stats.ratios.2017R["50%", ] == min(stats.ratios.2017R["50%",])], digits = 3), nsmall = 2)``` - ```r format(signif(stats.ratios.2017R["97.5%", stats.ratios.2017R["50%", ] == min(stats.ratios.2017R["50%",])], digits = 3), nsmall = 2)```]) in ```r colnames(stats.ratios.2017R)[stats.ratios.2017R["50%", ] == min(stats.ratios.2017R["50%",])]``` to ```r format(signif(max(stats.ratios.2017R["50%",]), digits = 3), nsmall = 2)``` (95% CI = [```r format(signif(stats.ratios.2017R["2.5%", stats.ratios.2017R["50%", ] == max(stats.ratios.2017R["50%",])], digits = 3), nsmall = 2)``` - ```r format(signif(stats.ratios.2017R["97.5%", stats.ratios.2017R["50%", ] == max(stats.ratios.2017R["50%",])], digits = 3), nsmall =2 )```]) in ```r colnames(stats.ratios.2017R)[stats.ratios.2017R["50%", ] == max(stats.ratios.2017R["50%",])]``` (Table 8).   
+Hatchling productions in the 2017R sector relative to the South sector varied from year to year over the four year period, ranging from ```r format(signif(min(stats.ratios.2017R["50%",]), digits = 3), nsmall = 2)``` (95% CI = [```r format(signif(stats.ratios.2017R["2.5%", stats.ratios.2017R["50%", ] == min(stats.ratios.2017R["50%",])], digits = 3), nsmall = 2)``` - ```r format(signif(stats.ratios.2017R["97.5%", stats.ratios.2017R["50%", ] == min(stats.ratios.2017R["50%",])], digits = 3), nsmall = 2)```]) in ```r colnames(stats.ratios.2017R)[stats.ratios.2017R["50%", ] == min(stats.ratios.2017R["50%",])]``` to ```r format(signif(max(stats.ratios.2017R["50%",]), digits = 3), nsmall = 2)``` (95% CI = [```r format(signif(stats.ratios.2017R["2.5%", stats.ratios.2017R["50%", ] == max(stats.ratios.2017R["50%",])], digits = 3), nsmall = 2)``` - ```r format(signif(stats.ratios.2017R["97.5%", stats.ratios.2017R["50%", ] == max(stats.ratios.2017R["50%",])], digits = 3), nsmall =2 )```]) in ```r colnames(stats.ratios.2017R)[stats.ratios.2017R["50%", ] == max(stats.ratios.2017R["50%",])]``` (Table \@ref(tab:Table-increase-2017R)).   
 
-```{r Table_increase_2017R, echo=FALSE, warning=FALSE}
+```{r Table-increase-2017R, echo=FALSE, warning=FALSE}
 knitr::kable(stats.ratios.2017R, 
              digits = 2,
              format.args = list(big.mark = ",", scientific = FALSE),
              caption = "Amount of increase in hatchling productions at the 2017R sector compared with the South sector.")
 ```
+
+
+Hatchling productions in the 2019R sector relative to the South sector varied between 2019 and 2020, where they were greater than the South sector in 2019 and approximately the same in 2020 (Table 9). They ranged from ```r format(signif(min(stats.ratios.2019R["50%",]), digits = 3), nsmall = 2)``` (95% CI = [```r format(signif(stats.ratios.2019R["2.5%", stats.ratios.2019R["50%", ] == min(stats.ratios.2019R["50%",])], digits = 3), nsmall = 2)``` - ```r format(signif(stats.ratios.2019R["97.5%", stats.ratios.2019R["50%", ] == min(stats.ratios.2019R["50%",])], digits = 3), nsmall = 2)```]) in ```r colnames(stats.ratios.2019R)[stats.ratios.2019R["50%", ] == min(stats.ratios.2019R["50%",])]``` to ```r format(signif(max(stats.ratios.2019R["50%",]), digits = 3), nsmall = 2)``` (95% CI = [```r format(signif(stats.ratios.2019R["2.5%", stats.ratios.2019R["50%", ] == max(stats.ratios.2019R["50%",])], digits = 3), nsmall = 2)``` - ```r format(signif(stats.ratios.2019R["97.5%", stats.ratios.2019R["50%", ] == max(stats.ratios.2019R["50%",])], digits = 3), nsmall =2 )```]) in ```r colnames(stats.ratios.2019R)[stats.ratios.2019R["50%", ] == max(stats.ratios.2019R["50%",])]``` (Table \@ref(tab:Table-increase-2019R)). 
+
+
+```{r Table-increase-2019R, echo=FALSE, warning=FALSE}
+knitr::kable(stats.ratios.2019R, 
+             digits = 2,
+             format.args = list(big.mark = ",", scientific = FALSE),
+             caption = "Amount of increase in hatchling productions at the 2019R sector compared with the South sector.")
+```
+
