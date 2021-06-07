@@ -1,11 +1,14 @@
 ---
 title: "Hatchling production estimation using Richards functions"
 author: "Tomo Eguchi"
-output: bookdown::pdf_document2
+output: bookdown::pdf_document2 
 toc: FALSE 
 ---
 
 ```{r setup, include=FALSE}
+#pdf_document2
+#always_allow_html: true
+
 rm(list=ls())
 #bookdown::html_document2: default
 #knitr::opts_chunk$set(echo = TRUE)
@@ -56,7 +59,7 @@ Each nesting season starts on December 20th and ends on April 30th in the follow
 Beach lengths of the six sectors were `r Beach.Length %>% filter(name == "2014R") %>% select(length)` m (2014R), `r Beach.Length %>% filter(name == "2017R") %>% select(length)` m (2017R), `r Beach.Length %>% filter(name == "2019R") %>% select(length)` m (2019R), `r Beach.Length %>% filter(name == "North") %>% select(length)` m (North), `r Beach.Length %>% filter(name == "South") %>% select(length)` m (South), and `r Beach.Length %>% filter(name == "West") %>% select(length)` m (West),
 
 
-```{r observed-counts, fig.cap="Observed numbers of hatchling per 100 m within six sectors (2014R, 2017R, 2019R, South, North, and West) on Raine Island. 2014R, 2017R, and 2019R sectors were re-profied in respective years, whereas the other three have not been modified.", echo=FALSE, warning=FALSE}
+```{r observed-counts, fig.cap="Observed numbers of hatchling per 100 m within six sectors (2014R, 2017R, 2019R, South, North, and West) on Raine Island. 2014R, 2017R, and 2019R sectors were re-profiled in respective years, whereas the other three have not been modified.", echo=FALSE, warning=FALSE}
 
 p.fig0 <- ggplot(data.1) +
   geom_point(aes(x = Date, y = Counts_100m, color = as.factor(Season))) +
@@ -251,7 +254,7 @@ The estimated number of hatchlings per 100 m in 2020 ranged from ```r format(cei
 
 
 ```{r Table-100m-median, echo=FALSE, warning=FALSE}
-knitr::kable(median.100m.wide, 
+knitr::kable(format(ceiling(median.100m.wide), big.mark = ",", trim = TRUE, scientific = FALSE), 
              digits = 0,
              format.args = list(big.mark = ",", scientific = FALSE),
              caption = "Median estimated total hatchling production per 100 m based on modified Richards' equations. ")
@@ -259,7 +262,7 @@ knitr::kable(median.100m.wide,
 
 
 ```{r Table-100m-q25, echo=FALSE, warning=FALSE}
-knitr::kable(q2.5.100m.wide, 
+knitr::kable(format(ceiling(q2.5.100m.wide), big.mark = ",", trim = TRUE, scientific = FALSE), 
              digits = 0,
              format.args = list(big.mark = ",", scientific = FALSE),
              caption = "Lower credibility limits of estimated hatchling production per 100 m based on modified Richards' equations. ")
@@ -267,7 +270,7 @@ knitr::kable(q2.5.100m.wide,
 
 
 ```{r Table-100m-q975, echo=FALSE, warning=FALSE}
-knitr::kable(q97.5.100m.wide, 
+knitr::kable(format(ceiling(q97.5.100m.wide), big.mark = ",", trim = TRUE, scientific = FALSE), 
              digits = 0,
              format.args = list(big.mark = ",", scientific = FALSE),
              caption = "Upper credibility limits of estimated hatchling production per 100 m based on modified Richards' equations. ")
@@ -378,7 +381,7 @@ In 2020, they ranged from ```r format(ceiling(min(total.median.wide[, "2020"], n
 
 
 ```{r Table-total-median, echo=FALSE, warning=FALSE}
-knitr::kable(total.median.wide, 
+knitr::kable(format(ceiling(total.median.wide), big.mark = ",", trim = TRUE, scientific = FALSE), 
              digits = 0,
              #format = "rst",
              format.args = list(big.mark = ",", scientific = FALSE),
@@ -387,7 +390,7 @@ knitr::kable(total.median.wide,
 
 
 ```{r Table-total-q25, echo=FALSE, warning=FALSE}
-knitr::kable(total.q2.5.wide, 
+knitr::kable(format(ceiling(total.q2.5.wide), big.mark = ",", trim = TRUE, scientific = FALSE), 
              digits = 0,
              format.args = list(big.mark = ",", scientific = FALSE),
              caption = "Lower credibility limits of estimated total hatchling production per sector based on modified Richards' equations. ")
@@ -395,7 +398,7 @@ knitr::kable(total.q2.5.wide,
 
 
 ```{r Table-total-q975, echo=FALSE, warning=FALSE}
-knitr::kable(total.q97.5.wide, 
+knitr::kable(format(ceiling(total.q97.5.wide), big.mark = ",", trim = TRUE, scientific = FALSE), 
              digits = 0,
              format.args = list(big.mark = ",", scientific = FALSE),
              caption = "Upper credibility limits of estimated total hatchling production per sector based on modified Richards' equations. ")
