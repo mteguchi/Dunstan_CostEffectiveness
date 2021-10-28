@@ -42,34 +42,33 @@ data.1 %>% mutate(DOSeason = as.numeric(Date - as.Date(paste0(Season, "-",
                                                               Day1)))) -> data.3
 ```
 
-In this document, I describe the steps I used to estimate the number of annual hatchling production from several observations during each nesting season at four sections of Raine Island.  In a separate analysis, I fitted various functions to hatchling counts and found that using modified Richards functions (Girondot et al. 2007) provided the most precise estimates.  Results of the comparison of these models are available upon request.  
+In this document, I describe the steps I used to estimate the number of annual hatchling production from several observations during each nesting season at four sections of Raine Island. In a separate analysis, I fitted various functions to hatchling counts and found that using a modified Richards function (Girondot et al. 2007) provided the most precise estimates. Results of the comparison of these models are available upon request.  
 
-# Modified Richards equation by Girondot et al. (2007)
+# Modified Richards equation by Girondot et al. (2007) {-}
 
-In this approach, I used the model described by Girondot et al. (2007). It has two symmetrical functions that are connected at the peak of nesting.  
+The modified Richards function in Girondot et al. (2007) is composed of two symmetrical functions that are connected at the peak of nesting.  
 
 The function has the following form:
 
-M1 = (1 + (2 * exp(K) - 1) * exp((1/(-S)) * (P - d))) ^ (-1/exp(K))
+$M_1 = (1 + (2 * exp(K) - 1) * exp((1/(-S)) * (P - d))) ^ {(-1/exp(K))}$
 
-M2 = (1 + (2 * exp(K) - 1) * exp((1/S) * (P - d))) ^ (-1/exp(K))
+$M_2 = (1 + (2 * exp(K) - 1) * exp((1/S) * (P - d))) ^ {(-1/exp(K))}$
 
-N = min_N + (max_N - min_N) * (M1 * M2), where
+$N = min_N + (max_N - min_N) * (M_1 * M_2)$, where
 
-d is the number of days from the beginning of nesting season,
+$d$ is the number of days from the beginning of nesting season,
 
-S defines the "fatness" of the function (S > 0),
+$S$ defines the "fatness" of the function ($S > 0$),
 
-K > 0 defines the "flatness" at the peak of the function (K > 0),
+$K > 0$ defines the "flatness" at the peak of the function ($K > 0$),
 
-P defines where the peak is relatvie to the range of d, where min(d) < P < max(d),
+$P$ defines where the peak is relatvie to the range of $d$, where $min(d) < P < max(d)$,
 
-min_N is "the basal level of nesting outside the nesting season" and,
+$min_N$ is "the basal level of nesting outside the nesting season" and,
 
-max_N >> min_N
+$max_N >> min_N$
 
-This model was fitted to observed hatchling counts per 100 m in each sector and estimated parameters and their uncertainties were used to compute the total number of hatchlings and its uncertainties from each sector.  
-
+This model was fitted to observed hatchling counts per 100 m in each sector and parameters and their uncertainties were estimated. The effects of reprofiling of experimental sectors were determeind by the ratio of estimated hatching production per 100 m between reprofiled (2014R and 2017R) and control (South) sections.    
 
 ```{r Model_Girondot, include=FALSE, echo=FALSE}
 jm <- readRDS(paste0("RData/Girondot_Par_estimation_dnorm_", 
@@ -93,7 +92,8 @@ for (j in 1:length(Sectors)){
                           1, 
                           extract.samples(paste0("max[", i, ",", j, "]"),
                                           jm$samples)) 
-      tmp.mat[c1, ] <- c(seasons[i], k, quantile(tmp, c(0.025, 0.5, 0.975)))
+      tmp.mat[c1, ] <- c(seasons[i], k, 
+                         quantile(tmp, c(0.025, 0.5, 0.975)))
       c1 <- c1 + 1  
     }
   }
@@ -110,7 +110,7 @@ names(Girondot_stats) <-paste0("Xs_", Sectors)
 ```
 
 
-Fitted functions to the data are shown in Figure 1.  Although no formal model fitting test was conducted, qualitatiely, the functions fit reasonable to the data (Figure 11).  The fitted function, then, was used for each season to estimate the hatchling counts per 100 m.  Because the parameters of the function were shared among sectors, estimates were available even when there were limited data. 
+Although no formal model fitting test was conducted, qualitatiely, the functions fit reasonable to the data (Figure \@(fig:plot.fit)). The fitted function, then, was used for each season to estimate the hatchling production per 100 m. Because the parameters of the function were shared among sectors, estimates were available even when there were limited data. 
 
 ```{r Girondot.plot, echo=FALSE, include=FALSE, warning=FALSE}
 Girondot.all.data <- do.call(rbind, Girondot_stats)
