@@ -46,15 +46,58 @@ To determine the effects of reprofiling the nesting beach at Raine Island on hat
 
 # Comparison of observed hatchling production {-}
 
-```{r}
-data.3 %>% filter(Sector == "2014R" | 
-                    Sector == "2017R" | 
-                    Sector == "South")  -> data.3.reprofile
+Raw hatching counts per 100 m transects were compared between 2014R and South sections and between 2017R and South sections. These comparisons indicated that modified sections (2014R and 2017R) produced more hatchlings than the control section (South) in all but one year (2019; Figure \@ref(fig:plot-obs-comparison)). 
+
+```{r raw-comparison, include=F, echo=F}
+data.3 %>% filter(Sector == "2014R"  |
+                    Sector == "2017R" |
+                    Sector == "South" ) %>%
+  transmute(Date = Date, 
+            Sector = as.factor(Sector),
+            Season = as.factor(Season),
+            Counts = Counts_100m) -> data.3.reprofile
+
+data.3 %>% filter(Sector == "2014R"  | 
+                    Sector == "South")   -> data.3.2014R
+  # group_by(Season) %>% 
+  # summarize(Counts = sum(Counts_100m, na.rm = T))  -> data.3.2014R
+
+data.3 %>% filter(Sector == "2017R"  | 
+                    Sector == "South")  -> data.3.2017R
+  # group_by(Season) %>% 
+  # summarize(Counts = sum(Counts_100m, na.rm = T)) -> data.3.2017R
 
 p.obs <- ggplot(data.3.reprofile) +
-  geom_point(aes(x = Date, y = Counts_100m, color = Sector))
+   stat_boxplot(aes(x = Season, y = Counts, color = Sector))
   #facet_grid(~ Sector)
 
+if (save.fig)
+  ggsave(plot = p.obs,
+         filename = "figure/reprofile_comparison.png",
+         device = "png", dpi = 600)
+
+
+```
+
+
+
+```{r plot-obs-comparison, echo=F, cache=T, fig.cap = "Observed hatchling counts at three comparable sections. 2014R was modified in 2014, whereas 2017R was modified in 2017. South section was not modified and used as the control section. Horizontal lines are medians, boxes are from 25th and 75th percentiles (inter quartile range; IQR), and whiskers indicate 1.5*IQR."}
+knitr::include_graphics("figures/reprofile_comparison.png")
+
+```
+
+
+
+```{r linear-models, include=F, echo=F}
+# ANOVA comparisons
+lm.2014R <- lm(Counts_100m ~ Sector * Season,
+               data = data.3.2014R)
+
+lm.2017R <- lm(Counts_100m ~ Sector * Season,
+               data = data.3.2017R)
+#summary(lm.2014R)
+
+#summary(lm.2017R)
 ```
 
 
