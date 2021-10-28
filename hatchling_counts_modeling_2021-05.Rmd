@@ -26,7 +26,9 @@ Get the data. Then, create a dataframe containing complete season (DOSeason from
 col.def <- cols(Date = col_date(format = "%m/%d/%Y"),
                 Counts_100m = col_double(),
                 Season = col_factor(),
-                Sector = col_factor(levels = c("2014R", "2017R", "2019R", "North", "South", "West")),
+                Sector = col_factor(levels = c("2014R", "2017R", 
+                                               "2019R", "North", 
+                                               "South", "West")),
                 Col1 = col_character(),   # empty 5 columns added
                 Col2 = col_character(),
                 Col3 = col_character(),
@@ -54,7 +56,8 @@ Day1 <- "12-20"
 Day2 <- "04-30"
 
 # n.days should be the number of days within a season.
-n.days <- as.numeric(as.Date(paste0("2018-", Day2)) - as.Date(paste0("2017-", Day1)))
+n.days <- as.numeric(as.Date(paste0("2018-", Day2)) -
+                       as.Date(paste0("2017-", Day1)))
 
 seasons <- as.numeric(as.vector(unique(data.1$Season)))
 
@@ -1079,7 +1082,8 @@ jags.data <- list(y = (obs.y),
 #                     n.thin = 5)
 
 
-if (!file.exists(paste0("RData/poly_imputation_dnorm_", Day1, "_", Day2, "_2021.rds"))){
+if (!file.exists(paste0("RData/poly_imputation_dnorm_", 
+                        Day1, "_", Day2, "_2021.rds"))){
   jm <- jags(jags.data,
              inits = NULL,
              parameters.to.save= jags.params,
@@ -1090,10 +1094,12 @@ if (!file.exists(paste0("RData/poly_imputation_dnorm_", Day1, "_", Day2, "_2021.
              n.iter = MCMC.params$n.samples,
              DIC = T, parallel=T)
   
-  saveRDS(jm, paste0("RData/poly_imputation_dnorm_", Day1, "_", Day2, "_2021.rds"))
+  saveRDS(jm, paste0("RData/poly_imputation_dnorm_", 
+                     Day1, "_", Day2, "_2021.rds"))
   
 } else {
-  jm <- readRDS(paste0("RData/poly_imputation_dnorm_", Day1, "_", Day2, "_2021.rds"))
+  jm <- readRDS(paste0("RData/poly_imputation_dnorm_", 
+                       Day1, "_", Day2, "_2021.rds"))
 }
 
 ```
@@ -1260,20 +1266,27 @@ Next... try the function provided in Girondot et al. (2007).
 Try first with non-log counts as it was done in their paper. Change the data format a little so that we are not "imputing" but estimating the parameters of the functions from data.
 
 ```{r}
-data.1 %>% mutate(DOSeason = as.numeric(Date - as.Date(paste0(Season, "-", Day1)))) %>%
+data.1 %>% mutate(DOSeason = as.numeric(Date - as.Date(paste0(Season, "-",
+                                                              Day1)))) %>%
   select(-Date) -> data.3
 Sectors <- unique(data.3$Sector)
 
-obs.t <- obs.y.1 <- matrix(NA, nrow = length(Sectors) * length(seasons), ncol = 10)
-n.vec <- vector(mode = "numeric", length = length(Sectors) * length(seasons))
-season.sector.idx <- matrix(NA, nrow = length(Sectors) * length(seasons), ncol = 2)
+obs.t <- obs.y.1 <- matrix(NA, nrow = length(Sectors) * length(seasons), 
+                           ncol = 10)
+
+n.vec <- vector(mode = "numeric", 
+                length = length(Sectors) * length(seasons))
+
+season.sector.idx <- matrix(NA, nrow = length(Sectors) * length(seasons), 
+                            ncol = 2)
 
 max.mat <- matrix(NA, nrow = length(seasons), ncol = length(Sectors))
 
 r <- season_idx <- sector_idx <- 1
 for (season_idx in 1:length(seasons)){
   for (sector_idx in 1:length(Sectors)){
-    data.3 %>% filter(Season == seasons[season_idx]) %>%
+    data.3 %>% 
+      filter(Season == seasons[season_idx]) %>%
       filter(Sector == Sectors[sector_idx]) -> tmp
     if (nrow(tmp) > 0){
       obs.t[r, 1:nrow(tmp)] <- tmp$DOSeason
@@ -1311,7 +1324,8 @@ jags.params <- c("sigma.y", "P", "S", "K", "max",
 #                     n.thin = 5)
 
 
-if (!file.exists(paste0("RData/Girondot_par_estimation_dnorm_", Day1, "_", Day2, "_2021.rds"))){
+if (!file.exists(paste0("RData/Girondot_par_estimation_dnorm_", 
+                        Day1, "_", Day2, "_2021.rds"))){
   jm <- jags(jags.data,
              inits = NULL,
              parameters.to.save= jags.params,
@@ -1322,10 +1336,12 @@ if (!file.exists(paste0("RData/Girondot_par_estimation_dnorm_", Day1, "_", Day2,
              n.iter = MCMC.params$n.samples,
              DIC = T, parallel=T)
   
-  saveRDS(jm, paste0("RData/Girondot_Par_estimation_dnorm_", Day1, "_", Day2, "_2021.rds"))
+  saveRDS(jm, paste0("RData/Girondot_Par_estimation_dnorm_", 
+                     Day1, "_", Day2, "_2021.rds"))
   
 } else {
-  jm <- readRDS(paste0("RData/Girondot_Par_estimation_dnorm_", Day1, "_", Day2, "_2021.rds"))
+  jm <- readRDS(paste0("RData/Girondot_Par_estimation_dnorm_", 
+                       Day1, "_", Day2, "_2021.rds"))
 }
 
 ```
@@ -1347,7 +1363,8 @@ for (j in 1:length(Sectors)){
                           extract.samples("K", jm$samples), 
                           extract.samples(paste0("P[", i, "]"), jm$samples), 
                           jags.data$min[j], 
-                          extract.samples(paste0("max[", i, ",", j, "]"), jm$samples)) 
+                          extract.samples(paste0("max[", i, ",", j, "]"),
+                                          jm$samples)) 
       
       tmp.mat[c, ] <- c(seasons[i], k, quantile(tmp, c(0.025, 0.5, 0.975)))
       c <- c + 1  
