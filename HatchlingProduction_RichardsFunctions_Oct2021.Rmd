@@ -42,19 +42,19 @@ data.1 %>% mutate(DOSeason = as.numeric(Date - as.Date(paste0(Season, "-",
                                                               Day1)))) -> data.3
 ```
 
-To determine the effects of reprofiling the nesting beach at Raine Island on hatchling production, we compared the estimated numbers of hatchlings between modified and control sections. First, we compare the observed numbers of hatchlings per 100 m of beach between modified and controlled sections. Second, we estimate the annual total hatchling production per section by fitting a statistical model to hatchling counts. The estimated total annual production was compared between modified and contorl sections. 
+To determine the effects of reprofiling the nesting beach at Raine Island on hatchling production, we compared the estimated numbers of hatchlings between modified and control sections. First, we compare the observed numbers of hatchlings per 100 m of beach between modified and controlled sections. Second, we estimate the annual total hatchling production per section by fitting a statistical model to hatchling counts. The estimated total annual production was compared between modified and control sections. 
 
 # Comparison of observed hatchling production {-}
 
 ```{r}
 data.3 %>% filter(Sector == "2014R" | 
                     Sector == "2017R" | 
-                    Sector == "South") %>%
-  group_by(as.factor(Sector)) %>% 
-  transmute(Season = Season,
-            -> data.3.reprofile
+                    Sector == "South")  -> data.3.reprofile
 
-p.obs <- ggplot(data.3)
+p.obs <- ggplot(data.3.reprofile) +
+  geom_point(aes(x = Date, y = Counts_100m, color = Sector))
+  #facet_grid(~ Sector)
+
 ```
 
 
