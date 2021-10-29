@@ -1,0 +1,197 @@
+---
+title: "Bayesian analysis for comparing hatchling production between modified and control sectors"
+output: html_notebook
+---
+
+An attempt to compare the number of observed hatchlings between modified and control regions using a Bayesian approach.
+
+```{r}
+rm(list=ls())
+library(jagsUI)
+library(tidyverse)
+library(loo)
+library(bayesplot)
+library(readr)
+
+save.fig <- F
+
+source("Dunstan_functions.R")
+
+# get data
+col.def <- cols(Date = col_date(format = "%m/%d/%Y"),
+                Counts_100m = col_double(),
+                Season = col_integer(),
+                Sector = col_character())
+
+data.1 <- read_csv(file = "data/Hatchling_Data_v3.1.csv",
+                   col_types = col.def)
+
+# These two need to be changed when different runs are used
+Day1 <- "12-20"
+Day2 <- "04-30"
+
+n.days <- as.numeric(as.Date(paste0("2018-", Day2)) - 
+                       as.Date(paste0("2017-", Day1)))
+
+seasons <- unique(data.1$Season)
+
+data.1 %>% mutate(DOSeason = as.numeric(Date - as.Date(paste0(Season, "-",
+                                                              Day1)))) %>%
+  na.omit() -> data.3
+
+```
+
+Once the data are loaded, I extract just the necessary stuff:
+
+```{r}
+data.3 %>% filter(Sector == "2014R" |
+                    Sector == "2017R" |
+                    Sector == "South") -> data.3.1
+
+y.2014R <- filter(data.3, Sector == "2014R") %>%
+  select(Season, Counts_100m)
+
+y.2014R %>% group_by(Season) %>% 
+  summarise(n = n() ) %>%
+  select(n) %>% as.vector() -> n.2014R
+
+y.2014R %>% group_by(Season) %>% 
+  mutate(ID = row_number()) %>% 
+  pivot_wider(names_from = "Season", 
+              names_prefix = "yr", 
+              id_cols = "ID", 
+              values_from = "Counts_100m") %>%
+  select(-"ID") %>%
+  as.matrix()  -> y.2014R.wide
+
+y.2017R <- filter(data.3, Sector == "2017R") %>%
+  select(Season, Counts_100m)
+
+y.2017R %>% group_by(Season) %>% 
+  summarise(n = n() ) %>%
+  select(n) %>% as.vector()-> n.2017R
+
+y.2017R %>% group_by(Season) %>% 
+  mutate(ID = row_number()) %>% 
+  pivot_wider(names_from = "Season", 
+              names_prefix = "yr", 
+              id_cols = "ID", 
+              values_from = "Counts_100m") %>%
+  select(-"ID") %>%
+  as.matrix()  -> y.2017R.wide
+
+y.South <- filter(data.3, Sector == "South") %>%
+  select(Season, Counts_100m)
+
+y.South %>% group_by(Season) %>% 
+  summarise(n = n() ) %>%
+  select(n) %>% as.vector() -> n.South
+
+y.South %>% group_by(Season) %>% 
+  mutate(ID = row_number()) %>% 
+  pivot_wider(names_from = "Season", 
+              names_prefix = "yr", 
+              id_cols = "ID", 
+              values_from = "Counts_100m") %>%
+  select(-"ID") %>%
+  as.matrix() -> y.South.wide
+
+MCMC.params <- list(n.chains = 5,
+                    n.samples = 100000,
+                    n.burnin = 80000,
+                    n.thin = 10)
+
+jags.data <- list(y2014 = log(y.2014R.wide),
+                  y2017 = log(y.2017R.wide),
+                  ySouth = log(y.South.wide),
+                  N2014 = pull(n.2014R),
+                  N2017 = pull(n.2017R),
+                  NSouth = pull(n.South))
+
+
+jags.params <- c("mu2014", "sigma2014", 
+                 "mu2017", "sigma2017",
+                 "muSouth", "sigmaSouth",
+                 "deltaMu2014", "deltaMu2017",
+                 "deviance")
+
+jm <- jags(jags.data,
+           inits = NULL,
+           parameters.to.save= jags.params,
+           model.file = 'models/model_reprofile_comparison.txt',
+           n.chains = MCMC.params$n.chains,
+           n.burnin = MCMC.params$n.burnin,
+           n.thin = MCMC.params$n.thin,
+           n.iter = MCMC.params$n.samples,
+           DIC = T, parallel=T)
+
+#saveRDS(jm, file = "RData/Reprofile_comparison.rds")
+
+jm$summary %>% data.frame() %>% 
+  rownames_to_column(var = "Parameter")  -> summary.df
+
+```
+
+```{r}
+mcmc_trace(jm$samples,
+           c("mu2014[1]", "mu2014[2]", "mu2014[3]",
+             "mu2014[4]", "mu2014[5]", "mu2014[6]",
+             "mu2014[7]"))
+```
+
+```{r}
+mcmc_trace(jm$samples,
+           c("deltaMu2014[1]", "deltaMu2014[2]", "deltaMu2014[3]",
+             "deltaMu2014[4]", "deltaMu2014[5]", "deltaMu2014[6]",
+             "deltaMu2014[7]"))
+```
+
+
+```{r}
+mcmc_dens(jm$samples,
+           c("deltaMu2014[1]", "deltaMu2014[2]", "deltaMu2014[3]",
+             "deltaMu2014[4]", "deltaMu2014[5]", "deltaMu2014[6]",
+             "deltaMu2014[7]"))
+```
+
+
+```{r}
+
+delta.mu.2014 <- summary.df[grep("deltaMu2014", summary.df$Parameter),]
+
+delta.mu.2014 %>% 
+  select(Parameter, mean, X2.5., X97.5., f) -> delta.mu.2014.df
+
+
+```
+
+
+```{r}
+mcmc_trace(jm$samples,
+           c("mu2017[1]", "mu2017[2]", "mu2017[3]",
+             "mu2017[4]"))
+```
+
+
+```{r}
+mcmc_trace(jm$samples,
+           c("deltaMu2017[1]", "deltaMu2017[2]", "deltaMu2017[3]",
+             "deltaMu2017[4]"))
+```
+
+
+```{r}
+mcmc_dens(jm$samples,
+           c("deltaMu2017[1]", "deltaMu2017[2]", "deltaMu2017[3]",
+             "deltaMu2017[4]"))
+```
+
+Seems like they converged alright. Compute how many of the samples were > 0 for $\delta \mu_{2014}$ and $\delta \mu_{2017}$.
+
+```{r}
+
+delta.mu.2017 <- summary.df[grep("deltaMu2017", summary.df$Parameter),]
+
+# f is the proportion of posterior samples that have the same sign as the mean. 
+```
+

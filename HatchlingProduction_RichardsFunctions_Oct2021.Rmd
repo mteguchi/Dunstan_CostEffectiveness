@@ -42,11 +42,11 @@ data.1 %>% mutate(DOSeason = as.numeric(Date - as.Date(paste0(Season, "-",
                                                               Day1)))) -> data.3
 ```
 
-To determine the effects of reprofiling the nesting beach at Raine Island on hatchling production, we compared the estimated numbers of hatchlings between modified and control sections. First, we compare the observed numbers of hatchlings per 100 m of beach between modified and controlled sections. Second, we estimate the annual total hatchling production per section by fitting a statistical model to hatchling counts. The estimated total annual production was compared between modified and control sections. 
+To determine the effects of reprofiling the nesting beach at Raine Island on hatchling production, we compared the numbers of hatchlings between modified and control sections. We analyzed these data in two different approaches. First, we compared the observed numbers of hatchlings per 100 m of beach between modified and controlled sections. A hierarchical Bayesian model was developed to compare the mean hatchling counts per 100 m between the modified and control sectors. Second, we developed statistical models to estimate the annual hatchling production per 100 m per sector. The estimated total annual production per sector then was compared between modified and control sectors. 
 
-# Comparison of observed hatchling production {-}
+# Observed hatchling count comparison {-}
 
-Raw hatching counts per 100 m transects were compared between 2014R and South sections and between 2017R and South sections. These comparisons indicated that modified sections (2014R and 2017R) produced more hatchlings than the control section (South) in all but one year (2019; Figure \@ref(fig:plot-obs-comparison)). 
+Raw hatching counts per 100 m transects were compared between the 2014R and South sectors and between the 2017R and South sectors. These comparisons indicated that the modified sectors (2014R and 2017R) produced more hatchlings than the control sector (South) in all but one year (2019; Figure \@ref(fig:plot-obs-comparison)). 
 
 ```{r raw-comparison, include=F, echo=F}
 data.3 %>% filter(Sector == "2014R"  |
@@ -67,43 +67,129 @@ data.3 %>% filter(Sector == "2017R"  |
   # group_by(Season) %>% 
   # summarize(Counts = sum(Counts_100m, na.rm = T)) -> data.3.2017R
 
-p.obs <- ggplot(data.3.reprofile) +
+p.obs <- ggplot(na.omit(data.3.reprofile)) +
    stat_boxplot(aes(x = Season, y = Counts, color = Sector))
   #facet_grid(~ Sector)
 
 if (save.fig)
   ggsave(plot = p.obs,
-         filename = "figure/reprofile_comparison.png",
+         filename = "figures/reprofile_comparison.png",
          device = "png", dpi = 600)
 
 
 ```
 
-
-
-```{r plot-obs-comparison, echo=F, cache=T, fig.cap = "Observed hatchling counts at three comparable sections. 2014R was modified in 2014, whereas 2017R was modified in 2017. South section was not modified and used as the control section. Horizontal lines are medians, boxes are from 25th and 75th percentiles (inter quartile range; IQR), and whiskers indicate 1.5*IQR."}
+```{r plot-obs-comparison, echo=F, cache=T, fig.cap = "Observed hatchling counts at three comparable sectors. 2014R was modified in 2014, whereas 2017R was modified in 2017. South sector was not modified and used as the control sector. Horizontal lines are medians, boxes are from 25th and 75th percentiles (inter quartile range; IQR), whiskers indicate 1.5xIQR, and dots indicate data points outside of 1.5xIQR."}
 knitr::include_graphics("figures/reprofile_comparison.png")
 
 ```
 
+Because of unequal variances among seasons and sectors, simple linear models were inappropriate for these data. The base-10 logarithmic transformation alleviated the problem somewhat (Figure \@ref(fig:plot-log-obs-comparison)) but not sufficient to satisfy the equal-variance assumption of ANOVA. 
 
+
+```{r log-comparison, echo=F, include=F}
+p.log.obs <- ggplot(na.omit(data.3.reprofile)) +
+   stat_boxplot(aes(x = Season, y = log10(Counts), color = Sector))
+  #facet_grid(~ Sector)
+
+if (save.fig)
+  ggsave(plot = p.log.obs,
+         filename = "figures/reprofile_log10_comparison.png",
+         device = "png", dpi = 600)
+
+```
+
+
+```{r plot-log-obs-comparison, echo=F, cache=T, fig.cap = "Observed hatchling counts in the log-10 scale at three comparable sectors. 2014R was modified in 2014, whereas 2017R was modified in 2017. South sector was not modified and used as the control sector. Horizontal lines are medians, boxes are from 25th and 75th percentiles (inter quartile range; IQR), whiskers indicate 1.5xIQR, and dots indicate data points outside of 1.5xIQR."}
+knitr::include_graphics("figures/reprofile_log10_comparison.png")
+
+```
 
 ```{r linear-models, include=F, echo=F}
 # ANOVA comparisons
-lm.2014R <- lm(Counts_100m ~ Sector * Season,
+lm.2014R <- lm(log10(Counts_100m) ~ Sector * Season,
                data = data.3.2014R)
 
-lm.2017R <- lm(Counts_100m ~ Sector * Season,
+lm.2017R <- lm(log10(Counts_100m) ~ Sector * Season,
                data = data.3.2017R)
 #summary(lm.2014R)
 
 #summary(lm.2017R)
 ```
 
+To circumvent the unequal variance problem, we created a Bayesian model to explicitly incorporate the unequal variances and compared the means between modified and control sectors. The model has the following form.
 
-# Modified Richards equation by Girondot et al. (2007) {-}
+$log(y_{i,y,s}) \sim N(\mu_{y,s}, \sigma_{y,s})$,
 
-In a separate analysis, I fitted various functions to hatchling counts and found that using a modified Richards function (Girondot et al. 2007) provided the most precise estimates. Results of the comparison of these models are available upon request. The modified Richards function in Girondot et al. (2007) is composed of two symmetrical functions that are connected at the peak of nesting.  
+where $i$ is the index for samples within year $y$ ($i = 1, ..., n_{y,s}$). Prior distributions were 
+
+$\mu_{y,s} \sim N(0, 3)$ and 
+
+$\sigma_{y,s} \sim GAM(0.1,0.1)$). 
+
+We then determined the differences in the means:
+
+$\Delta \mu_{2014R} = exp(\mu_{y, 2014R}) - exp(\mu_{y, South})$ and
+
+$\Delta \mu_{2017R} = exp(\mu_{y, 2017R}) - exp(\mu_{y, South})$.
+
+The proportion of $\Delta \mu_{y,s} > 0$ can be considered as the probability that the modified sector produced greater number of hatchlings than the control sector. 
+
+The analysis was conducted using JAGS in R via jagsUI package. It can be found in "reprofile_comparison.Rmd" and results were saved in "Reprofile_comparison.rds." Convergence of MCMC was reached for all parameters (Rhat < 1.1). R and JAGS code are included in the supplementary material. 
+
+```{r Bayesian_comparison, include=F, echo=F}
+jm <- readRDS(file = "RData/Reprofile_comparison.rds")
+
+jm$summary %>% data.frame() %>% 
+  rownames_to_column(var = "Parameter")  -> summary.df
+
+delta.mu.2014 <- summary.df[grep("deltaMu2014", summary.df$Parameter),]
+
+delta.mu.2014 %>% 
+  transmute(Year = seq(2014, 2020),
+            Mean = mean,
+            Low = X2.5.,
+            High = X97.5.,
+            f = f) -> delta.mu.2014.df
+
+delta.mu.2017 <- summary.df[grep("deltaMu2017", summary.df$Parameter),]
+
+delta.mu.2017 %>% 
+  transmute(Year = seq(2017, 2020),
+            Mean = mean,
+            Low = X2.5.,
+            High = X97.5.,
+            f = f)  -> delta.mu.2017.df
+
+```
+
+For the 2014R sector, hatchling production was greater than the control (South) sector with high confidence (probability > 0.78) for all years except 2019, when the production in 2014R was less than the control sector (probability = 0.85, \@ref(tab:Table-raw-2014R)). 
+
+
+```{r Table-raw-2014R, echo=FALSE, warning=FALSE}
+knitr::kable(delta.mu.2014.df, 
+             digits = 1,
+             row.names = F,
+             #format.args = list(big.mark = ",", scientific = FALSE),
+             caption = "Posterior statistics of the difference in the mean hatchling counts between 2014R and South sectors. Low is 2.5 and High is 97.5 pecentiles. f is the proportion of the samples that had the same sign as the mean. ")
+```
+
+Similar results were found for the 2017R sector, where hatchling production was greater than the control (South) sector with high confidence (probability > 0.65) for all years except 2019, when the production in 2014R was less than the control sector (probability = 0.87, Table \@ref(tab:Table-raw-2017R)). 
+
+
+```{r Table-raw-2017R, echo=FALSE, warning=FALSE}
+knitr::kable(delta.mu.2017.df, 
+             digits = 1,
+             row.names = F,
+             #format.args = list(big.mark = ",", scientific = FALSE),
+             caption = "Posterior statistics of the difference in the mean hatchling counts between 2017R and South sectors. Low is 2.5 and High is 97.5 pecentiles. f is the proportion of the samples that had the same sign as the mean. ")
+```
+
+# Comparison of estimated season-wide hatchling production {-}
+
+In this analysis, I fitted various functions to hatchling counts to estimate the season-wide hatchling production. A modified Richards function (Girondot et al. 2007) provided the most precise estimates. Results of the comparison of these models are available upon request ("hatchling_counts_modeling_2021-05.Rmd").
+
+The modified Richards function in Girondot et al. (2007) is composed of two symmetrical functions that are connected at the peak of nesting.  
 
 The function has the following form:
 
@@ -125,7 +211,7 @@ $min_N$ is "the basal level of nesting outside the nesting season" and,
 
 $max_N >> min_N$
 
-This model was fitted to observed hatchling counts per 100 m in each sector and parameters and their uncertainties were estimated. The effects of reprofiling of experimental sectors were determeind by the ratio of estimated hatching production per 100 m between reprofiled (2014R and 2017R) and control (South) sections.    
+This model was fitted to observed annual hatchling counts per 100 m in each sector and parameters and their uncertainties were estimated. The effects of reprofiling of experimental sectors were determined by the ratio of estimated annual hatching production per 100 m between modified (2014R and 2017R) and control (South) sections.    
 
 ```{r Model_Girondot, include=FALSE, echo=FALSE}
 jm <- readRDS(paste0("RData/Girondot_Par_estimation_dnorm_", 
@@ -167,7 +253,7 @@ names(Girondot_stats) <-paste0("Xs_", Sectors)
 ```
 
 
-Although no formal model fitting test was conducted, qualitatiely, the functions fit reasonable to the data (Figure \@ref(fig:plot-fit)). The fitted function, then, was used for each season to estimate the hatchling production per 100 m. Because the parameters of the function were shared among sectors, estimates were available even when there were limited data. 
+Although no formal model fitting test was conducted, qualitatively, the functions fit reasonable to the data (Figure \@ref(fig:plot-fit)). The fitted function, then, was used for each season to estimate the hatchling production per 100 m. Because the parameters of the function were shared among sectors, estimates were available even when there were limited data. 
 
 ```{r Girondot-plot, echo=FALSE, include=FALSE, warning=FALSE}
 Girondot.all.data <- do.call(rbind, Girondot_stats)
@@ -209,15 +295,10 @@ if (save.fig)
 ```
 
 
-```{r plot-fit, echo=F, cache=T, fig.cap = "The fitted functions (medians and their 95% CIs in shaded areas) and observed numbers of hatchlings (dots) per 100 m at different sectors."}
+```{r plot-fit, echo=F, cache=T, fig.cap = "The fitted functions (medians and their 95% CIs in shaded areas) and observed numbers of hatchlings (dots) per 100 m at different sectors. Because some paraemters are shared among sectors, estimates can be obtained when there were no data. They are approximately the mean values."}
 knitr::include_graphics("figures/imputed_all.png")
 
 ```
-
-
-# Effects of reprofiling {-}
-
-To determine the effects of reprofiling the beach, the number of estimated hatchlings per 100 m was compared between 2014R and the South sector and between 2017R and the South sector. The reprofiled areas (2014R and 2017R) experience the same environmental effects and nesting activities as the South sector.  
 
 ```{r effects_reprofiling, echo=FALSE, include=FALSE, warning=FALSE}
 Girondot.100m <- do.call(rbind, Girondot_stats) %>% 
@@ -228,9 +309,9 @@ Girondot.100m <- do.call(rbind, Girondot_stats) %>%
             q97.5 = Xs_q97.5,
             Sector = Sector)
 
-Girondot.100m[(Girondot.100m$Season != "2017" &
-                 Girondot.100m$Sector == "2017R"),
-              c("q2.5", "q50", "q97.5")] <- NA
+# Girondot.100m[(Girondot.100m$Season != "2017" &
+#                  Girondot.100m$Sector == "2017R"),
+#               c("q2.5", "q50", "q97.5")] <- NA
 
 Girondot.100m %>% select(Season, q50, Sector) %>%
   group_by(Sector, Season) %>% 
@@ -285,9 +366,9 @@ if (save.fig)
 
 There were large variability in hatchling productions among years within each sector (Figure \@ref(fig:plot-estimates)). 
 
-```{r plot-estimates, echo=F, cache=T, fig.cap = "Estimated numbers of hatchlings per 100 m in each section from 2014 to 2019. The fitted functions were used to derive the total for each season."}
+```{r plot-estimates, echo=F, cache=T, fig.cap = "Estimated numbers of hatchlings per 100 m in each section from 2014 to 2019. The fitted functions were used to derive the total for each season. Because some paraemters are shared among sectors, estimates can be obtained when there were no data. They are approximately the mean values."}
 knitr::include_graphics("figures/imputed_seasons.png")
-
+ 
 ```
 
 <!-- ```{r Table-100m-median, echo=FALSE, warning=FALSE} -->
@@ -323,16 +404,18 @@ median.2014R %>% left_join(median.South, by = "Season") %>%
             total.2014R = total.x,
             total.South = total.y,
             ratio = total.x/total.y) -> median.2014R.South
-increase.2014R <- median.2014R[,"total"]/median.South[, "total"]
+increase.2014R <- median.2014R.South$ratio
 
 median.2017R <- filter(median_100m, Sector == "2017R")
 median.2017R %>% left_join(median.South, by = "Season") %>%
+  filter(Season == "2017" | Season == "2018" | 
+           Season == "2019" | Season == "2020") %>%
   transmute(Season = Season,
             total.2017R = total.x,
             total.South = total.y,
             ratio = total.x/total.y) -> median.2017R.South
-increase.2017R <- median.2017R[,"total"]/median.South[, "total"]
 
+increase.2017R <- median.2017R.South$ratio 
 # q2.5.2014R <- filter(q2.5_100m, Sector == "2014R")
 # q2.5.South <- filter(q2.5_100m, Sector == "South")
 # increase.2014R.q2.5 <- q2.5.2014R[,"total"]/q2.5.South[, "total"]
@@ -343,7 +426,7 @@ increase.2017R <- median.2017R[,"total"]/median.South[, "total"]
 
 ```
 
-The reprofiled sectors consistently produced more hatchlings than the unmodified South sector over the seven year period except one year (Table \@ref(tab:Table-increase-2014R)). The increase in hatchling productions in the 2014R sector ranged from ```r format(signif(min(median.2014R.South$ratio), digits = 3), nsmall = 2)``` in ```r median.2014R.South[median.2014R.South$ratio == min(median.2014R.South$ratio),"Season"]``` to ```r format(signif(max(median.2014R.South$ratio), digits = 3), nsmall = 2)``` in ```r median.2014R.South[median.2014R.South$ratio == max(median.2014R.South$ratio), "Season"]```.  For the 2017R sector, the hatchling production per 100 m was ```r format(signif(max(increase.2017R), digits = 3), nsmall = 2)``` times greater than that from the South sector.  
+The reprofiled sectors consistently produced more hatchlings than the unmodified South sector over the seven year period except one year (Table \@ref(tab:Table-increase-2014R)). The increase in hatchling productions in the 2014R sector ranged from ```r format(signif(min(median.2014R.South$ratio), digits = 3), nsmall = 2)``` in ```r median.2014R.South[median.2014R.South$ratio == min(median.2014R.South$ratio),"Season"]``` to ```r format(signif(max(median.2014R.South$ratio), digits = 3), nsmall = 2)``` in ```r median.2014R.South[median.2014R.South$ratio == max(median.2014R.South$ratio), "Season"]```.  For the 2017R sector, the increase in hatchling production per 100 m ranged from ```r format(signif(min(median.2017R.South$ratio), digits = 3), nsmall = 2)``` in ```r median.2017R.South[median.2017R.South$ratio == min(median.2017R.South$ratio),"Season"]``` to ```r format(signif(max(median.2017R.South$ratio), digits = 3), nsmall = 2)``` in ```r median.2017R.South[median.2017R.South$ratio == max(median.2017R.South$ratio), "Season"]``` (Table \@ref(tab:Table-increase-2017R).  
 
 
 ```{r Table-increase-2014R, echo=FALSE, warning=FALSE}
@@ -352,3 +435,11 @@ knitr::kable(median.2014R.South,
              format.args = list(big.mark = ",", scientific = FALSE),
              caption = "Amount of increase in hatchling productions at the 2014R sector compared with the South sector.")
 ```
+
+```{r Table-increase-2017R, echo=FALSE, warning=FALSE}
+knitr::kable(median.2017R.South, 
+             digits = 2,
+             format.args = list(big.mark = ",", scientific = FALSE),
+             caption = "Amount of increase in hatchling productions at the 2017R sector compared with the South sector.")
+```
+

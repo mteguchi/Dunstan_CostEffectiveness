@@ -1,0 +1,46 @@
+# This JAGS model compares the mean number of hatchlings per sector per year
+# between modified and control sectors. There are two modified sectors:
+# 2014R and 2017R, which are compared to the South sector (control).
+
+# Tomo Eguchi
+# 2021-10-28
+
+model{
+	
+	for (i in 1:7){
+		# 2014R
+		for (n2014 in 1:N2014[i]){
+			y2014[n2014, i] ~ dnorm(mu2014[i], tau2014[i])
+		}
+
+		mu2014[i] ~ dnorm(0, 0.1)I(0,)
+		sigma2014[i] ~ dgamma(0.1, 0.1)
+		tau2014[i] <- 1/((sigma2014[i])^2)
+
+		# South
+		for (nSouth in 1:NSouth[i]){
+			ySouth[nSouth, i] ~ dnorm(muSouth[i], tauSouth[i])
+		}
+
+		muSouth[i] ~ dnorm(0, 0.1)I(0,)
+		sigmaSouth[i] ~ dgamma(0.1, 0.1)
+		tauSouth[i] <- 1/((sigmaSouth[i])^2)
+
+		deltaMu2014[i] <- exp(mu2014[i]) - exp(muSouth[i])
+
+	}
+	for (j in 1:4){
+		# 2017R
+		for (n2017 in 1:N2017[j]){
+			y2017[n2017, j] ~ dnorm(mu2017[j], tau2017[j])
+		}
+
+		mu2017[j] ~ dnorm(0, 0.1)I(0,)
+		sigma2017[j] ~ dgamma(0.1, 0.1)
+		tau2017[j] <- 1/((sigma2017[j])^2)
+
+		deltaMu2017[j] <- exp(mu2017[j]) - exp(muSouth[j+3])
+
+	}	
+
+}
