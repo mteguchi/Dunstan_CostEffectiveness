@@ -117,7 +117,7 @@ lm.2017R <- lm(log10(Counts_100m) ~ Sector * Season,
 #summary(lm.2017R)
 ```
 
-To circumvent the unequal variance problem, we created a Bayesian model to explicitly incorporate the unequal variances and compared the means between modified and control sectors. The model has the following form.
+To explicitly incorporate the unequal variances, we created a Bayesian model and compared the means between modified and control sectors. The model has the following form.
 
 $log(y_{i,y,s}) \sim N(\mu_{y,s}, \sigma_{y,s})$,
 
@@ -129,13 +129,13 @@ $\sigma_{y,s} \sim GAM(0.1,0.1)$).
 
 We then determined the differences in the means:
 
-$\Delta \mu_{2014R} = exp(\mu_{y, 2014R}) - exp(\mu_{y, South})$ and
+$\Delta \mu_{y,2014R} = exp(\mu_{y, 2014R}) - exp(\mu_{y, South})$ and
 
-$\Delta \mu_{2017R} = exp(\mu_{y, 2017R}) - exp(\mu_{y, South})$.
+$\Delta \mu_{y,2017R} = exp(\mu_{y, 2017R}) - exp(\mu_{y, South})$.
 
 The proportion of $\Delta \mu_{y,s} > 0$ can be considered as the probability that the modified sector produced greater number of hatchlings than the control sector. 
 
-The analysis was conducted using JAGS in R via jagsUI package. It can be found in "reprofile_comparison.Rmd" and results were saved in "Reprofile_comparison.rds." Convergence of MCMC was reached for all parameters (Rhat < 1.1). R and JAGS code are included in the supplementary material. 
+The analysis was conducted using JAGS in R via jagsUI package.  Convergence of MCMC was reached for all parameters (Rhat < 1.1). JAGS code are included in the supplementary material. 
 
 ```{r Bayesian_comparison, include=F, echo=F}
 jm <- readRDS(file = "RData/Reprofile_comparison.rds")
@@ -168,18 +168,18 @@ For the 2014R sector, hatchling production was greater than the control (South) 
 
 ```{r Table-raw-2014R, echo=FALSE, warning=FALSE}
 knitr::kable(delta.mu.2014.df, 
-             digits = 1,
+             digits = 2,
              row.names = F,
              #format.args = list(big.mark = ",", scientific = FALSE),
              caption = "Posterior statistics of the difference in the mean hatchling counts between 2014R and South sectors. Low is 2.5 and High is 97.5 pecentiles. f is the proportion of the samples that had the same sign as the mean. ")
 ```
 
-Similar results were found for the 2017R sector, where hatchling production was greater than the control (South) sector with high confidence (probability > 0.65) for all years except 2019, when the production in 2014R was less than the control sector (probability = 0.87, Table \@ref(tab:Table-raw-2017R)). 
+Similar results were found for the 2017R sector, where hatchling production was greater than the control (South) sector with high confidence (probability > 0.65) for all years except 2019, when the production in 2017R was less than the control sector (probability = 0.87, Table \@ref(tab:Table-raw-2017R)). 
 
 
 ```{r Table-raw-2017R, echo=FALSE, warning=FALSE}
 knitr::kable(delta.mu.2017.df, 
-             digits = 1,
+             digits = 2,
              row.names = F,
              #format.args = list(big.mark = ",", scientific = FALSE),
              caption = "Posterior statistics of the difference in the mean hatchling counts between 2017R and South sectors. Low is 2.5 and High is 97.5 pecentiles. f is the proportion of the samples that had the same sign as the mean. ")
@@ -187,9 +187,9 @@ knitr::kable(delta.mu.2017.df,
 
 # Comparison of estimated season-wide hatchling production {-}
 
-In this analysis, I fitted various functions to hatchling counts to estimate the season-wide hatchling production. A modified Richards function (Girondot et al. 2007) provided the most precise estimates. Results of the comparison of these models are available upon request ("hatchling_counts_modeling_2021-05.Rmd").
+In this analysis, I fitted various functions to hatchling counts to estimate the season-wide hatchling production. Candidate functions modeled the typical nesting activities of a turtle nesting season, in which the number of nests and hatchlings increase to a peak and decrease thereafter. A modified Richards function (Girondot et al. 2007) provided the most precise estimates. Results of the comparison of these models are available upon request ("hatchling_counts_modeling_2021-05.Rmd").
 
-The modified Richards function in Girondot et al. (2007) is composed of two symmetrical functions that are connected at the peak of nesting.  
+The modified Richards function in Girondot et al. (2007) is composed of two symmetrical functions ($M_1$ and $M_2$) that are connected at the peak ($P$) of nesting. $N$ is the number of hatchlings.  
 
 The function has the following form:
 
@@ -205,13 +205,13 @@ $S$ defines the "fatness" of the function ($S > 0$),
 
 $K > 0$ defines the "flatness" at the peak of the function ($K > 0$),
 
-$P$ defines where the peak is relatvie to the range of $d$, where $min(d) < P < max(d)$,
+$P$ defines where the peak is relative to the range of $d$, where $min(d) < P < max(d)$,
 
 $min_N$ is "the basal level of nesting outside the nesting season" and,
 
 $max_N >> min_N$
 
-This model was fitted to observed annual hatchling counts per 100 m in each sector and parameters and their uncertainties were estimated. The effects of reprofiling of experimental sectors were determined by the ratio of estimated annual hatching production per 100 m between modified (2014R and 2017R) and control (South) sections.    
+This model was fitted to observed annual hatchling counts per 100 m in each sector and parameters and their uncertainties were estimated. JAGS code for the parameter estimation process is available in the supplementary material. The effects of reprofiling of experimental sectors were determined by the ratio of estimated annual hatchling production per 100 m between modified (2014R and 2017R) and control (South) sectors.    
 
 ```{r Model_Girondot, include=FALSE, echo=FALSE}
 jm <- readRDS(paste0("RData/Girondot_Par_estimation_dnorm_", 
@@ -253,7 +253,7 @@ names(Girondot_stats) <-paste0("Xs_", Sectors)
 ```
 
 
-Although no formal model fitting test was conducted, qualitatively, the functions fit reasonable to the data (Figure \@ref(fig:plot-fit)). The fitted function, then, was used for each season to estimate the hatchling production per 100 m. Because the parameters of the function were shared among sectors, estimates were available even when there were limited data. 
+Although no formal goodness-of-fit test was conducted, qualitatively, the model fit reasonable to the data (Figure \@ref(fig:plot-fit)). The fitted function and estimated parameters, then, were used for each season to estimate the hatchling production per 100 m per season. Because the parameters of the function were shared among sectors and seasons, estimates were available even when there were limited or no data. 
 
 ```{r Girondot-plot, echo=FALSE, include=FALSE, warning=FALSE}
 Girondot.all.data <- do.call(rbind, Girondot_stats)
@@ -426,7 +426,7 @@ increase.2017R <- median.2017R.South$ratio
 
 ```
 
-The reprofiled sectors consistently produced more hatchlings than the unmodified South sector over the seven year period except one year (Table \@ref(tab:Table-increase-2014R)). The increase in hatchling productions in the 2014R sector ranged from ```r format(signif(min(median.2014R.South$ratio), digits = 3), nsmall = 2)``` in ```r median.2014R.South[median.2014R.South$ratio == min(median.2014R.South$ratio),"Season"]``` to ```r format(signif(max(median.2014R.South$ratio), digits = 3), nsmall = 2)``` in ```r median.2014R.South[median.2014R.South$ratio == max(median.2014R.South$ratio), "Season"]```.  For the 2017R sector, the increase in hatchling production per 100 m ranged from ```r format(signif(min(median.2017R.South$ratio), digits = 3), nsmall = 2)``` in ```r median.2017R.South[median.2017R.South$ratio == min(median.2017R.South$ratio),"Season"]``` to ```r format(signif(max(median.2017R.South$ratio), digits = 3), nsmall = 2)``` in ```r median.2017R.South[median.2017R.South$ratio == max(median.2017R.South$ratio), "Season"]``` (Table \@ref(tab:Table-increase-2017R).  
+The reprofiled sectors consistently produced more hatchlings than the unmodified South sector over the seven year period except one year (Table \@ref(tab:Table-increase-2014R)). The increase in hatchling productions in the 2014R sector ranged from ```r format(signif(min(median.2014R.South$ratio), digits = 3), nsmall = 2)``` in ```r median.2014R.South[median.2014R.South$ratio == min(median.2014R.South$ratio),"Season"]``` (decline) to ```r format(signif(max(median.2014R.South$ratio), digits = 3), nsmall = 2)``` in ```r median.2014R.South[median.2014R.South$ratio == max(median.2014R.South$ratio), "Season"]```.  For the 2017R sector, the increase in hatchling production per 100 m ranged from ```r format(signif(min(median.2017R.South$ratio), digits = 3), nsmall = 2)``` in ```r median.2017R.South[median.2017R.South$ratio == min(median.2017R.South$ratio),"Season"]``` (decline) to ```r format(signif(max(median.2017R.South$ratio), digits = 3), nsmall = 2)``` in ```r median.2017R.South[median.2017R.South$ratio == max(median.2017R.South$ratio), "Season"]``` (Table \@ref(tab:Table-increase-2017R)).  
 
 
 ```{r Table-increase-2014R, echo=FALSE, warning=FALSE}
@@ -442,4 +442,110 @@ knitr::kable(median.2017R.South,
              format.args = list(big.mark = ",", scientific = FALSE),
              caption = "Amount of increase in hatchling productions at the 2017R sector compared with the South sector.")
 ```
+
+# Supplementary material {-}
+
+## JAGS code for comparing observed counts between modified control sectors {-}
+
+model{
+	
+	for (i in 1:7){
+	
+		for (n2014 in 1:N2014[i]){
+		
+			y2014[n2014, i] ~ dnorm(mu2014[i], tau2014[i])
+		
+		}
+
+		mu2014[i] ~ dnorm(0, 0.1)I(0,)
+		
+		sigma2014[i] ~ dgamma(0.1, 0.1)
+		
+		tau2014[i] <- 1/((sigma2014[i])^2)
+
+		for (nSouth in 1:NSouth[i]){
+		
+			ySouth[nSouth, i] ~ dnorm(muSouth[i], tauSouth[i])
+		
+		}
+
+		muSouth[i] ~ dnorm(0, 0.1)I(0,)
+		
+		sigmaSouth[i] ~ dgamma(0.1, 0.1)
+		
+		tauSouth[i] <- 1/((sigmaSouth[i])^2)
+		
+		deltaMu2014[i] <- exp(mu2014[i]) - exp(muSouth[i])
+
+	}
+	
+	for (j in 1:4){
+	
+		for (n2017 in 1:N2017[j]){
+		
+		  y2017[n2017, j] ~ dnorm(mu2017[j], tau2017[j])
+		
+	  }
+
+	  mu2017[j] ~ dnorm(0, 0.1)I(0,)
+		
+	  sigma2017[j] ~ dgamma(0.1, 0.1)
+		
+	  tau2017[j] <- 1/((sigma2017[j])^2)
+
+	  deltaMu2017[j] <- exp(mu2017[j]) - exp(muSouth[j+3])
+
+	}	
+
+}
+
+## JAGS code for fitting the modified Richards function {-}
+
+model{
+
+  for (i in 1:n){
+  
+    for (j in 1:n.vec[i]){
+      
+      M1[idx[i,1], idx[i,2], t[i,j]] <- (1 + (2 * exp(K) - 1) *
+          exp((1/(-S)) * (P[idx[i,1]] - t[i,j]))) ^ (-1/exp(K))
+      
+      M2[idx[i,1], idx[i,2], t[i,j]] <- (1 + (2 * exp(K) - 1) * 
+          exp((1/S) * (P[idx[i,1]] - t[i,j]))) ^ (-1/exp(K))
+          
+      X[i,j] <- min[idx[i,2]] + 
+          (max[idx[i,1], idx[i,2]] - min[idx[i,2]]) * 
+          (M1[idx[i,1], idx[i,2], t[i,j]] * 
+            M2[idx[i,1], idx[i,2], t[i,j]])
+            
+      y[i, j] ~ dnorm(X[i,j], tau.y)
+                
+      
+    }
+  }  
+
+  for (yr in 1:n.years){
+  
+    for (j in 1:n.sectors){
+    
+      max[yr,j] ~ dnorm(max.mat[yr,j], tau.max)T(min[j],)
+
+    }
+    P[yr] ~ dunif(50, 100)
+
+  }
+
+  sigma.max ~ dgamma(1, 0.1)
+  
+  tau.max <- 1/(sigma.max * sigma.max)
+  
+  K ~ dnorm(0, 0.01)T(0,)
+  
+  S ~ dnorm(0, 0.1)T(0,)
+
+  sigma.y ~ dgamma(1, 0.1)
+  
+  tau.y <- 1/(sigma.y * sigma.y)
+
+}
 
