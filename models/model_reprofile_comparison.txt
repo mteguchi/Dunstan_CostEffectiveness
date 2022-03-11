@@ -7,7 +7,7 @@
 
 model{
 	
-	for (i in 1:7){
+	for (i in 1:n.2014.seasons){
 		# 2014R
 		for (n2014 in 1:N2014[i]){
 			y2014[n2014, i] ~ dnorm(mu2014[i], tau2014[i])
@@ -17,7 +17,7 @@ model{
 		sigma2014[i] ~ dgamma(0.1, 0.1)
 		tau2014[i] <- 1/((sigma2014[i])^2)
 
-		# South
+		# South - as many as 2014R
 		for (nSouth in 1:NSouth[i]){
 			ySouth[nSouth, i] ~ dnorm(muSouth[i], tauSouth[i])
 		}
@@ -29,7 +29,8 @@ model{
 		deltaMu2014[i] <- exp(mu2014[i]) - exp(muSouth[i])
 
 	}
-	for (j in 1:4){
+	
+	for (j in 1:n.2017.seasons){
 		# 2017R
 		for (n2017 in 1:N2017[j]){
 			y2017[n2017, j] ~ dnorm(mu2017[j], tau2017[j])
@@ -39,7 +40,23 @@ model{
 		sigma2017[j] ~ dgamma(0.1, 0.1)
 		tau2017[j] <- 1/((sigma2017[j])^2)
 
+    # need to offset by 3 years
 		deltaMu2017[j] <- exp(mu2017[j]) - exp(muSouth[j+3])
+
+	}	
+
+	for (k in 1:n.2019.seasons){
+		# 2019R
+		for (n2019 in 1:N2019[k]){
+			y2019[n2019, k] ~ dnorm(mu2019[k], tau2019[k])
+		}
+
+		mu2019[k] ~ dnorm(0, 0.1)I(0,)
+		sigma2019[k] ~ dgamma(0.1, 0.1)
+		tau2019[k] <- 1/((sigma2019[k])^2)
+
+    # need to offset by 5 years.
+		deltaMu2019[k] <- exp(mu2019[k]) - exp(muSouth[k+5])
 
 	}	
 

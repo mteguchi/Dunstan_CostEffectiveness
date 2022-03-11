@@ -13,7 +13,7 @@ library(loo)
 library(bayesplot)
 library(readr)
 
-save.fig <- F
+save.fig <- T
 
 source("Dunstan_functions.R")
 
@@ -44,11 +44,12 @@ data.1 %>% mutate(DOSeason = as.numeric(Date - as.Date(paste0(Season, "-",
 Once the data are loaded, I extract just the necessary stuff:
 
 ```{r}
-data.3 %>% filter(Sector == "2014R" |
+data.3 %>% filter(Sector == "2014R" | 
                     Sector == "2017R" |
+                    Sector == "2019R" | 
                     Sector == "South") -> data.3.1
 
-y.2014R <- filter(data.3, Sector == "2014R") %>%
+y.2014R <- filter(data.3.1, Sector == "2014R") %>%
   select(Season, Counts_100m)
 
 y.2014R %>% group_by(Season) %>% 
@@ -64,7 +65,7 @@ y.2014R %>% group_by(Season) %>%
   select(-"ID") %>%
   as.matrix()  -> y.2014R.wide
 
-y.2017R <- filter(data.3, Sector == "2017R") %>%
+y.2017R <- filter(data.3.1, Sector == "2017R") %>%
   select(Season, Counts_100m)
 
 y.2017R %>% group_by(Season) %>% 
@@ -79,6 +80,22 @@ y.2017R %>% group_by(Season) %>%
               values_from = "Counts_100m") %>%
   select(-"ID") %>%
   as.matrix()  -> y.2017R.wide
+
+y.2019R <- filter(data.3.1, Sector == "2019R") %>%
+  select(Season, Counts_100m)
+
+y.2019R %>% group_by(Season) %>% 
+  summarise(n = n() ) %>%
+  select(n) %>% as.vector()-> n.2019R
+
+y.2019R %>% group_by(Season) %>% 
+  mutate(ID = row_number()) %>% 
+  pivot_wider(names_from = "Season", 
+              names_prefix = "yr", 
+              id_cols = "ID", 
+              values_from = "Counts_100m") %>%
+  select(-"ID") %>%
+  as.matrix()  -> y.2019R.wide
 
 y.South <- filter(data.3, Sector == "South") %>%
   select(Season, Counts_100m)
@@ -102,17 +119,22 @@ MCMC.params <- list(n.chains = 5,
                     n.thin = 10)
 
 jags.data <- list(y2014 = log(y.2014R.wide),
-                  y2017 = log(y.2017R.wide),
-                  ySouth = log(y.South.wide),
+                  n.2014.seasons = length(pull(n.2014R)),
                   N2014 = pull(n.2014R),
+                  y2017 = log(y.2017R.wide),
+                  n.2017.seasons = length(pull(n.2017R)),
                   N2017 = pull(n.2017R),
+                  y2019 = log(y.2019R.wide),
+                  n.2019.seasons = length(pull(n.2019R)),
+                  N2019 = pull(n.2019R),
+                  ySouth = log(y.South.wide),
                   NSouth = pull(n.South))
-
 
 jags.params <- c("mu2014", "sigma2014", 
                  "mu2017", "sigma2017",
+                 "mu2019", "sigma2019",
                  "muSouth", "sigmaSouth",
-                 "deltaMu2014", "deltaMu2017",
+                 "deltaMu2014", "deltaMu2017", "deltaMu2019",
                  "deviance")
 
 jm <- jags(jags.data,
@@ -156,17 +178,6 @@ mcmc_dens(jm$samples,
 
 
 ```{r}
-
-delta.mu.2014 <- summary.df[grep("deltaMu2014", summary.df$Parameter),]
-
-delta.mu.2014 %>% 
-  select(Parameter, mean, X2.5., X97.5., f) -> delta.mu.2014.df
-
-
-```
-
-
-```{r}
 mcmc_trace(jm$samples,
            c("mu2017[1]", "mu2017[2]", "mu2017[3]",
              "mu2017[4]"))
@@ -186,12 +197,68 @@ mcmc_dens(jm$samples,
              "deltaMu2017[4]"))
 ```
 
-Seems like they converged alright. Compute how many of the samples were > 0 for $\delta \mu_{2014}$ and $\delta \mu_{2017}$.
+
+```{r}
+mcmc_trace(jm$samples,
+           c("mu2019[1]", "mu2019[2]"))
+```
+
+
+```{r}
+mcmc_trace(jm$samples,
+           c("deltaMu2019[1]", "deltaMu2019[2]"))
+```
+
+
+```{r}
+mcmc_dens(jm$samples,
+           c("deltaMu2019[1]", "deltaMu2019[2]"))
+```
+
+
+Seems like they converged alright. Compute how many of the samples were > 0 for $\delta \mu_{2014}$, $\delta \mu_{2017}$, and $\delta \mu_{2019}$.
+
+
 
 ```{r}
 
+delta.mu.2014 <- summary.df[grep("deltaMu2014", summary.df$Parameter),]
+
+delta.mu.2014 %>% 
+  mutate(Year = seq(from = 2014, to = 2014+nrow(delta.mu.2014)-1),
+         Sector = "2014R") %>%
+  select(Year, Sector, mean, X2.5., X97.5., f) -> delta.mu.2014.df
+
 delta.mu.2017 <- summary.df[grep("deltaMu2017", summary.df$Parameter),]
 
+delta.mu.2017 %>% 
+  mutate(Year = seq(from = 2017, to = 2017+nrow(delta.mu.2017)-1),
+         Sector = "2017R") %>%
+  select(Year, Sector, mean, X2.5., X97.5., f) -> delta.mu.2017.df
+
+delta.mu.2019 <- summary.df[grep("deltaMu2019", summary.df$Parameter),]
+
+delta.mu.2019 %>% 
+  mutate(Year = seq(from = 2019, to = 2019+nrow(delta.mu.2019)-1),
+         Sector = "2019R") %>%
+  select(Year, Sector, mean, X2.5., X97.5., f) -> delta.mu.2019.df
+
 # f is the proportion of posterior samples that have the same sign as the mean. 
+
+delta.mu.df <- rbind(delta.mu.2014.df, delta.mu.2017.df, delta.mu.2019.df) %>%
+  mutate(P_gt_0 = ifelse(mean > 0, f, 1-f),
+         n = c(jags.data$N2014, jags.data$N2017, jags.data$N2019))
+
+
+ggplot(delta.mu.df) +
+  geom_point(aes(x = Year, y = mean)) +
+  geom_errorbar(aes(x = Year, ymin = X2.5., ymax = X97.5.)) +
+  facet_grid(Sector ~ .) +
+  geom_text(aes(x = Year, y = 2000, label = signif(P_gt_0, digits = 3))) +
+  geom_text(aes(x = Year, y = -2000, label = paste0("n = ", n))) +
+  ylab("Mean + 95%CI") + xlab("")
+
+ggsave(filename = "figures/hatchling_increase.png",
+       device = "png", dpi = 600)
 ```
 
