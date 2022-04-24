@@ -114,15 +114,32 @@ jags.params <- c("mu2014", "sigma2014",
                  "ratio2014", "ratio2017", "ratio2019",
                  "deviance")
 
-jm <- jags(jags.data,
-           inits = NULL,
-           parameters.to.save= jags.params,
-           model.file = 'models/model_reprofile_comparison.txt',
-           n.chains = MCMC.params$n.chains,
-           n.burnin = MCMC.params$n.burnin,
-           n.thin = MCMC.params$n.thin,
-           n.iter = MCMC.params$n.samples,
-           DIC = T, parallel=T)
+jags.out.filename <- "RData/reprofile_effect_Apr2022.rds" 
+if (!file.exists(jags.out.filename)){
+  jm <- jags(jags.data,
+             inits = NULL,
+             parameters.to.save= jags.params,
+             model.file = 'models/model_reprofile_comparison.txt',
+             n.chains = MCMC.params$n.chains,
+             n.burnin = MCMC.params$n.burnin,
+             n.thin = MCMC.params$n.thin,
+             n.iter = MCMC.params$n.samples,
+             DIC = T, parallel=T)
+  
+  saveRDS(list(jags.data = jags.data,
+               jags.params = jags.params,
+               MCMC.params = MCMC.params,
+               jags.out = jm,
+               run.date = Sys.Date()),
+          file = jags.out.filename)
+} else {
+  jags.out <- readRDS(jags.out.filename)
+  jm <- jags.out$jags.out
+  jags.data <- jags.out$jags.data
+  
+}
+  
+
 
 #saveRDS(jm, file = "RData/Reprofile_comparison.rds")
 
@@ -130,6 +147,8 @@ jm$summary %>% data.frame() %>%
   rownames_to_column(var = "Parameter")  -> summary.df
 
 ```
+
+
 
 ```{r}
 mcmc_trace(jm$samples,
@@ -282,4 +301,189 @@ ggsave(filename = "figures/hatchling_ratio.png",
        device = "png", dpi = 600)
 
 ```
+
+```{r}
+mu.2014 <- summary.df[grep("mu2014", summary.df$Parameter),]
+
+mu.2014 %>% 
+  mutate(Year = seq(from = 2014, to = 2014+nrow(ratio.2014)-1),
+         Sector = "2014R") %>%
+  select(Year, Sector, mean, X2.5., X97.5.) %>%
+  transmute(Year = Year,
+            mean = exp(mean),
+            LCL = exp(X2.5.),
+            UCL = exp(X97.5.),
+            Sector = "2014R",
+            Reprofile = "2014R") -> mu.2014.df
+
+mu.2014.South <- summary.df[grep("muSouth2014", summary.df$Parameter),]
+
+mu.2014.South %>% 
+  mutate(Year = seq(from = 2014, to = 2014+nrow(ratio.2014)-1),
+         Sector = "2014_South") %>%
+  select(Year, Sector, mean, X2.5., X97.5.) %>%
+  transmute(Year = Year,
+            mean = exp(mean),
+            LCL = exp(X2.5.),
+            UCL = exp(X97.5.),
+            Sector = "2014R_South",
+            Reprofile = "2014R") -> mu.2014.South.df
+
+mu.2017 <- summary.df[grep("mu2017", summary.df$Parameter),]
+
+mu.2017 %>% 
+  mutate(Year = seq(from = 2017, to = 2017+nrow(ratio.2017)-1),
+         Sector = "2017R") %>%
+  select(Year, Sector, mean, X2.5., X97.5.) %>%
+  transmute(Year = Year,
+            mean = exp(mean),
+            LCL = exp(X2.5.),
+            UCL = exp(X97.5.),
+            Sector = "2017R",
+            Reprofile = "2017R") -> mu.2017.df
+
+mu.2017.South <- summary.df[grep("muSouth2017", summary.df$Parameter),]
+
+mu.2017.South %>% 
+  mutate(Year = seq(from = 2017, to = 2017+nrow(ratio.2017)-1),
+         Sector = "2017_South") %>%
+  select(Year, Sector, mean, X2.5., X97.5.) %>%
+  transmute(Year = Year,
+            mean = exp(mean),
+            LCL = exp(X2.5.),
+            UCL = exp(X97.5.),
+            Sector = "2017R_South",
+            Reprofile = "2017R") -> mu.2017.South.df
+
+mu.2019 <- summary.df[grep("mu2019", summary.df$Parameter),]
+
+mu.2019 %>% 
+  mutate(Year = seq(from = 2019, to = 2019+nrow(ratio.2019)-1),
+         Sector = "2019R") %>%
+  select(Year, Sector, mean, X2.5., X97.5., f) %>%
+  transmute(Year = Year,
+            mean = exp(mean),
+            LCL = exp(X2.5.),
+            UCL = exp(X97.5.),
+            Sector = "2019R",
+            Reprofile = "2019R") -> mu.2019.df
+
+mu.2019.South <- summary.df[grep("muSouth2019", summary.df$Parameter),]
+
+mu.2019.South %>% 
+  mutate(Year = seq(from = 2019, to = 2019+nrow(ratio.2019)-1),
+         Sector = "2019_South") %>%
+  select(Year, Sector, mean, X2.5., X97.5.) %>%
+  transmute(Year = Year,
+            mean = exp(mean),
+            LCL = exp(X2.5.),
+            UCL = exp(X97.5.),
+            Sector = "2019R_South",
+            Reprofile = "2019R") -> mu.2019.South.df
+
+# f is the proportion of posterior samples that have the same sign as the mean. 
+
+mu.df.table <- rbind(cbind(mu.2014.df, mu.2014.South.df %>% select(-c(Year))), 
+                     cbind(mu.2017.df, mu.2017.South.df %>% select(-c(Year))),
+                     cbind(mu.2019.df, mu.2019.South.df %>% select(-c(Year)))) 
+
+mu.df.figure <- rbind(mu.2014.df, mu.2014.South.df, 
+                      mu.2017.df, mu.2017.South.df,
+                      mu.2019.df, mu.2019.South.df)
+
+ggplot() +
+  geom_point(data = mu.df.figure %>% filter(Sector == "2014R"),
+             aes(x = Year, y = mean)) +
+  geom_errorbar(data = mu.df.figure %>% filter(Sector == "2014R"),
+                aes(x = Year, ymin = LCL, ymax = UCL)) +
+  geom_point(data = mu.df.figure %>% filter(Sector == "2014R_South"),
+             aes(x = Year, y = mean),
+           color = "firebrick") +
+  geom_errorbar(data = mu.df.figure %>% filter(Sector == "2014R_South"),
+                aes(x = Year, ymin = LCL, ymax = UCL),
+           color = "firebrick") +
+  
+  geom_point(data = mu.df.figure %>% filter(Sector == "2017R"),
+             aes(x = Year, y = mean)) +
+  geom_errorbar(data = mu.df.figure %>% filter(Sector == "2017R"),
+                aes(x = Year, ymin = LCL, ymax = UCL)) +
+  geom_point(data = mu.df.figure %>% filter(Sector == "2017R_South"),
+             aes(x = Year, y = mean),
+           color = "firebrick") +
+  geom_errorbar(data = mu.df.figure %>% filter(Sector == "2017R_South"),
+                aes(x = Year, ymin = LCL, ymax = UCL),
+           color = "firebrick") +
+  
+  geom_point(data = mu.df.figure %>% filter(Sector == "2019R"),
+             aes(x = Year, y = mean)) +
+  geom_errorbar(data = mu.df.figure %>% filter(Sector == "2019R"),
+                aes(x = Year, ymin = LCL, ymax = UCL)) +
+  geom_point(data = mu.df.figure %>% filter(Sector == "2019R_South"),
+             aes(x = Year, y = mean),
+           color = "firebrick") +
+  geom_errorbar(data = mu.df.figure %>% filter(Sector == "2019R_South"),
+                aes(x = Year, ymin = LCL, ymax = UCL),
+           color = "firebrick") +
+  facet_wrap(vars(Reprofile)) +
+  xlab("")
+  
+
+```
+
+
+Ridge plots for each year
+
+```{r}
+library(ggridges)
+# This function is also in TomosFunctions.R in tools direcotry
+extract.samples.jagsUI <- function(varname, zm){
+  par.names <- unlist(dimnames(jm$samples[[1]])[2])
+  col.idx <- grep(varname, par.names)
+  samples.list <- list(length = length(col.idx))
+  
+  samples <- lapply(zm$samples, FUN = function(x) x[, col.idx])
+  for (k in 1:length(col.idx)){
+    samples.list[[k]] <- unlist(lapply(samples, FUN = function(x) x[,k]))
+  }
+
+  return(samples.list)
+}
+
+get.samples <- function(pars, years, jm){
+  mu.samples.1 <- extract.samples.jagsUI(pars[1], jm)
+  mu.samples.1.df <- data.frame(mean = unlist(mu.samples.1),
+                                year = rep(years, each = n.samples),
+                                sector = pars[1],
+                                reprofile = "Reprofile")
+  
+  mu.samples.2 <- extract.samples.jagsUI(pars[2], jm)
+  mu.samples.2.df <- data.frame(mean = unlist(mu.samples.2),
+                                year = rep(years, each = n.samples),
+                                sector = pars[1],
+                                reprofile = "Control")
+  
+  mu.df <- rbind(mu.samples.1.df, mu.samples.2.df)
+  
+}
+n.samples <- MCMC.params$n.chains * 
+  (MCMC.params$n.samples - MCMC.params$n.burnin)/MCMC.params$n.thin
+# 2014
+years.2014 <- 2014:2020
+mu.2014.df <- get.samples(c("mu2014", "muSouth2014"), years.2014, jm)
+years.2017 <- 2017:2020
+mu.2017.df <- get.samples(c("mu2017", "muSouth2017"), years.2017, jm)
+years.2019 <- 2019:2021
+mu.2019.df <- get.samples(c("mu2019", "muSouth2019"), years.2019, jm)
+
+mu.all <- rbind(mu.2014.df, mu.2017.df, mu.2019.df)
+
+ggplot(data = mu.all, 
+       aes(x = (mean), 
+           y = sector, 
+#           color = factor(reprofile),
+#           point_color = reprofile, 
+           fill = reprofile)) +
+  geom_density_ridges()
+```
+
 
