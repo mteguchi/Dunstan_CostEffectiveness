@@ -467,6 +467,7 @@ get.samples <- function(pars, years, jm){
 }
 n.samples <- MCMC.params$n.chains * 
   (MCMC.params$n.samples - MCMC.params$n.burnin)/MCMC.params$n.thin
+
 # 2014
 years.2014 <- 2014:2020
 mu.2014.df <- get.samples(c("mu2014", "muSouth2014"), years.2014, jm)
@@ -477,13 +478,48 @@ mu.2019.df <- get.samples(c("mu2019", "muSouth2019"), years.2019, jm)
 
 mu.all <- rbind(mu.2014.df, mu.2017.df, mu.2019.df)
 
-ggplot(data = mu.all, 
-       aes(x = (mean), 
-           y = sector, 
 #           color = factor(reprofile),
 #           point_color = reprofile, 
+
+ggplot(data = mu.2014.df %>% filter(mean < 8.5), 
+       aes(x = (exp(mean)), 
+           y = as.factor(year), 
            fill = reprofile)) +
-  geom_density_ridges()
+  geom_density_ridges(bandwidth = 0.5, alpha = 0.6) +
+  theme(legend.title = element_blank(),
+        legend.position = c(0.9, 0.9)) +
+  xlab("Hatchling production per sector") +
+  ylab("") + 
+  labs(title = "Comparison of hatchling productions between reprofiled and contol sites")
+
+```
+
+```{r}
+ggplot(data = mu.2017.df %>% filter(mean < 8.5), 
+       aes(x = (exp(mean)), 
+           y = as.factor(year), 
+           fill = reprofile)) +
+  geom_density_ridges(bandwidth = 0.5, alpha = 0.6) +
+  theme(legend.title = element_blank(),
+        legend.position = c(0.9, 0.9)) +
+  xlab("Hatchling production per sector") +
+  ylab("") + 
+  labs(title = "Comparison of hatchling productions between reprofiled and contol sites")
+
+```
+
+```{r}
+ggplot(data = mu.2019.df %>% filter(mean < 8.5), 
+       aes(x = (exp(mean)), 
+           y = as.factor(year), 
+           fill = reprofile)) +
+  geom_density_ridges(bandwidth = 0.5, alpha = 0.6) +
+  theme(legend.title = element_blank(),
+        legend.position = c(0.9, 0.9)) +
+  xlab("Hatchling production per sector") +
+  ylab("") + 
+  labs(title = "Comparison of hatchling productions between reprofiled and contol sites")
+
 ```
 
 
