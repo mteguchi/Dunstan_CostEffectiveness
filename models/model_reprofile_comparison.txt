@@ -1,9 +1,10 @@
 # This JAGS model compares the mean number of hatchlings per sector per year
-# between modified and control sectors. There are two modified sectors:
-# 2014R and 2017R, which are compared to the South sector (control).
+# between modified and control sectors. There are three modified sectors:
+# 2014R, 2017R, and 2019R, which are compared to the South sector (control).
 
 # Tomo Eguchi
 # 2021-10-28
+# 2022-04-23 Updated for new data from 2022 season
 
 model{
 	
@@ -17,16 +18,17 @@ model{
 		sigma2014[i] ~ dgamma(0.1, 0.1)
 		tau2014[i] <- 1/((sigma2014[i])^2)
 
-		# South - as many as 2014R
-		for (nSouth in 1:NSouth[i]){
-			ySouth[nSouth, i] ~ dnorm(muSouth[i], tauSouth[i])
+		# 2014 South
+		for (nSouth2014 in 1:NSouth2014[i]){
+			ySouth2014[nSouth2014, i] ~ dnorm(muSouth2014[i], tauSouth2014[i])
 		}
 
-		muSouth[i] ~ dnorm(0, 0.1)I(0,)
-		sigmaSouth[i] ~ dgamma(0.1, 0.1)
-		tauSouth[i] <- 1/((sigmaSouth[i])^2)
+		muSouth2014[i] ~ dnorm(0, 0.1)I(0,)
+		sigmaSouth2014[i] ~ dgamma(0.1, 0.1)
+		tauSouth2014[i] <- 1/((sigmaSouth2014[i])^2)
 
-		deltaMu2014[i] <- exp(mu2014[i]) - exp(muSouth[i])
+		deltaMu2014[i] <- exp(mu2014[i]) - exp(muSouth2014[i])
+		ratio2014[i] <- exp(mu2014[i])/exp(muSouth2014[i])
 
 	}
 	
@@ -40,8 +42,18 @@ model{
 		sigma2017[j] ~ dgamma(0.1, 0.1)
 		tau2017[j] <- 1/((sigma2017[j])^2)
 
-    # need to offset by 3 years
-		deltaMu2017[j] <- exp(mu2017[j]) - exp(muSouth[j+3])
+		# South
+		for (nSouth2017 in 1:NSouth2017[j]){
+			ySouth2017[nSouth2017, j] ~ dnorm(muSouth2017[j], tauSouth2017[j])
+		}
+
+		muSouth2017[j] ~ dnorm(0, 0.1)I(0,)
+		sigmaSouth2017[j] ~ dgamma(0.1, 0.1)
+		tauSouth2017[j] <- 1/((sigma2017[j])^2)
+
+	    # need to offset by 3 years
+		deltaMu2017[j] <- exp(mu2017[j]) - exp(muSouth2017[j])
+		ratio2017[j] <- exp(mu2017[j])/exp(muSouth2017[j])
 
 	}	
 
@@ -55,9 +67,18 @@ model{
 		sigma2019[k] ~ dgamma(0.1, 0.1)
 		tau2019[k] <- 1/((sigma2019[k])^2)
 
-    # need to offset by 5 years.
-		deltaMu2019[k] <- exp(mu2019[k]) - exp(muSouth[k+5])
+		# 2019 South
+		for (nSouth2019 in 1:NSouth2019[k]){
+			ySouth2019[nSouth2019, k] ~ dnorm(muSouth2019[k], tauSouth2019[k])
+		}
 
+		muSouth2019[k] ~ dnorm(0, 0.1)I(0,)
+		sigmaSouth2019[k] ~ dgamma(0.1, 0.1)
+		tauSouth2019[k] <- 1/((sigmaSouth2019[k])^2)
+
+	    # need to offset by 5 years.
+		deltaMu2019[k] <- exp(mu2019[k]) - exp(muSouth2019[k])
+		ratio2019[k] <- exp(mu2019[k])/exp(muSouth2019[k])
 	}	
 
 }

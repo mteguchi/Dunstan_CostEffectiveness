@@ -18,13 +18,16 @@ save.fig <- T
 source("Dunstan_functions.R")
 
 # get data
+# extra comma at the end so created a new variable for Apr2022
 col.def <- cols(Date = col_date(format = "%m/%d/%Y"),
                 Counts_100m = col_double(),
                 Season = col_integer(),
-                Sector = col_character())
+                Sector = col_character(),
+                Empty = col_character()) 
 
-data.1 <- read_csv(file = "data/Hatchling_Data_v3.1.csv",
-                   col_types = col.def)
+data.1 <- read_csv(file = "data/Hatchling_Data_v3.1_APR2022.csv",
+                   col_types = col.def) %>%
+  select(-Empty)
 
 # These two need to be changed when different runs are used
 Day1 <- "12-20"
@@ -44,97 +47,71 @@ data.1 %>% mutate(DOSeason = as.numeric(Date - as.Date(paste0(Season, "-",
 Once the data are loaded, I extract just the necessary stuff:
 
 ```{r}
-data.3 %>% filter(Sector == "2014R" | 
-                    Sector == "2017R" |
-                    Sector == "2019R" | 
-                    Sector == "South") -> data.3.1
+sectors <- c("2014R", "2017R", "2019R", "South", 
+             "2019R South", "2019R North", "2014R South")
 
-y.2014R <- filter(data.3.1, Sector == "2014R") %>%
-  select(Season, Counts_100m)
+data.3 %>% filter(Sector %in% sectors) -> data.3.1
 
-y.2014R %>% group_by(Season) %>% 
-  summarise(n = n() ) %>%
-  select(n) %>% as.vector() -> n.2014R
+get.data <- function(y){
+              
+              y %>% group_by(Season) %>%
+                summarise(n = n() ) %>%
+                select(n) %>% as.vector() -> n
 
-y.2014R %>% group_by(Season) %>% 
-  mutate(ID = row_number()) %>% 
-  pivot_wider(names_from = "Season", 
-              names_prefix = "yr", 
-              id_cols = "ID", 
-              values_from = "Counts_100m") %>%
-  select(-"ID") %>%
-  as.matrix()  -> y.2014R.wide
+              y %>% group_by(Season) %>% 
+                mutate(ID = row_number()) %>% 
+                pivot_wider(names_from = "Season", 
+                            names_prefix = "yr", 
+                            id_cols = "ID", 
+                            values_from = "Counts_100m") %>%
+                select(-"ID") %>%
+                as.matrix()  -> y.wide
+              
+              return(list(y = y,
+                          y.n = n,
+                          y.wide = y.wide))
+}
 
-y.2017R <- filter(data.3.1, Sector == "2017R") %>%
-  select(Season, Counts_100m)
-
-y.2017R %>% group_by(Season) %>% 
-  summarise(n = n() ) %>%
-  select(n) %>% as.vector()-> n.2017R
-
-y.2017R %>% group_by(Season) %>% 
-  mutate(ID = row_number()) %>% 
-  pivot_wider(names_from = "Season", 
-              names_prefix = "yr", 
-              id_cols = "ID", 
-              values_from = "Counts_100m") %>%
-  select(-"ID") %>%
-  as.matrix()  -> y.2017R.wide
-
-y.2019R <- filter(data.3.1, Sector == "2019R") %>%
-  select(Season, Counts_100m)
-
-y.2019R %>% group_by(Season) %>% 
-  summarise(n = n() ) %>%
-  select(n) %>% as.vector()-> n.2019R
-
-y.2019R %>% group_by(Season) %>% 
-  mutate(ID = row_number()) %>% 
-  pivot_wider(names_from = "Season", 
-              names_prefix = "yr", 
-              id_cols = "ID", 
-              values_from = "Counts_100m") %>%
-  select(-"ID") %>%
-  as.matrix()  -> y.2019R.wide
-
-y.South <- filter(data.3, Sector == "South") %>%
-  select(Season, Counts_100m)
-
-y.South %>% group_by(Season) %>% 
-  summarise(n = n() ) %>%
-  select(n) %>% as.vector() -> n.South
-
-y.South %>% group_by(Season) %>% 
-  mutate(ID = row_number()) %>% 
-  pivot_wider(names_from = "Season", 
-              names_prefix = "yr", 
-              id_cols = "ID", 
-              values_from = "Counts_100m") %>%
-  select(-"ID") %>%
-  as.matrix() -> y.South.wide
+ys.2014R <- get.data(data.3.1%>%filter(Sector == "2014R"))
+ys.2017R <- get.data(data.3.1%>%filter(Sector == "2017R"))
+ys.2019R <- get.data(data.3.1%>%filter(Sector %in% 
+                                         c("2019R", "2019R North")))
+ys.South.2017 <- get.data(data.3.1%>%filter(Sector == "South") %>%
+                            filter(Season > 2016))
+ys.South.2014 <- get.data(data.3.1%>%filter(Sector == "South" | Sector == "2014R South"))
+ys.South.2019 <- get.data(data.3.1 %>% 
+                            filter(Sector == "South" | Sector == "2019R South") %>%
+                            filter(Season > 2018))
 
 MCMC.params <- list(n.chains = 5,
                     n.samples = 100000,
                     n.burnin = 80000,
                     n.thin = 10)
 
-jags.data <- list(y2014 = log(y.2014R.wide),
-                  n.2014.seasons = length(pull(n.2014R)),
-                  N2014 = pull(n.2014R),
-                  y2017 = log(y.2017R.wide),
-                  n.2017.seasons = length(pull(n.2017R)),
-                  N2017 = pull(n.2017R),
-                  y2019 = log(y.2019R.wide),
-                  n.2019.seasons = length(pull(n.2019R)),
-                  N2019 = pull(n.2019R),
-                  ySouth = log(y.South.wide),
-                  NSouth = pull(n.South))
+jags.data <- list(y2014 = log(ys.2014R$y.wide),
+                  n.2014.seasons = length(pull(ys.2014R$y.n)),
+                  N2014 = pull(ys.2014R$y.n),
+                  y2017 = log(ys.2017R$y.wide),
+                  n.2017.seasons = length(pull(ys.2017R$y.n)),
+                  N2017 = pull(ys.2017R$y.n),
+                  y2019 = log(ys.2019R$y.wide),
+                  n.2019.seasons = length(pull(ys.2019R$y.n)),
+                  N2019 = pull(ys.2019R$y.n),
+                  ySouth2014 = log(ys.South.2014$y.wide),
+                  NSouth2014 = pull(ys.South.2014$y.n),
+                  ySouth2017 = log(ys.South.2017$y.wide),
+                  NSouth2017 = pull(ys.South.2017$y.n),
+                  ySouth2019 = log(ys.South.2019$y.wide),
+                  NSouth2019 = pull(ys.South.2019$y.n))
 
 jags.params <- c("mu2014", "sigma2014", 
                  "mu2017", "sigma2017",
                  "mu2019", "sigma2019",
-                 "muSouth", "sigmaSouth",
+                 "muSouth2014", "sigmaSouth2014",
+                 "muSouth2017", "sigmaSouth2017",
+                 "muSouth2019", "sigmaSouth2019",
                  "deltaMu2014", "deltaMu2017", "deltaMu2019",
+                 "ratio2014", "ratio2017", "ratio2019",
                  "deviance")
 
 jm <- jags(jags.data,
@@ -200,19 +177,19 @@ mcmc_dens(jm$samples,
 
 ```{r}
 mcmc_trace(jm$samples,
-           c("mu2019[1]", "mu2019[2]"))
+           c("mu2019[1]", "mu2019[2]", "mu2019[3]"))
 ```
 
 
 ```{r}
 mcmc_trace(jm$samples,
-           c("deltaMu2019[1]", "deltaMu2019[2]"))
+           c("deltaMu2019[1]", "deltaMu2019[2]", "deltaMu2019[3]"))
 ```
 
 
 ```{r}
 mcmc_dens(jm$samples,
-           c("deltaMu2019[1]", "deltaMu2019[2]"))
+           c("deltaMu2019[1]", "deltaMu2019[2]", "deltaMu2019[3]"))
 ```
 
 
@@ -256,9 +233,53 @@ ggplot(delta.mu.df) +
   facet_grid(Sector ~ .) +
   geom_text(aes(x = Year, y = 2000, label = signif(P_gt_0, digits = 3))) +
   geom_text(aes(x = Year, y = -2000, label = paste0("n = ", n))) +
-  ylab("Mean + 95%CI") + xlab("")
+  ylab("Mean + 95%CI") + xlab("") +
+  labs(title = "Difference in hatchling production from the control site")
 
 ggsave(filename = "figures/hatchling_increase.png",
        device = "png", dpi = 600)
+```
+
+```{r}
+ratio.2014 <- summary.df[grep("ratio2014", summary.df$Parameter),]
+
+ratio.2014 %>% 
+  mutate(Year = seq(from = 2014, to = 2014+nrow(ratio.2014)-1),
+         Sector = "2014R") %>%
+  select(Year, Sector, mean, X2.5., X97.5., f) -> ratio.2014.df
+
+ratio.2017 <- summary.df[grep("ratio2017", summary.df$Parameter),]
+
+ratio.2017 %>% 
+  mutate(Year = seq(from = 2017, to = 2017+nrow(ratio.2017)-1),
+         Sector = "2017R") %>%
+  select(Year, Sector, mean, X2.5., X97.5., f) -> ratio.2017.df
+
+ratio.2019 <- summary.df[grep("ratio2019", summary.df$Parameter),]
+
+ratio.2019 %>% 
+  mutate(Year = seq(from = 2019, to = 2019+nrow(ratio.2019)-1),
+         Sector = "2019R") %>%
+  select(Year, Sector, mean, X2.5., X97.5., f) -> ratio.2019.df
+
+# f is the proportion of posterior samples that have the same sign as the mean. 
+
+ratio.df <- rbind(ratio.2014.df, ratio.2017.df, ratio.2019.df) %>%
+  mutate(P_gt_0 = ifelse(mean > 0, f, 1-f),
+         n = c(jags.data$N2014, jags.data$N2017, jags.data$N2019))
+
+
+ggplot(ratio.df) +
+  geom_point(aes(x = Year, y = mean)) +
+  geom_errorbar(aes(x = Year, ymin = X2.5., ymax = X97.5.)) +
+  facet_grid(Sector ~ .) +
+  # geom_text(aes(x = Year, y = max(X97.5.), label = signif(P_gt_0, digits = 3))) +
+  geom_text(aes(x = Year, y = -10, label = paste0("n = ", n))) +
+  ylab("Mean + 95%CI") + xlab("") +
+  labs(title = "Increase relative to the control site")
+
+ggsave(filename = "figures/hatchling_ratio.png",
+       device = "png", dpi = 600)
+
 ```
 
