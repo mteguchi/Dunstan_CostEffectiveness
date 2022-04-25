@@ -255,8 +255,9 @@ ggplot(delta.mu.df) +
   ylab("Mean + 95%CI") + xlab("") +
   labs(title = "Difference in hatchling production from the control site")
 
-ggsave(filename = "figures/hatchling_increase.png",
-       device = "png", dpi = 600)
+if (save.fig)
+  ggsave(filename = "figures/hatchling_increase.png",
+         device = "png", dpi = 600)
 ```
 
 ```{r}
@@ -297,8 +298,9 @@ ggplot(ratio.df) +
   ylab("Mean + 95%CI") + xlab("") +
   labs(title = "Increase relative to the control site")
 
-ggsave(filename = "figures/hatchling_ratio.png",
-       device = "png", dpi = 600)
+if (save.fig)
+  ggsave(filename = "figures/hatchling_ratio.png",
+         device = "png", dpi = 600)
 
 ```
 
@@ -490,8 +492,11 @@ ggplot(data = mu.2014.df %>% filter(mean < 8.5),
         legend.position = c(0.9, 0.9)) +
   xlab("Hatchling production per sector") +
   ylab("") + 
-  labs(title = "Comparison of hatchling productions between reprofiled and contol sites")
+  labs(title = "Hatchling production at 2014R and contol sites")
 
+if (save.fig)
+  ggsave(filename = "figures/hatchling_production_2014R.png",
+         device = "png", dpi = 600)
 ```
 
 ```{r}
@@ -504,8 +509,11 @@ ggplot(data = mu.2017.df %>% filter(mean < 8.5),
         legend.position = c(0.9, 0.9)) +
   xlab("Hatchling production per sector") +
   ylab("") + 
-  labs(title = "Comparison of hatchling productions between reprofiled and contol sites")
+  labs(title = "Hatchling production at 2017R and contol sites")
 
+if (save.fig)
+  ggsave(filename = "figures/hatchling_production_2017R.png",
+         device = "png", dpi = 600)
 ```
 
 ```{r}
@@ -518,8 +526,11 @@ ggplot(data = mu.2019.df %>% filter(mean < 8.5),
         legend.position = c(0.9, 0.9)) +
   xlab("Hatchling production per sector") +
   ylab("") + 
-  labs(title = "Comparison of hatchling productions between reprofiled and contol sites")
+  labs(title = "Hatchling production at 2019R and contol sites")
 
+if (save.fig)
+  ggsave(filename = "figures/hatchling_production_2019R.png",
+         device = "png", dpi = 600)
 ```
 
 
