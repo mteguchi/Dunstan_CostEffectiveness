@@ -17,6 +17,14 @@ save.fig <- T
 
 source("Dunstan_functions.R")
 
+MCMC.params <- list(n.chains = 5,
+                    n.samples = 100000,
+                    n.burnin = 80000,
+                    n.thin = 10)
+
+n.samples <- MCMC.params$n.chains * 
+  (MCMC.params$n.samples - MCMC.params$n.burnin)/MCMC.params$n.thin
+
 # get data
 # extra comma at the end so created a new variable for Apr2022
 col.def <- cols(Date = col_date(format = "%m/%d/%Y"),
@@ -48,7 +56,7 @@ Once the data are loaded, I extract just the necessary stuff:
 
 ```{r}
 sectors <- c("2014R", "2017R", "2019R", "South", 
-             "2019R South", "2019R North", "2014R South")
+             "2019R South", "2019R North", "2014R South", "A")
 
 data.3 %>% filter(Sector %in% sectors) -> data.3.1
 
@@ -72,21 +80,17 @@ get.data <- function(y){
                           y.wide = y.wide))
 }
 
-ys.2014R <- get.data(data.3.1%>%filter(Sector == "2014R"))
+ys.2014R <- get.data(data.3.1%>%filter(Sector == "2014R" | Sector == "2014R South"))
 ys.2017R <- get.data(data.3.1%>%filter(Sector == "2017R"))
 ys.2019R <- get.data(data.3.1%>%filter(Sector %in% 
-                                         c("2019R", "2019R North")))
-ys.South.2017 <- get.data(data.3.1%>%filter(Sector == "South") %>%
+                                         c("2019R", "2019R South")))
+ys.South.2017 <- get.data(data.3.1%>%filter(Sector == "South" | Sector == "A") %>%
                             filter(Season > 2016))
-ys.South.2014 <- get.data(data.3.1%>%filter(Sector == "South" | Sector == "2014R South"))
+ys.South.2014 <- get.data(data.3.1%>%filter(Sector == "South" | Sector == "A"))
 ys.South.2019 <- get.data(data.3.1 %>% 
-                            filter(Sector == "South" | Sector == "2019R South") %>%
+                            filter(Sector == "South" | Sector == "A") %>%
                             filter(Season > 2018))
 
-MCMC.params <- list(n.chains = 5,
-                    n.samples = 100000,
-                    n.burnin = 80000,
-                    n.thin = 10)
 
 jags.data <- list(y2014 = log(ys.2014R$y.wide),
                   n.2014.seasons = length(pull(ys.2014R$y.n)),
@@ -289,7 +293,7 @@ ratio.df <- rbind(ratio.2014.df, ratio.2017.df, ratio.2019.df) %>%
          n = c(jags.data$N2014, jags.data$N2017, jags.data$N2019))
 
 
-ggplot(ratio.df) +
+p.ratio <- ggplot(ratio.df) +
   geom_point(aes(x = Year, y = mean)) +
   geom_errorbar(aes(x = Year, ymin = X2.5., ymax = X97.5.)) +
   facet_grid(Sector ~ .) +
@@ -299,7 +303,8 @@ ggplot(ratio.df) +
   labs(title = "Increase relative to the control site")
 
 if (save.fig)
-  ggsave(filename = "figures/hatchling_ratio.png",
+  ggsave(p.ratio, 
+         filename = "figures/hatchling_ratio.png",
          device = "png", dpi = 600)
 
 ```
@@ -451,7 +456,7 @@ extract.samples.jagsUI <- function(varname, zm){
   return(samples.list)
 }
 
-get.samples <- function(pars, years, jm){
+get.samples <- function(pars, years, jm, n.samples){
   mu.samples.1 <- extract.samples.jagsUI(pars[1], jm)
   mu.samples.1.df <- data.frame(mean = unlist(mu.samples.1),
                                 year = rep(years, each = n.samples),
@@ -467,23 +472,21 @@ get.samples <- function(pars, years, jm){
   mu.df <- rbind(mu.samples.1.df, mu.samples.2.df)
   
 }
-n.samples <- MCMC.params$n.chains * 
-  (MCMC.params$n.samples - MCMC.params$n.burnin)/MCMC.params$n.thin
 
 # 2014
-years.2014 <- 2014:2020
-mu.2014.df <- get.samples(c("mu2014", "muSouth2014"), years.2014, jm)
+years.2014 <- 2014:2021
+mu.2014.df <- get.samples(c("mu2014", "muSouth2014"), years.2014, jm, n.samples)
 years.2017 <- 2017:2020
-mu.2017.df <- get.samples(c("mu2017", "muSouth2017"), years.2017, jm)
+mu.2017.df <- get.samples(c("mu2017", "muSouth2017"), years.2017, jm, n.samples)
 years.2019 <- 2019:2021
-mu.2019.df <- get.samples(c("mu2019", "muSouth2019"), years.2019, jm)
+mu.2019.df <- get.samples(c("mu2019", "muSouth2019"), years.2019, jm, n.samples)
 
 mu.all <- rbind(mu.2014.df, mu.2017.df, mu.2019.df)
 
 #           color = factor(reprofile),
 #           point_color = reprofile, 
 
-ggplot(data = mu.2014.df %>% filter(mean < 8.5), 
+p.2014R <- ggplot(data = mu.2014.df %>% filter(mean < 8.5), 
        aes(x = (exp(mean)), 
            y = as.factor(year), 
            fill = reprofile)) +
@@ -492,15 +495,16 @@ ggplot(data = mu.2014.df %>% filter(mean < 8.5),
         legend.position = c(0.9, 0.9)) +
   xlab("Hatchling production per sector") +
   ylab("") + 
-  labs(title = "Hatchling production at 2014R and contol sites")
+  labs(title = "Hatchling production; (2014R + 2014R South) vs. (South + A)")
 
 if (save.fig)
-  ggsave(filename = "figures/hatchling_production_2014R.png",
+  ggsave(p.2014R, 
+         filename = "figures/hatchling_production_2014R.png",
          device = "png", dpi = 600)
 ```
 
 ```{r}
-ggplot(data = mu.2017.df %>% filter(mean < 8.5), 
+p.2017R <- ggplot(data = mu.2017.df %>% filter(mean < 8.5), 
        aes(x = (exp(mean)), 
            y = as.factor(year), 
            fill = reprofile)) +
@@ -509,15 +513,16 @@ ggplot(data = mu.2017.df %>% filter(mean < 8.5),
         legend.position = c(0.9, 0.9)) +
   xlab("Hatchling production per sector") +
   ylab("") + 
-  labs(title = "Hatchling production at 2017R and contol sites")
+  labs(title = "Hatchling production; (2017R vs. (South + A)")
 
 if (save.fig)
-  ggsave(filename = "figures/hatchling_production_2017R.png",
+  ggsave(p.2017R,
+         filename = "figures/hatchling_production_2017R.png",
          device = "png", dpi = 600)
 ```
 
 ```{r}
-ggplot(data = mu.2019.df %>% filter(mean < 8.5), 
+p.2019R <- ggplot(data = mu.2019.df %>% filter(mean < 8.5), 
        aes(x = (exp(mean)), 
            y = as.factor(year), 
            fill = reprofile)) +
@@ -526,10 +531,11 @@ ggplot(data = mu.2019.df %>% filter(mean < 8.5),
         legend.position = c(0.9, 0.9)) +
   xlab("Hatchling production per sector") +
   ylab("") + 
-  labs(title = "Hatchling production at 2019R and contol sites")
+  labs(title = "Hatchling production; (2019R + 2019R South) vs. (South + A)")
 
 if (save.fig)
-  ggsave(filename = "figures/hatchling_production_2019R.png",
+  ggsave(p.2019R,
+         filename = "figures/hatchling_production_2019R.png",
          device = "png", dpi = 600)
 ```
 
