@@ -16,6 +16,34 @@ library(readr)
 save.fig <- T
 
 source("Dunstan_functions.R")
+# This function is also in TomosFunctions.R in tools direcotry
+extract.samples.jagsUI <- function(varname, zm){
+  par.names <- unlist(dimnames(jm$samples[[1]])[2])
+  col.idx <- grep(varname, par.names)
+  samples.list <- list(length = length(col.idx))
+  
+  samples <- lapply(zm$samples, FUN = function(x) x[, col.idx])
+  for (k in 1:length(col.idx)){
+    samples.list[[k]] <- unlist(lapply(samples, FUN = function(x) x[,k]))
+  }
+
+  return(samples.list)
+}
+
+get.samples <- function(pars, names, years, jm, n.samples){
+  out.list <- vector(mode = "list", length = length(pars))
+  for (k in 1:length(pars)){
+    mu.samples <- extract.samples.jagsUI(pars[k], jm)
+    out.list[[k]] <- data.frame(mean = unlist(mu.samples),
+                                year = rep(years, each = n.samples),
+                                sector = pars[k],
+                                treatment = names[k])
+    
+  }
+  
+  mu.df <- do.call(rbind, out.list) #rbind(mu.samples.1.df, mu.samples.2.df)
+  return(mu.df)
+}
 
 MCMC.params <- list(n.chains = 5,
                     n.samples = 100000,
@@ -41,8 +69,8 @@ data.1 <- read_csv(file = "data/Hatchling_Data_v3.1_APR2022.csv",
 Day1 <- "12-20"
 Day2 <- "04-30"
 
-n.days <- as.numeric(as.Date(paste0("2018-", Day2)) - 
-                       as.Date(paste0("2017-", Day1)))
+# n.days <- as.numeric(as.Date(paste0("2018-", Day2)) - 
+#                        as.Date(paste0("2017-", Day1)))
 
 seasons <- unique(data.1$Season)
 
@@ -80,13 +108,16 @@ get.data <- function(y){
                           y.wide = y.wide))
 }
 
+# Reprofiled regions
 ys.2014R <- get.data(data.3.1%>%filter(Sector == "2014R" | Sector == "2014R South"))
 ys.2017R <- get.data(data.3.1%>%filter(Sector == "2017R"))
 ys.2019R <- get.data(data.3.1%>%filter(Sector %in% 
                                          c("2019R", "2019R South")))
+
+# Control regions
+ys.South.2014 <- get.data(data.3.1%>%filter(Sector == "South" | Sector == "A"))
 ys.South.2017 <- get.data(data.3.1%>%filter(Sector == "South" | Sector == "A") %>%
                             filter(Season > 2016))
-ys.South.2014 <- get.data(data.3.1%>%filter(Sector == "South" | Sector == "A"))
 ys.South.2019 <- get.data(data.3.1 %>% 
                             filter(Sector == "South" | Sector == "A") %>%
                             filter(Season > 2018))
@@ -216,8 +247,25 @@ mcmc_dens(jm$samples,
 ```
 
 
-Seems like they converged alright. Compute how many of the samples were > 0 for $\delta \mu_{2014}$, $\delta \mu_{2017}$, and $\delta \mu_{2019}$.
+```{r}
+mcmc_dens(jm$samples, c("mu2014[1]",  "sigma2014[1]", 
+                        "muSouth2014[1]", "sigmaSouth2014[1]"))
+```
 
+
+```{r}
+mcmc_dens(jm$samples, c("mu2014[6]",  "sigma2014[6]", 
+                        "muSouth2014[6]", "sigmaSouth2014[6]"))
+```
+
+
+```{r}
+mcmc_dens(jm$samples, c("mu2017[1]",  "sigma2017[1]", 
+                        "muSouth2017[1]", "sigmaSouth2017[1]"))
+```
+
+
+Seems like they converged alright. Compute how many of the samples were > 0 for $\delta \mu_{2014}$, $\delta \mu_{2017}$, and $\delta \mu_{2019}$.
 
 
 ```{r}
@@ -227,31 +275,31 @@ delta.mu.2014 <- summary.df[grep("deltaMu2014", summary.df$Parameter),]
 delta.mu.2014 %>% 
   mutate(Year = seq(from = 2014, to = 2014+nrow(delta.mu.2014)-1),
          Sector = "2014R") %>%
-  select(Year, Sector, mean, X2.5., X97.5., f) -> delta.mu.2014.df
+  select(Year, Sector, X50., X2.5., X97.5., f) -> delta.mu.2014.df
 
 delta.mu.2017 <- summary.df[grep("deltaMu2017", summary.df$Parameter),]
 
 delta.mu.2017 %>% 
   mutate(Year = seq(from = 2017, to = 2017+nrow(delta.mu.2017)-1),
          Sector = "2017R") %>%
-  select(Year, Sector, mean, X2.5., X97.5., f) -> delta.mu.2017.df
+  select(Year, Sector, X50., X2.5., X97.5., f) -> delta.mu.2017.df
 
 delta.mu.2019 <- summary.df[grep("deltaMu2019", summary.df$Parameter),]
 
 delta.mu.2019 %>% 
   mutate(Year = seq(from = 2019, to = 2019+nrow(delta.mu.2019)-1),
          Sector = "2019R") %>%
-  select(Year, Sector, mean, X2.5., X97.5., f) -> delta.mu.2019.df
+  select(Year, Sector, X50., X2.5., X97.5., f) -> delta.mu.2019.df
 
 # f is the proportion of posterior samples that have the same sign as the mean. 
 
 delta.mu.df <- rbind(delta.mu.2014.df, delta.mu.2017.df, delta.mu.2019.df) %>%
-  mutate(P_gt_0 = ifelse(mean > 0, f, 1-f),
+  mutate(P_gt_0 = ifelse(X50. > 0, f, 1-f),
          n = c(jags.data$N2014, jags.data$N2017, jags.data$N2019))
 
 
-ggplot(delta.mu.df) +
-  geom_point(aes(x = Year, y = mean)) +
+p.increase <- ggplot(delta.mu.df) +
+  geom_point(aes(x = Year, y = X50.)) +
   geom_errorbar(aes(x = Year, ymin = X2.5., ymax = X97.5.)) +
   facet_grid(Sector ~ .) +
   geom_text(aes(x = Year, y = 2000, label = signif(P_gt_0, digits = 3))) +
@@ -260,60 +308,130 @@ ggplot(delta.mu.df) +
   labs(title = "Difference in hatchling production from the control site")
 
 if (save.fig)
-  ggsave(filename = "figures/hatchling_increase.png",
+  ggsave(p.increase,
+         filename = "figures/hatchling_increase.png",
          device = "png", dpi = 600)
 ```
 
 ```{r}
-ratio.2014 <- summary.df[grep("ratio2014", summary.df$Parameter),]
+years.2014 <- 2014:2021
+ratio.2014.df <- get.samples(pars = "ratio2014", 
+                             names = "2014R", 
+                             years.2014, jm, n.samples)
+years.2017 <- 2017:2020
+ratio.2017.df <- get.samples(pars = "ratio2017", 
+                          names = "2017R", years.2017, jm, n.samples)
+years.2019 <- 2019:2021
+ratio.2019.df <- get.samples(pars = "ratio2019",
+                          names = "2019R", 
+                          years.2019, jm, n.samples)
 
-ratio.2014 %>% 
-  mutate(Year = seq(from = 2014, to = 2014+nrow(ratio.2014)-1),
-         Sector = "2014R") %>%
-  select(Year, Sector, mean, X2.5., X97.5., f) -> ratio.2014.df
-
-ratio.2017 <- summary.df[grep("ratio2017", summary.df$Parameter),]
-
-ratio.2017 %>% 
-  mutate(Year = seq(from = 2017, to = 2017+nrow(ratio.2017)-1),
-         Sector = "2017R") %>%
-  select(Year, Sector, mean, X2.5., X97.5., f) -> ratio.2017.df
-
-ratio.2019 <- summary.df[grep("ratio2019", summary.df$Parameter),]
-
-ratio.2019 %>% 
-  mutate(Year = seq(from = 2019, to = 2019+nrow(ratio.2019)-1),
-         Sector = "2019R") %>%
-  select(Year, Sector, mean, X2.5., X97.5., f) -> ratio.2019.df
-
-# f is the proportion of posterior samples that have the same sign as the mean. 
-
-ratio.df <- rbind(ratio.2014.df, ratio.2017.df, ratio.2019.df) %>%
-  mutate(P_gt_0 = ifelse(mean > 0, f, 1-f),
-         n = c(jags.data$N2014, jags.data$N2017, jags.data$N2019))
-
-
-p.ratio <- ggplot(ratio.df) +
-  geom_point(aes(x = Year, y = mean)) +
-  geom_errorbar(aes(x = Year, ymin = X2.5., ymax = X97.5.)) +
-  facet_grid(Sector ~ .) +
-  # geom_text(aes(x = Year, y = max(X97.5.), label = signif(P_gt_0, digits = 3))) +
-  geom_text(aes(x = Year, y = -10, label = paste0("n = ", n))) +
-  ylab("Mean + 95%CI") + xlab("") +
-  labs(title = "Increase relative to the control site")
+p.ratio.2014R <- ggplot(data = ratio.2014.df %>% filter(mean < 10), 
+       aes(x = (mean), 
+           y = as.factor(year), 
+           fill = treatment)) +
+  geom_vline(aes(xintercept = 1.0)) +
+  geom_density_ridges(bandwidth = 0.5, alpha = 0.6,
+                      show.legend = FALSE) +
+  xlab("Reprofile-Control Ratio") +
+  ylab("") + 
+  labs(title = "Hatchling production; (2014R + 2014R South)/(South + A)")
 
 if (save.fig)
-  ggsave(p.ratio, 
-         filename = "figures/hatchling_ratio.png",
+  ggsave(p.ratio.2014R, 
+         filename = "figures/hatchling_production_ratio_2014R.png",
+         device = "png", dpi = 600)
+
+# ratio.2014 <- summary.df[grep("ratio2014", summary.df$Parameter),]
+# 
+# ratio.2014 %>% 
+#   mutate(Year = seq(from = 2014, to = 2014+nrow(ratio.2014)-1),
+#          Sector = "2014R") %>%
+#   select(Year, Sector, X50., X2.5., X97.5., f) -> ratio.2014.df
+# 
+# ratio.2017 <- summary.df[grep("ratio2017", summary.df$Parameter),]
+# 
+# ratio.2017 %>% 
+#   mutate(Year = seq(from = 2017, to = 2017+nrow(ratio.2017)-1),
+#          Sector = "2017R") %>%
+#   select(Year, Sector, X50., X2.5., X97.5., f) -> ratio.2017.df
+# 
+# ratio.2019 <- summary.df[grep("ratio2019", summary.df$Parameter),]
+# 
+# ratio.2019 %>% 
+#   mutate(Year = seq(from = 2019, to = 2019+nrow(ratio.2019)-1),
+#          Sector = "2019R") %>%
+#   select(Year, Sector, X50., X2.5., X97.5., f) -> ratio.2019.df
+# 
+# # f is the proportion of posterior samples that have the same sign as the mean. 
+# 
+# ratio.df <- rbind(ratio.2014.df, ratio.2017.df, ratio.2019.df) %>%
+#   mutate(P_gt_0 = ifelse(X50. > 0, f, 1-f),
+#          n = c(jags.data$N2014, jags.data$N2017, jags.data$N2019))
+# 
+# p.ratio
+# p.ratio <- ggplot(ratio.df) +
+#   geom_point(aes(x = Year, y = X50.)) +
+#   geom_errorbar(aes(x = Year, ymin = X2.5., ymax = X97.5.)) +
+#   facet_grid(Sector ~ .) +
+#   # geom_text(aes(x = Year, y = max(X97.5.), label = signif(P_gt_0, digits = 3))) +
+#   geom_text(aes(x = Year, y = -10, label = paste0("n = ", n))) +
+#   ylab("Mean + 95%CI") + xlab("") +
+#   labs(title = "Increase relative to the control site")
+# 
+# if (save.fig)
+#   ggsave(p.ratio, 
+#          filename = "figures/hatchling_ratio.png",
+#          device = "png", dpi = 600)
+
+```
+
+```{r}
+p.ratio.2017R <- ggplot(data = ratio.2017.df %>% filter(mean < 10), 
+                        aes(x = (mean), 
+                            y = as.factor(year), 
+                            fill = treatment)) +
+  geom_vline(aes(xintercept = 1.0)) +
+  geom_density_ridges(bandwidth = 0.5, alpha = 0.6,
+                      show.legend = FALSE) +
+  xlab("Reprofile-Control Ratio") +
+  ylab("") + 
+  labs(title = "Hatchling production; 2017R/South")
+
+if (save.fig)
+  ggsave(p.ratio.2017R, 
+         filename = "figures/hatchling_production_ratio_2017R.png",
+         device = "png", dpi = 600)
+
+```
+
+
+```{r}
+p.ratio.2019R <- ggplot(data = ratio.2019.df %>% filter(mean < 10), 
+                        aes(x = (mean), 
+                            y = as.factor(year), 
+                            fill = treatment)) +
+  geom_vline(aes(xintercept = 1.0)) +
+  
+  geom_density_ridges(bandwidth = 0.5, alpha = 0.6,
+                      show.legend = FALSE) +
+  xlab("Reprofile-Control Ratio") +
+  ylab("") + 
+  labs(title = "Hatchling production; (2019R + 2019R South)/(South + A)")
+
+if (save.fig)
+  ggsave(p.ratio.2019R, 
+         filename = "figures/hatchling_production_ratio_2019R.png",
          device = "png", dpi = 600)
 
 ```
 
 ```{r}
+
 mu.2014 <- summary.df[grep("mu2014", summary.df$Parameter),]
 
 mu.2014 %>% 
-  mutate(Year = seq(from = 2014, to = 2014+nrow(ratio.2014)-1),
+  mutate(Year = seq(from = 2014, to = 2014+nrow(mu.2014)-1),
          Sector = "2014R") %>%
   select(Year, Sector, mean, X2.5., X97.5.) %>%
   transmute(Year = Year,
@@ -326,7 +444,7 @@ mu.2014 %>%
 mu.2014.South <- summary.df[grep("muSouth2014", summary.df$Parameter),]
 
 mu.2014.South %>% 
-  mutate(Year = seq(from = 2014, to = 2014+nrow(ratio.2014)-1),
+  mutate(Year = seq(from = 2014, to = 2014+nrow(mu.2014)-1),
          Sector = "2014_South") %>%
   select(Year, Sector, mean, X2.5., X97.5.) %>%
   transmute(Year = Year,
@@ -339,7 +457,7 @@ mu.2014.South %>%
 mu.2017 <- summary.df[grep("mu2017", summary.df$Parameter),]
 
 mu.2017 %>% 
-  mutate(Year = seq(from = 2017, to = 2017+nrow(ratio.2017)-1),
+  mutate(Year = seq(from = 2017, to = 2017+nrow(mu.2017)-1),
          Sector = "2017R") %>%
   select(Year, Sector, mean, X2.5., X97.5.) %>%
   transmute(Year = Year,
@@ -352,7 +470,7 @@ mu.2017 %>%
 mu.2017.South <- summary.df[grep("muSouth2017", summary.df$Parameter),]
 
 mu.2017.South %>% 
-  mutate(Year = seq(from = 2017, to = 2017+nrow(ratio.2017)-1),
+  mutate(Year = seq(from = 2017, to = 2017+nrow(mu.2017)-1),
          Sector = "2017_South") %>%
   select(Year, Sector, mean, X2.5., X97.5.) %>%
   transmute(Year = Year,
@@ -365,7 +483,7 @@ mu.2017.South %>%
 mu.2019 <- summary.df[grep("mu2019", summary.df$Parameter),]
 
 mu.2019 %>% 
-  mutate(Year = seq(from = 2019, to = 2019+nrow(ratio.2019)-1),
+  mutate(Year = seq(from = 2019, to = 2019+nrow(mu.2019)-1),
          Sector = "2019R") %>%
   select(Year, Sector, mean, X2.5., X97.5., f) %>%
   transmute(Year = Year,
@@ -378,7 +496,7 @@ mu.2019 %>%
 mu.2019.South <- summary.df[grep("muSouth2019", summary.df$Parameter),]
 
 mu.2019.South %>% 
-  mutate(Year = seq(from = 2019, to = 2019+nrow(ratio.2019)-1),
+  mutate(Year = seq(from = 2019, to = 2019+nrow(mu.2019)-1),
          Sector = "2019_South") %>%
   select(Year, Sector, mean, X2.5., X97.5.) %>%
   transmute(Year = Year,
@@ -442,44 +560,17 @@ Ridge plots for each year
 
 ```{r}
 library(ggridges)
-# This function is also in TomosFunctions.R in tools direcotry
-extract.samples.jagsUI <- function(varname, zm){
-  par.names <- unlist(dimnames(jm$samples[[1]])[2])
-  col.idx <- grep(varname, par.names)
-  samples.list <- list(length = length(col.idx))
-  
-  samples <- lapply(zm$samples, FUN = function(x) x[, col.idx])
-  for (k in 1:length(col.idx)){
-    samples.list[[k]] <- unlist(lapply(samples, FUN = function(x) x[,k]))
-  }
-
-  return(samples.list)
-}
-
-get.samples <- function(pars, years, jm, n.samples){
-  mu.samples.1 <- extract.samples.jagsUI(pars[1], jm)
-  mu.samples.1.df <- data.frame(mean = unlist(mu.samples.1),
-                                year = rep(years, each = n.samples),
-                                sector = pars[1],
-                                reprofile = "Reprofile")
-  
-  mu.samples.2 <- extract.samples.jagsUI(pars[2], jm)
-  mu.samples.2.df <- data.frame(mean = unlist(mu.samples.2),
-                                year = rep(years, each = n.samples),
-                                sector = pars[1],
-                                reprofile = "Control")
-  
-  mu.df <- rbind(mu.samples.1.df, mu.samples.2.df)
-  
-}
 
 # 2014
-years.2014 <- 2014:2021
-mu.2014.df <- get.samples(c("mu2014", "muSouth2014"), years.2014, jm, n.samples)
-years.2017 <- 2017:2020
-mu.2017.df <- get.samples(c("mu2017", "muSouth2017"), years.2017, jm, n.samples)
-years.2019 <- 2019:2021
-mu.2019.df <- get.samples(c("mu2019", "muSouth2019"), years.2019, jm, n.samples)
+mu.2014.df <- get.samples(c("mu2014", "muSouth2014"), 
+                          c("Reprofile", "Control"), 
+                          years.2014, jm, n.samples)
+mu.2017.df <- get.samples(c("mu2017", "muSouth2017"), 
+                          c("Reprofile", "Control"), 
+                          years.2017, jm, n.samples)
+mu.2019.df <- get.samples(c("mu2019", "muSouth2019"), 
+                          c("Reprofile", "Control"), 
+                          years.2019, jm, n.samples)
 
 mu.all <- rbind(mu.2014.df, mu.2017.df, mu.2019.df)
 
@@ -489,7 +580,7 @@ mu.all <- rbind(mu.2014.df, mu.2017.df, mu.2019.df)
 p.2014R <- ggplot(data = mu.2014.df %>% filter(mean < 8.5), 
        aes(x = (exp(mean)), 
            y = as.factor(year), 
-           fill = reprofile)) +
+           fill = treatment)) +
   geom_density_ridges(bandwidth = 0.5, alpha = 0.6) +
   theme(legend.title = element_blank(),
         legend.position = c(0.9, 0.9)) +
@@ -507,7 +598,7 @@ if (save.fig)
 p.2017R <- ggplot(data = mu.2017.df %>% filter(mean < 8.5), 
        aes(x = (exp(mean)), 
            y = as.factor(year), 
-           fill = reprofile)) +
+           fill = treatment)) +
   geom_density_ridges(bandwidth = 0.5, alpha = 0.6) +
   theme(legend.title = element_blank(),
         legend.position = c(0.9, 0.9)) +
@@ -525,7 +616,7 @@ if (save.fig)
 p.2019R <- ggplot(data = mu.2019.df %>% filter(mean < 8.5), 
        aes(x = (exp(mean)), 
            y = as.factor(year), 
-           fill = reprofile)) +
+           fill = treatment)) +
   geom_density_ridges(bandwidth = 0.5, alpha = 0.6) +
   theme(legend.title = element_blank(),
         legend.position = c(0.9, 0.9)) +
