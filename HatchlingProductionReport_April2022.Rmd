@@ -1,0 +1,358 @@
+---
+title: "Effect of reprofiling on hatchling production"
+author: "Tomo Eguchi"
+date: "`r Sys.Date()`"
+output: 
+  bookdown::word_document2: default
+
+---
+
+
+
+```{r setup, include=FALSE, echo=FALSE}
+rm(list=ls())
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(ggplot2)
+library(lubridate)
+library(readr)
+library(reshape2)
+library(jagsUI)
+
+extract.samples.jagsUI <- function(varname, jm){
+  par.names <- unlist(dimnames(jm$samples[[1]])[2])
+  col.idx <- grep(varname, par.names)
+  
+  samples <- lapply(jm$samples, FUN = function(x) x[, col.idx])
+
+  if (length(col.idx) > 1){
+    samples.list <- list(length = length(col.idx))
+    
+    for (k in 1:length(col.idx)){
+      samples.list[[k]] <- unlist(lapply(samples, FUN = function(x) x[,k]))
+    }
+    
+  } else {
+    samples.list <- list(unlist(samples))
+  }
+
+  return(samples.list)
+}
+
+get.samples <- function(pars, names, years, jm, n.samples){
+  out.list <- vector(mode = "list", length = length(pars))
+  for (k in 1:length(pars)){
+    mu.samples <- extract.samples.jagsUI(pars[k], jm)
+    out.list[[k]] <- data.frame(mean = unlist(mu.samples),
+                                year = rep(years, each = n.samples),
+                                sector = pars[k],
+                                treatment = names[k])
+    
+  }
+  
+  mu.df <- do.call(rbind, out.list) #rbind(mu.samples.1.df, mu.samples.2.df)
+  return(mu.df)
+}
+
+MCMC.params <- list(n.chains = 5,
+                    n.samples = 100000,
+                    n.burnin = 80000,
+                    n.thin = 10)
+
+n.samples <- MCMC.params$n.chains * 
+  (MCMC.params$n.samples - MCMC.params$n.burnin)/MCMC.params$n.thin
+
+```
+
+
+```{r data_summary, include=FALSE, echo=FALSE}
+jags.out.filename <- "RData/reprofile_effect_Apr2022.rds" 
+jags.out <- readRDS(jags.out.filename)
+jm <- jags.out$jags.out
+jags.data <- jags.out$jags.data
+years.2014 <- 2014:2021
+years.2017 <- 2017:2020
+years.2019 <- 2019:2021
+
+jm$summary %>% data.frame() %>% 
+  rownames_to_column(var = "Parameter")  -> summary.df
+
+# Estimated means 
+# Control
+mu.South <- summary.df[grep("muSouth", summary.df$Parameter),]
+
+mu.South %>% 
+  mutate(Year = years.2014,
+         Sector = "South") %>%
+  select(Year, Sector, mean, X2.5., X97.5.) %>%
+  transmute(Year = Year,
+            mean = exp(mean),
+            LCL = exp(X2.5.),
+            UCL = exp(X97.5.),
+            Sector = "South") -> mu.South.df
+
+# 2014
+mu.2014 <- summary.df[grep("mu2014", summary.df$Parameter),]
+
+mu.2014 %>% 
+  mutate(Year = years.2014,
+         Sector = "2014R") %>%
+  select(Year, Sector, mean, X2.5., X97.5.) %>%
+  transmute(Year = Year,
+            mean = exp(mean),
+            LCL = exp(X2.5.),
+            UCL = exp(X97.5.),
+            Sector = "2014R") -> mu.2014.df
+
+# 2017
+mu.2017 <- summary.df[grep("mu2017", summary.df$Parameter),]
+
+mu.2017 %>% 
+  mutate(Year = years.2017,
+         Sector = "2017R") %>%
+  select(Year, Sector, mean, X2.5., X97.5.) %>%
+  transmute(Year = Year,
+            mean = exp(mean),
+            LCL = exp(X2.5.),
+            UCL = exp(X97.5.),
+            Sector = "2017R") -> mu.2017.df
+
+# 2019
+mu.2019 <- summary.df[grep("mu2019", summary.df$Parameter),]
+
+mu.2019 %>% 
+  mutate(Year = years.2019,
+         Sector = "2019R") %>%
+  select(Year, Sector, mean, X2.5., X97.5., f) %>%
+  transmute(Year = Year,
+            mean = exp(mean),
+            LCL = exp(X2.5.),
+            UCL = exp(X97.5.),
+            Sector = "2019R") -> mu.2019.df
+
+mu.2014.table <- left_join(mu.2014.df, mu.South.df, by = "Year") %>% 
+  select(Year, mean.x, LCL.x, UCL.x, mean.y, LCL.y, UCL.y) %>%
+  transmute(Year = Year,
+            mean = mean.x, 
+            LCL = LCL.x,
+            UCL = UCL.x,
+            mean.South = mean.y,
+            LCL.South = LCL.y,
+            UCL.South = UCL.y)
+  
+mu.2017.table <- left_join(mu.2017.df, mu.South.df, by = "Year") %>% 
+  select(Year, mean.x, LCL.x, UCL.x, mean.y, LCL.y, UCL.y) %>%
+  transmute(Year = Year,
+            mean = mean.x, 
+            LCL = LCL.x,
+            UCL = UCL.x,
+            mean.South = mean.y,
+            LCL.South = LCL.y,
+            UCL.South = UCL.y)
+
+mu.2019.table <- left_join(mu.2019.df, mu.South.df, by = "Year") %>% 
+  select(Year, mean.x, LCL.x, UCL.x, mean.y, LCL.y, UCL.y) %>%
+  transmute(Year = Year,
+            mean = mean.x, 
+            LCL = LCL.x,
+            UCL = UCL.x,
+            mean.South = mean.y,
+            LCL.South = LCL.y,
+            UCL.South = UCL.y)
+
+  
+# f is the proportion of posterior samples that have the same sign as the mean. 
+delta.mu.2014 <- summary.df[grep("deltaMu2014", summary.df$Parameter),]
+
+delta.mu.2014 %>% 
+  mutate(Year = seq(from = 2014, to = 2014+nrow(delta.mu.2014)-1),
+         Sector = "2014R") %>%
+  select(Year, Sector, mean, X50., X2.5., X97.5., f) %>%
+  mutate(P_gt_0 = ifelse(mean > 0, f, 1-f)) -> delta.mu.2014.df
+
+delta.mu.2017 <- summary.df[grep("deltaMu2017", summary.df$Parameter),]
+
+delta.mu.2017 %>% 
+  mutate(Year = seq(from = 2017, to = 2017+nrow(delta.mu.2017)-1),
+         Sector = "2017R") %>%
+  select(Year, Sector, mean, X50., X2.5., X97.5., f) %>%
+  mutate(P_gt_0 = ifelse(mean > 0, f, 1-f))-> delta.mu.2017.df
+
+delta.mu.2019 <- summary.df[grep("deltaMu2019", summary.df$Parameter),]
+
+delta.mu.2019 %>% 
+  mutate(Year = seq(from = 2019, to = 2019+nrow(delta.mu.2019)-1),
+         Sector = "2019R") %>%
+  select(Year, Sector, mean, X50., X2.5., X97.5., f) %>%
+  mutate(P_gt_0 = ifelse(mean > 0, f, 1-f)) -> delta.mu.2019.df
+
+# f is the proportion of posterior samples that have the same sign as the mean. 
+delta.mu.df <- rbind(delta.mu.2014.df, delta.mu.2017.df, delta.mu.2019.df) %>%
+  mutate(P_gt_0 = ifelse(mean > 0, f, 1-f),
+         n = c(jags.data$N2014, jags.data$N2017, jags.data$N2019))
+
+ratio.2014.samples <- get.samples(pars = "ratio2014", 
+                             names = "2014R", 
+                             years.2014, jm, n.samples)
+
+ratio.2017.samples <- get.samples(pars = "ratio2017", 
+                          names = "2017R", years.2017, jm, n.samples)
+
+ratio.2019.samples <- get.samples(pars = "ratio2019",
+                          names = "2019R", 
+                          years.2019, jm, n.samples)
+
+ratio.2014.df <- summary.df[grep("ratio2014", summary.df$Parameter),] %>%
+  mutate(year = years.2014) %>%
+  select(year, mean, X2.5., X50., X97.5.) %>%
+  transmute(year = year,
+            Median = X50.,
+            LCL = X2.5.,
+            UCL = X97.5.) %>%
+  mutate(P_gt_1 = ratio.2014.samples %>% 
+           group_by(year) %>% 
+           summarize(P_gt_1 = sum(mean > 1)/n.samples) %>% 
+           data.frame() %>%
+           select(P_gt_1))
+
+ratio.2017.df <- summary.df[grep("ratio2017", summary.df$Parameter),] %>%
+  mutate(year = years.2017) %>%
+  select(year, mean, X2.5., X50., X97.5.) %>%
+  transmute(year = year,
+            Median = X50.,
+            LCL = X2.5.,
+            UCL = X97.5.)%>%
+  mutate(P_gt_1 = ratio.2017.samples %>% 
+           group_by(year) %>% 
+           summarize(P_gt_1 = sum(mean > 1)/n.samples) %>% 
+           data.frame() %>%
+           select(P_gt_1))
+
+ratio.2019.df <- summary.df[grep("ratio2019", summary.df$Parameter),] %>%
+    mutate(year = years.2019) %>%
+  select(year, mean, X2.5., X50., X97.5.) %>%
+  transmute(year = year,
+            Median = X50.,
+            LCL = X2.5.,
+            UCL = X97.5.) %>%
+  mutate(P_gt_1 = ratio.2019.samples %>% 
+           group_by(year) %>% 
+           summarize(P_gt_1 = sum(mean > 1)/n.samples) %>% 
+           data.frame() %>%
+           select(P_gt_1))
+
+  
+```
+
+
+Determining the effects of beach reprofiling on hatchling production at Raine Island
+
+In order to investigate the effects of beach modification on hatchling production at Raine Island, we compared the number of hatchlings from the 100-m counts between reprofiled and control sites. 
+
+## Methods {-}
+The observed number of hatchlings from the 100-m counts was compared using the Bayesian equivalent of t-tests. The following statistical model was fit to the data.
+
+$log(y_{y, j, i}) \sim N(\mu_{y,j}, \sigma_{y,j})$,
+
+Where N() is the normal distribution, \mu is the mean, and \sigma is the standard deviation. Subscripts y, i, j, indicate the season, sample number, and sector, respectively. There were three reprofiled sectors (2014R, 2017R, and 2019R), which were modified in three different seasons. One sector (South) was used as the control sector to which the treated sector was compared. Because of the large variability in nesting activities at Raine Island, we treated each year as an independent observation. Two metrics were used to determine treatment effects, i.e., reprofiling: the difference in hatchling production ($\delta \mu$) and the ratio in hatchling production ($p \mu$). 
+
+$\delta_{\mu} = exp(\mu_{y, j = treatment}) - exp(\mu_{y, j = control})$
+
+$p_{\mu} = exp(\mu_{y, j = treatment})/exp(\mu_{y, j = control})$
+
+Increased hatchling production from the treatments would result in $\delta_{\mu} > 0$ and $p_{mu} > 1$.
+
+Prior distributions were N(0, 3.16) for $\mu$, GAM(0.1, 0.1) for $\sigma$.
+
+The model was fitted to the data using JAGS (Plummer 2017) via the jagsUI package (ref) in the R Statistical Environment (v. 4.x.y, R Development Team). The JAGS code is found in the appendix.
+
+## Results {-}
+### 2014R {-}
+
+For the 2014R sector, the mean number of hatchlings per 100 m ranged from `r signif(min(mu.2014.df$mean), 4)` (95%CI = `r signif(mu.2014.df[mu.2014.df$mean == min(mu.2014.df$mean), "LCL"], 4)` -  `r signif(mu.2014.df[which(mu.2014.df$mean == min(mu.2014.df$mean)), "UCL"], 4)`) in `r mu.2014.df[which(mu.2014.df$mean == min(mu.2014.df$mean)), "Year"]` to `r signif(max(mu.2014.df$mean), 4)` (95%CI = `r signif(mu.2014.df[mu.2014.df$mean == max(mu.2014.df$mean), "LCL"], 4)` -  `r signif(mu.2014.df[which(mu.2014.df$mean == max(mu.2014.df$mean)), "UCL"], 4)`) in `r mu.2014.df[which(mu.2014.df$mean == max(mu.2014.df$mean)), "Year"]`  (Table 1). Precision of the estimates were poor for 2014-2017 (Figure 1). The 2014R sector produced more hatchlings than the control sector (South) in all the years except 2019. 
+
+Probability of $\delta_{\mu} > 0$ ranged from `r signif(min(delta.mu.2014.df$P_gt_0), 4)` in `r delta.mu.2014.df[delta.mu.2014.df$P_gt_0 == min(delta.mu.2014.df$P_gt_0), "Year"]` to `r signif(max(delta.mu.2014.df$P_gt_0), 4)` in `r delta.mu.2014.df[delta.mu.2014.df$P_gt_0 == max(delta.mu.2014.df$P_gt_0), "Year"]` (Table 2, Figure 2). Similarly, the probability of $p_{\mu} > 1$ ranged from `r signif(min(ratio.2014.df$P_gt_1), 4)` in `r ratio.2014.df[ratio.2014.df$P_gt_1 == min(ratio.2014.df$P_gt_1), "Year"]` to `r signif(max(ratio.2014.df$P_gt_1), 4)` in `r ratio.2014.df[ratio.2014.df$P_gt_1 == max(ratio.2014.df$P_gt_1), "Year"]` (Table 3, Figure 3). 
+
+
+## Appendix:  {-}
+
+model{
+	
+	for (i in 1:n.2014.seasons){
+		# 2014R
+		for (n2014 in 1:N2014[i]){
+			y2014[n2014, i] ~ dnorm(mu2014[i], tau2014[i])
+		}
+
+		mu2014[i] ~ dnorm(0, 0.1)I(0,)
+		sigma2014[i] ~ dgamma(0.1, 0.1)
+		tau2014[i] <- 1/((sigma2014[i])^2)
+
+		# 2014 South
+		for (nSouth2014 in 1:NSouth2014[i]){
+			ySouth2014[nSouth2014, i] ~ dnorm(muSouth2014[i], tauSouth2014[i])
+		}
+
+		muSouth2014[i] ~ dnorm(0, 0.1)I(0,)
+		sigmaSouth2014[i] ~ dgamma(0.1, 0.1)
+		tauSouth2014[i] <- 1/((sigmaSouth2014[i])^2)
+
+		deltaMu2014[i] <- exp(mu2014[i]) - exp(muSouth2014[i])
+		ratio2014[i] <- exp(mu2014[i])/exp(muSouth2014[i])
+
+	}
+	
+	for (j in 1:n.2017.seasons){
+		# 2017R
+		for (n2017 in 1:N2017[j]){
+			y2017[n2017, j] ~ dnorm(mu2017[j], tau2017[j])
+		}
+
+		mu2017[j] ~ dnorm(0, 0.1)I(0,)
+		sigma2017[j] ~ dgamma(0.1, 0.1)
+		tau2017[j] <- 1/((sigma2017[j])^2)
+
+		# South
+		for (nSouth2017 in 1:NSouth2017[j]){
+			ySouth2017[nSouth2017, j] ~ dnorm(muSouth2017[j], tauSouth2017[j])
+		}
+
+		muSouth2017[j] ~ dnorm(0, 0.1)I(0,)
+		sigmaSouth2017[j] ~ dgamma(0.1, 0.1)
+		tauSouth2017[j] <- 1/((sigma2017[j])^2)
+
+	    # need to offset by 3 years
+		deltaMu2017[j] <- exp(mu2017[j]) - exp(muSouth2017[j])
+		ratio2017[j] <- exp(mu2017[j])/exp(muSouth2017[j])
+
+	}	
+
+	for (k in 1:n.2019.seasons){
+		# 2019R
+		for (n2019 in 1:N2019[k]){
+			y2019[n2019, k] ~ dnorm(mu2019[k], tau2019[k])
+		}
+
+		mu2019[k] ~ dnorm(0, 0.1)I(0,)
+		sigma2019[k] ~ dgamma(0.1, 0.1)
+		tau2019[k] <- 1/((sigma2019[k])^2)
+
+		# 2019 South
+		for (nSouth2019 in 1:NSouth2019[k]){
+			ySouth2019[nSouth2019, k] ~ dnorm(muSouth2019[k], tauSouth2019[k])
+		}
+
+		muSouth2019[k] ~ dnorm(0, 0.1)I(0,)
+		sigmaSouth2019[k] ~ dgamma(0.1, 0.1)
+		tauSouth2019[k] <- 1/((sigmaSouth2019[k])^2)
+
+	    # need to offset by 5 years.
+		deltaMu2019[k] <- exp(mu2019[k]) - exp(muSouth2019[k])
+		ratio2019[k] <- exp(mu2019[k])/exp(muSouth2019[k])
+	}	
+
+}
+
+  
+
