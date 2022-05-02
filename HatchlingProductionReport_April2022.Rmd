@@ -19,6 +19,7 @@ library(lubridate)
 library(readr)
 library(reshape2)
 library(jagsUI)
+library(flextable)
 
 extract.samples.jagsUI <- function(varname, jm){
   par.names <- unlist(dimnames(jm$samples[[1]])[2])
@@ -85,9 +86,10 @@ mu.South <- summary.df[grep("muSouth", summary.df$Parameter),]
 mu.South %>% 
   mutate(Year = years.2014,
          Sector = "South") %>%
-  select(Year, Sector, mean, X2.5., X97.5.) %>%
+  select(Year, Sector, mean, X2.5., X50., X97.5.) %>%
   transmute(Year = Year,
-            mean = exp(mean),
+            Mean = exp(mean),
+            Median = exp(X50.),
             LCL = exp(X2.5.),
             UCL = exp(X97.5.),
             Sector = "South") -> mu.South.df
@@ -98,9 +100,10 @@ mu.2014 <- summary.df[grep("mu2014", summary.df$Parameter),]
 mu.2014 %>% 
   mutate(Year = years.2014,
          Sector = "2014R") %>%
-  select(Year, Sector, mean, X2.5., X97.5.) %>%
+  select(Year, Sector, mean, X2.5., X50., X97.5.) %>%
   transmute(Year = Year,
-            mean = exp(mean),
+            Mean = exp(mean),
+            Median = exp(X50.),
             LCL = exp(X2.5.),
             UCL = exp(X97.5.),
             Sector = "2014R") -> mu.2014.df
@@ -111,9 +114,10 @@ mu.2017 <- summary.df[grep("mu2017", summary.df$Parameter),]
 mu.2017 %>% 
   mutate(Year = years.2017,
          Sector = "2017R") %>%
-  select(Year, Sector, mean, X2.5., X97.5.) %>%
+  select(Year, Sector, mean, X2.5., X50., X97.5.) %>%
   transmute(Year = Year,
-            mean = exp(mean),
+            Mean = exp(mean),
+            Median = exp(X50.),
             LCL = exp(X2.5.),
             UCL = exp(X97.5.),
             Sector = "2017R") -> mu.2017.df
@@ -124,40 +128,47 @@ mu.2019 <- summary.df[grep("mu2019", summary.df$Parameter),]
 mu.2019 %>% 
   mutate(Year = years.2019,
          Sector = "2019R") %>%
-  select(Year, Sector, mean, X2.5., X97.5., f) %>%
+  select(Year, Sector, mean, X2.5., X50., X97.5., f) %>%
   transmute(Year = Year,
-            mean = exp(mean),
+            Mean = exp(mean),
+            Median = exp(X50.),
             LCL = exp(X2.5.),
             UCL = exp(X97.5.),
             Sector = "2019R") -> mu.2019.df
 
 mu.2014.table <- left_join(mu.2014.df, mu.South.df, by = "Year") %>% 
-  select(Year, mean.x, LCL.x, UCL.x, mean.y, LCL.y, UCL.y) %>%
+  select(Year, Mean.x, Median.x, LCL.x, UCL.x, Mean.y, Median.y, LCL.y, UCL.y) %>%
   transmute(Year = Year,
-            mean = mean.x, 
+            Mean = Mean.x,
+            Medain = Median.x,
             LCL = LCL.x,
             UCL = UCL.x,
-            mean.South = mean.y,
+            Mean.South = Mean.y,
+            Medain.Soutn = Median.y,
             LCL.South = LCL.y,
             UCL.South = UCL.y)
   
 mu.2017.table <- left_join(mu.2017.df, mu.South.df, by = "Year") %>% 
-  select(Year, mean.x, LCL.x, UCL.x, mean.y, LCL.y, UCL.y) %>%
+  select(Year, Mean.x, Median.x, LCL.x, UCL.x, Mean.y, Median.y, LCL.y, UCL.y) %>%
   transmute(Year = Year,
-            mean = mean.x, 
+            Mean = Mean.x,
+            Medain = Median.x,
             LCL = LCL.x,
             UCL = UCL.x,
-            mean.South = mean.y,
+            Mean.South = Mean.y,
+            Medain.Soutn = Median.y,
             LCL.South = LCL.y,
             UCL.South = UCL.y)
 
 mu.2019.table <- left_join(mu.2019.df, mu.South.df, by = "Year") %>% 
-  select(Year, mean.x, LCL.x, UCL.x, mean.y, LCL.y, UCL.y) %>%
+  select(Year, Mean.x, Median.x, LCL.x, UCL.x, Mean.y, Median.y, LCL.y, UCL.y) %>%
   transmute(Year = Year,
-            mean = mean.x, 
+            Mean = Mean.x,
+            Medain = Median.x,
             LCL = LCL.x,
             UCL = UCL.x,
-            mean.South = mean.y,
+            Mean.South = Mean.y,
+            Medain.Soutn = Median.y,
             LCL.South = LCL.y,
             UCL.South = UCL.y)
 
@@ -169,7 +180,13 @@ delta.mu.2014 %>%
   mutate(Year = seq(from = 2014, to = 2014+nrow(delta.mu.2014)-1),
          Sector = "2014R") %>%
   select(Year, Sector, mean, X50., X2.5., X97.5., f) %>%
-  mutate(P_gt_0 = ifelse(mean > 0, f, 1-f)) -> delta.mu.2014.df
+  mutate(P_gt_0 = ifelse(mean > 0, f, 1-f)) %>% 
+  transmute(Year = Year, 
+            Mean = mean, 
+            Median = X50.,
+            LCL = X2.5.,
+            UCL = X97.5.,
+            P_gt_0 = P_gt_0) -> delta.mu.2014.table
 
 delta.mu.2017 <- summary.df[grep("deltaMu2017", summary.df$Parameter),]
 
@@ -177,7 +194,13 @@ delta.mu.2017 %>%
   mutate(Year = seq(from = 2017, to = 2017+nrow(delta.mu.2017)-1),
          Sector = "2017R") %>%
   select(Year, Sector, mean, X50., X2.5., X97.5., f) %>%
-  mutate(P_gt_0 = ifelse(mean > 0, f, 1-f))-> delta.mu.2017.df
+  mutate(P_gt_0 = ifelse(mean > 0, f, 1-f))%>% 
+  transmute(Year = Year, 
+            Mean = mean, 
+            Median = X50.,
+            LCL = X2.5.,
+            UCL = X97.5.,
+            P_gt_0 = P_gt_0)-> delta.mu.2017.table
 
 delta.mu.2019 <- summary.df[grep("deltaMu2019", summary.df$Parameter),]
 
@@ -185,12 +208,20 @@ delta.mu.2019 %>%
   mutate(Year = seq(from = 2019, to = 2019+nrow(delta.mu.2019)-1),
          Sector = "2019R") %>%
   select(Year, Sector, mean, X50., X2.5., X97.5., f) %>%
-  mutate(P_gt_0 = ifelse(mean > 0, f, 1-f)) -> delta.mu.2019.df
+  mutate(P_gt_0 = ifelse(mean > 0, f, 1-f)) %>% 
+  transmute(Year = Year, 
+            Mean = mean, 
+            Median = X50.,
+            LCL = X2.5.,
+            UCL = X97.5.,
+            P_gt_0 = P_gt_0) -> delta.mu.2019.table
 
 # f is the proportion of posterior samples that have the same sign as the mean. 
-delta.mu.df <- rbind(delta.mu.2014.df, delta.mu.2017.df, delta.mu.2019.df) %>%
-  mutate(P_gt_0 = ifelse(mean > 0, f, 1-f),
-         n = c(jags.data$N2014, jags.data$N2017, jags.data$N2019))
+# delta.mu.table <- rbind(delta.mu.2014.table, 
+#                         delta.mu.2017.table, 
+#                         delta.mu.2019.table) %>%
+#   mutate(P_gt_0 = ifelse(Mean > 0, f, 1-f),
+#          n = c(jags.data$N2014, jags.data$N2017, jags.data$N2019))
 
 ratio.2014.samples <- get.samples(pars = "ratio2014", 
                              names = "2014R", 
@@ -203,44 +234,51 @@ ratio.2019.samples <- get.samples(pars = "ratio2019",
                           names = "2019R", 
                           years.2019, jm, n.samples)
 
-ratio.2014.df <- summary.df[grep("ratio2014", summary.df$Parameter),] %>%
+ratio.mu.2014.table <- summary.df[grep("ratio2014", summary.df$Parameter),] %>%
   mutate(year = years.2014) %>%
   select(year, mean, X2.5., X50., X97.5.) %>%
-  transmute(year = year,
-            Median = X50.,
-            LCL = X2.5.,
-            UCL = X97.5.) %>%
   mutate(P_gt_1 = ratio.2014.samples %>% 
            group_by(year) %>% 
-           summarize(P_gt_1 = sum(mean > 1)/n.samples) %>% 
-           data.frame() %>%
-           select(P_gt_1))
-
-ratio.2017.df <- summary.df[grep("ratio2017", summary.df$Parameter),] %>%
-  mutate(year = years.2017) %>%
-  select(year, mean, X2.5., X50., X97.5.) %>%
-  transmute(year = year,
+           summarize(P_gt_1 = sum(mean > 1)/n.samples) %>%
+           select(P_gt_1) %>%
+           pull(P_gt_1)) %>% 
+           
+  transmute(Year = year,
+            Mean = mean,
             Median = X50.,
             LCL = X2.5.,
-            UCL = X97.5.)%>%
+            UCL = X97.5.,
+            P_gt_1 = P_gt_1)
+
+ratio.mu.2017.table <- summary.df[grep("ratio2017", summary.df$Parameter),] %>%
+  mutate(year = years.2017) %>%
+  select(year, mean, X2.5., X50., X97.5.) %>%
   mutate(P_gt_1 = ratio.2017.samples %>% 
            group_by(year) %>% 
            summarize(P_gt_1 = sum(mean > 1)/n.samples) %>% 
-           data.frame() %>%
-           select(P_gt_1))
-
-ratio.2019.df <- summary.df[grep("ratio2019", summary.df$Parameter),] %>%
-    mutate(year = years.2019) %>%
-  select(year, mean, X2.5., X50., X97.5.) %>%
-  transmute(year = year,
+           select(P_gt_1) %>%
+           pull(P_gt_1)) %>% 
+  transmute(Year = year,
+            Mean = mean,
             Median = X50.,
             LCL = X2.5.,
-            UCL = X97.5.) %>%
+            UCL = X97.5.,
+            P_gt_1 = P_gt_1)
+
+ratio.mu.2019.table <- summary.df[grep("ratio2019", summary.df$Parameter),] %>%
+    mutate(year = years.2019) %>%
+  select(year, mean, X2.5., X50., X97.5.) %>%
   mutate(P_gt_1 = ratio.2019.samples %>% 
            group_by(year) %>% 
            summarize(P_gt_1 = sum(mean > 1)/n.samples) %>% 
-           data.frame() %>%
-           select(P_gt_1))
+           select(P_gt_1) %>%
+           pull(P_gt_1)) %>%   
+  transmute(Year = year,
+            Mean = mean,
+            Median = X50.,
+            LCL = X2.5.,
+            UCL = X97.5.,
+            P_gt_1 = P_gt_1) 
 
   
 ```
@@ -255,30 +293,230 @@ The observed number of hatchlings from the 100-m counts was compared using the B
 
 $log(y_{y, j, i}) \sim N(\mu_{y,j}, \sigma_{y,j})$,
 
-Where N() is the normal distribution, \mu is the mean, and \sigma is the standard deviation. Subscripts y, i, j, indicate the season, sample number, and sector, respectively. There were three reprofiled sectors (2014R, 2017R, and 2019R), which were modified in three different seasons. One sector (South) was used as the control sector to which the treated sector was compared. Because of the large variability in nesting activities at Raine Island, we treated each year as an independent observation. Two metrics were used to determine treatment effects, i.e., reprofiling: the difference in hatchling production ($\delta \mu$) and the ratio in hatchling production ($p \mu$). 
+Where N() is the normal distribution, $\mu$ is the mean, and $\sigma$ is the standard deviation. Subscripts $y$, $i$, $j$, indicate the season, sample number, and sector, respectively. There were three reprofiled sectors (2014R, 2017R, and 2019R), which were modified in three different seasons. One sector (South) was used as the control sector to which the treated sector was compared. Because of the large variability in nesting activities at Raine Island, we treated each year as an independent observation. Two metrics were used to determine treatment effects, i.e., reprofiling: the difference in hatchling production ($\delta_{\mu}$) and the ratio in hatchling production ($p_{\mu}$). 
 
 $\delta_{\mu} = exp(\mu_{y, j = treatment}) - exp(\mu_{y, j = control})$
 
 $p_{\mu} = exp(\mu_{y, j = treatment})/exp(\mu_{y, j = control})$
 
-Increased hatchling production from the treatments would result in $\delta_{\mu} > 0$ and $p_{mu} > 1$.
+Increased hatchling production from the treatments would result in $\delta_{\mu} > 0$ and $p_{mu} > 1$. These probabilities should be identical.
 
 Prior distributions were N(0, 3.16) for $\mu$, GAM(0.1, 0.1) for $\sigma$.
 
-The model was fitted to the data using JAGS (Plummer 2017) via the jagsUI package (ref) in the R Statistical Environment (v. 4.x.y, R Development Team). The JAGS code is found in the appendix.
+The model was fitted to the data using JAGS (Plummer 2017) via the jagsUI package (Kellner 2021) in the R Statistical Environment (v. 4.1.2, R Development Team). The JAGS code is found in the appendix.
 
 ## Results {-}
+
+### South (control) {-}
+At the control sector (South), the posterior means of annual hatchling production per 100 m per night ranged from `r signif(min(mu.South.df$Mean), 4)` (95%CI = `r signif(mu.South.df[mu.South.df$Mean == min(mu.South.df$Mean), "LCL"], 4)` -  `r signif(mu.South.df[which(mu.South.df$Mean == min(mu.South.df$Mean)), "UCL"], 4)`) in `r mu.South.df[which(mu.South.df$Mean == min(mu.South.df$Mean)), "Year"]` to `r signif(max(mu.South.df$Mean), 4)` (95%CI = `r signif(mu.South.df[mu.South.df$Mean == max(mu.South.df$Mean), "LCL"], 4)` -  `r signif(mu.South.df[which(mu.South.df$Mean == max(mu.South.df$Mean)), "UCL"], 4)`) in `r mu.South.df[which(mu.South.df$Mean == max(mu.South.df$Mean)), "Year"]` (Table \@ref(tab:Table-mu-South)).
+
+
+```{r Table-mu-South, echo=FALSE, warning=FALSE}
+flextable(mu.South.df %>% select (-Sector)) %>% 
+  colformat_int(j = 1, big.mark = "") %>%
+  colformat_double(j = 2:5, digits = 1) %>%
+  set_caption(paste0("Posterior mean, median, lower (LCL, 2.5%), and upper confidence limits (UCL, 97.5%) of the hatchling counts per 100 m per night in the control (South) sector. "))  %>%
+  set_table_properties(width = 0.5, layout = "autofit")
+
+```
+
 ### 2014R {-}
 
-For the 2014R sector, the mean number of hatchlings per 100 m ranged from `r signif(min(mu.2014.df$mean), 4)` (95%CI = `r signif(mu.2014.df[mu.2014.df$mean == min(mu.2014.df$mean), "LCL"], 4)` -  `r signif(mu.2014.df[which(mu.2014.df$mean == min(mu.2014.df$mean)), "UCL"], 4)`) in `r mu.2014.df[which(mu.2014.df$mean == min(mu.2014.df$mean)), "Year"]` to `r signif(max(mu.2014.df$mean), 4)` (95%CI = `r signif(mu.2014.df[mu.2014.df$mean == max(mu.2014.df$mean), "LCL"], 4)` -  `r signif(mu.2014.df[which(mu.2014.df$mean == max(mu.2014.df$mean)), "UCL"], 4)`) in `r mu.2014.df[which(mu.2014.df$mean == max(mu.2014.df$mean)), "Year"]`  (Table 1). Precision of the estimates were poor for 2014-2017 (Figure 1). The 2014R sector produced more hatchlings than the control sector (South) in all the years except 2019. 
+For the 2014R sector, the mean number of hatchlings per 100 m ranged from `r signif(min(mu.2014.df$Mean), 4)` (95%CI = `r signif(mu.2014.df[mu.2014.df$Mean == min(mu.2014.df$Mean), "LCL"], 4)` -  `r signif(mu.2014.df[which(mu.2014.df$Mean == min(mu.2014.df$Mean)), "UCL"], 4)`) in `r mu.2014.df[which(mu.2014.df$Mean == min(mu.2014.df$Mean)), "Year"]` to `r signif(max(mu.2014.df$Mean), 4)` (95%CI = `r signif(mu.2014.df[mu.2014.df$Mean == max(mu.2014.df$Mean), "LCL"], 4)` -  `r signif(mu.2014.df[which(mu.2014.df$Mean == max(mu.2014.df$Mean)), "UCL"], 4)`) in `r mu.2014.df[which(mu.2014.df$Mean == max(mu.2014.df$Mean)), "Year"]`  (Table \@ref(tab:Table-mu-2014R)). Precision of the estimates were poor for 2014-2017 (Figure \@ref(fig:Figure-mu-2014R)). The 2014R sector produced more hatchlings than the control sector (South) in all the years except 2019. 
 
-Probability of $\delta_{\mu} > 0$ ranged from `r signif(min(delta.mu.2014.df$P_gt_0), 4)` in `r delta.mu.2014.df[delta.mu.2014.df$P_gt_0 == min(delta.mu.2014.df$P_gt_0), "Year"]` to `r signif(max(delta.mu.2014.df$P_gt_0), 4)` in `r delta.mu.2014.df[delta.mu.2014.df$P_gt_0 == max(delta.mu.2014.df$P_gt_0), "Year"]` (Table 2, Figure 2). Similarly, the probability of $p_{\mu} > 1$ ranged from `r signif(min(ratio.2014.df$P_gt_1), 4)` in `r ratio.2014.df[ratio.2014.df$P_gt_1 == min(ratio.2014.df$P_gt_1), "Year"]` to `r signif(max(ratio.2014.df$P_gt_1), 4)` in `r ratio.2014.df[ratio.2014.df$P_gt_1 == max(ratio.2014.df$P_gt_1), "Year"]` (Table 3, Figure 3). 
+
+```{r Table-mu-2014R, echo=FALSE, warning=FALSE}
+flextable(mu.2014.df%>% select(-Sector))  %>%
+    colformat_int(j = 1, big.mark = "") %>%
+  colformat_double(j = 2:5, digits = 1) %>%
+  set_caption(paste0("Posterior mean, median, lower (LCL, 2.5%), and upper confidence limits (UCL, 97.5%) of the hatchling counts per 100 m per night in the 2014R sector."))  %>%
+  set_table_properties(width = 0.5, layout = "autofit")
+
+```
+
+
+```{r Figure-mu-2014R, echo=F, cache=T, fig.cap = "Posterior distributions of the mean number of hatchlings per 100 m per night in the 2014R and control (South) sectors."}
+knitr::include_graphics("figures/hatchling_production_2014R.png")
+
+```
+
+
+Probability of $\delta_{\mu} > 0$ ranged from `r signif(min(delta.mu.2014.table$P_gt_0), 4)` in `r delta.mu.2014.table[delta.mu.2014.table$P_gt_0 == min(delta.mu.2014.table$P_gt_0), "Year"]` to `r signif(max(delta.mu.2014.table$P_gt_0), 4)` in `r delta.mu.2014.table[delta.mu.2014.table$P_gt_0 == max(delta.mu.2014.table$P_gt_0), "Year"]` (Table \@ref(tab:Table-delta-mu-2014R), Figure \@ref(fig:Figure-delta-mu)). In all years except 2019, the probability was > 0.7 (mean = `r signif(mean(delta.mu.2014.table$P_gt_0[delta.mu.2014.table$P_gt_0 > 0.3]), 2)`), indicating that the reprofiling was effective in increasing the number of hatchlings.  
+
+
+```{r Table-delta-mu-2014R, echo=FALSE, warning=FALSE}
+flextable(delta.mu.2014.table) %>% 
+  colformat_int(j = 1, big.mark = "") %>%
+  colformat_double(j = 2:5, digits = 1) %>%
+  set_caption(paste0("Posterior mean, median, lower (LCL, 2.5%), and upper confidence limits (UCL, 97.5%) of the difference between the mean hatchling counts per 100 m per night between the 2014R and control (South) sectors. P_gt_0 is the proportion of the posterior distribution that is greater than zero."))  %>%
+  set_table_properties(width = 0.5, layout = "autofit")
+
+
+```
+
+
+```{r Figure-delta-mu, echo=F, cache=T, fig.cap = "Posterior median (black filled circles) and 95% confidence limits (error bars) of the difference in the mean number of hatchlings per 100 m per night between the 2014R and control (South) sectors."}
+knitr::include_graphics("figures/hatchling_increase.png")
+
+```
+
+
+Increase in hatchling production in the 2014R sector relative to the control sector ($p_{\mu}$) ranged from `r signif(min(ratio.mu.2014.table$Mean), 2)` in `r ratio.mu.2014.table[ratio.mu.2014.table$Mean == min(ratio.mu.2014.table$Mean), "Year"]` to `r signif(max(ratio.mu.2014.table$Mean), 2)` in `r ratio.mu.2014.table[ratio.mu.2014.table$Mean == max(ratio.mu.2014.table$Mean), "Year"]` (Table \@ref(tab:Table-ratio-mu-2014R), Figure \@ref(fig:Figure-ratio-mu-2014R)). 
+
+
+```{r Table-ratio-mu-2014R, echo=FALSE, warning=FALSE}
+flextable(ratio.mu.2014.table) %>% 
+    colformat_int(j = 1, big.mark = "") %>%
+  colformat_double(j = 2:5, digits = 1) %>%
+  set_caption(paste0("Posterior mean, median, lower (LCL, 2.5%), and upper confidence limits (UCL, 97.5%) of the ratio between the mean hatchling counts per 100 m per night between the 2014R and control (South) sectors. P_gt_1 is the proportion of the posterior distribution that is greater than zero."))  %>%
+  set_table_properties(width = 0.5, layout = "autofit")
+
+
+```
+
+
+```{r Figure-ratio-mu-2014R, echo=F, cache=T, fig.cap = "Posterior distributions of the ratio between the mean numbers of hatchlings per 100 m per night in the 2014R and control (South) sectors. Vertical lines indicate the ratio = 1.0"}
+knitr::include_graphics("figures/hatchling_production_ratio_2014R.png")
+
+```
+
+
+### 2017 R {-}
+
+For the 2017R sector, the mean number of hatchlings per 100 m ranged from `r signif(min(mu.2017.df$Mean), 4)` (95%CI = `r signif(mu.2017.df[mu.2017.df$Mean == min(mu.2017.df$Mean), "LCL"], 4)` -  `r signif(mu.2017.df[which(mu.2017.df$Mean == min(mu.2017.df$Mean)), "UCL"], 4)`) in `r mu.2017.df[which(mu.2017.df$Mean == min(mu.2017.df$Mean)), "Year"]` to `r signif(max(mu.2017.df$Mean), 4)` (95%CI = `r signif(mu.2017.df[mu.2017.df$Mean == max(mu.2017.df$Mean), "LCL"], 4)` -  `r signif(mu.2017.df[which(mu.2017.df$Mean == max(mu.2017.df$Mean)), "UCL"], 4)`) in `r mu.2017.df[which(mu.2017.df$Mean == max(mu.2017.df$Mean)), "Year"]`  (Table \@ref(tab:Table-mu-2017R)). 
+
+
+```{r Table-mu-2017R, echo=FALSE, warning=FALSE}
+flextable(mu.2017.df%>% select(-Sector))  %>%
+    colformat_int(j = 1, big.mark = "") %>%
+  colformat_double(j = 2:5, digits = 1) %>%
+  set_caption(paste0("Posterior mean, median, lower (LCL, 2.5%), and upper confidence limits (UCL, 97.5%) of the hatchling counts per 100 m per night in the 2017R sector."))  %>%
+  set_table_properties(width = 0.5, layout = "autofit")
+
+```
+
+The 2017R sector was less effective in increasing the hatchling production than in the 2014R sector. Posterior distributions between 2017R and control sectors were not obviously different for 2018 and the control site produced more hatchlings than the treatment sector in 2019 (Figure \@ref(fig:Figure-mu-2017R). 
+
+```{r Figure-mu-2017R, echo=F, cache=T, fig.cap = "Posterior distributions of the mean number of hatchlings per 100 m per night in the 2017R and control (South) sectors."}
+knitr::include_graphics("figures/hatchling_production_2017R.png")
+
+```
+
+Probability of $\delta_{\mu} > 0$ ranged from `r signif(min(delta.mu.2017.table$P_gt_0), 4)` in `r delta.mu.2017.table[delta.mu.2017.table$P_gt_0 == min(delta.mu.2017.table$P_gt_0), "Year"]` to `r signif(max(delta.mu.2017.table$P_gt_0), 4)` in `r delta.mu.2017.table[delta.mu.2017.table$P_gt_0 == max(delta.mu.2017.table$P_gt_0), "Year"]` (Table \@ref(tab:Table-delta-mu-2017R), Figure \@ref(fig:Figure-delta-mu)). In all years except 2019, the probability was > 0.6 (mean = `r signif(mean(delta.mu.2017.table$P_gt_0[delta.mu.2017.table$P_gt_0 > 0.3]), 2)`), indicating that the reprofiling was less effective in increasing the number of hatchlings than the 2014R sector.   
+
+
+```{r Table-delta-mu-2017R, echo=FALSE, warning=FALSE}
+flextable(delta.mu.2017.table) %>% 
+  colformat_int(j = 1, big.mark = "") %>%
+  colformat_double(j = 2:5, digits = 1) %>%
+  set_caption(paste0("Posterior mean, median, lower (LCL, 2.5%), and upper confidence limits (UCL, 97.5%) of the difference between the mean hatchling counts per 100 m per night between the 2017R and control (South) sectors. P_gt_0 is the proportion of the posterior distribution that is greater than zero."))  %>%
+  set_table_properties(width = 0.5, layout = "autofit")
+
+
+```
+
+
+Increase in hatchling production in the 2017R sector relative to the control sector ($p_{\mu}$) ranged from `r signif(min(ratio.mu.2017.table$Mean), 2)` in `r ratio.mu.2017.table[ratio.mu.2017.table$Mean == min(ratio.mu.2017.table$Mean), "Year"]` to `r signif(max(ratio.mu.2017.table$Mean), 2)` in `r ratio.mu.2017.table[ratio.mu.2017.table$Mean == max(ratio.mu.2017.table$Mean), "Year"]` (Table \@ref(tab:Table-ratio-mu-2017R), Figure \@ref(fig:Figure-ratio-mu-2017R)). 
+
+
+```{r Table-ratio-mu-2017R, echo=FALSE, warning=FALSE}
+flextable(ratio.mu.2017.table) %>% 
+    colformat_int(j = 1, big.mark = "") %>%
+  colformat_double(j = 2:5, digits = 1) %>%
+  set_caption(paste0("Posterior mean, median, lower (LCL, 2.5%), and upper confidence limits (UCL, 97.5%) of the ratio between the mean hatchling counts per 100 m per night between the 2017R and control (South) sectors. P_gt_1 is the proportion of the posterior distribution that is greater than zero."))  %>%
+  set_table_properties(width = 0.5, layout = "autofit")
+
+
+```
+
+
+```{r Figure-ratio-mu-2017R, echo=F, cache=T, fig.cap = "Posterior distributions of the ratio between the mean numbers of hatchlings per 100 m per night in the 2017R and control (South) sectors. Vertical lines indicate the ratio = 1.0"}
+knitr::include_graphics("figures/hatchling_production_ratio_2017R.png")
+
+```
+
+
+### 2019 R {-}
+
+For the 2019R sector, the mean number of hatchlings per 100 m ranged from `r signif(min(mu.2019.df$Mean), 4)` (95%CI = `r signif(mu.2019.df[mu.2019.df$Mean == min(mu.2019.df$Mean), "LCL"], 4)` -  `r signif(mu.2019.df[which(mu.2019.df$Mean == min(mu.2019.df$Mean)), "UCL"], 4)`) in `r mu.2019.df[which(mu.2019.df$Mean == min(mu.2019.df$Mean)), "Year"]` to `r signif(max(mu.2019.df$Mean), 4)` (95%CI = `r signif(mu.2019.df[mu.2019.df$Mean == max(mu.2019.df$Mean), "LCL"], 4)` -  `r signif(mu.2019.df[which(mu.2019.df$Mean == max(mu.2019.df$Mean)), "UCL"], 4)`) in `r mu.2019.df[which(mu.2019.df$Mean == max(mu.2019.df$Mean)), "Year"]`  (Table \@ref(tab:Table-mu-2019R)). 
+
+
+```{r Table-mu-2019R, echo=FALSE, warning=FALSE}
+flextable(mu.2019.df%>% select(-Sector))  %>%
+    colformat_int(j = 1, big.mark = "") %>%
+  colformat_double(j = 2:5, digits = 1) %>%
+  set_caption(paste0("Posterior mean, median, lower (LCL, 2.5%), and upper confidence limits (UCL, 97.5%) of the hatchling counts per 100 m per night in the 2019R sector."))  %>%
+  set_table_properties(width = 0.5, layout = "autofit")
+
+```
+
+Similarly to the 2017R sector, the 2019R sector was less effective in increasing the hatchling production than in the 2014R sector. Posterior distributions for the treatment and control sectors were not different for all three years (Figure \@ref(fig:Figure-mu-2019R)). 
+
+```{r Figure-mu-2019R, echo=F, cache=T, fig.cap = "Posterior distributions of the mean number of hatchlings per 100 m per night in the 2019R and control (South) sectors."}
+knitr::include_graphics("figures/hatchling_production_2019R.png")
+
+```
+
+Probability of $\delta_{\mu} > 0$ ranged from `r signif(min(delta.mu.2019.table$P_gt_0), 4)` in `r delta.mu.2019.table[delta.mu.2019.table$P_gt_0 == min(delta.mu.2019.table$P_gt_0), "Year"]` to `r signif(max(delta.mu.2019.table$P_gt_0), 4)` in `r delta.mu.2019.table[delta.mu.2019.table$P_gt_0 == max(delta.mu.2019.table$P_gt_0), "Year"]` (Table \@ref(tab:Table-delta-mu-2019R), Figure \@ref(fig:Figure-delta-mu)).    
+
+
+```{r Table-delta-mu-2019R, echo=FALSE, warning=FALSE}
+flextable(delta.mu.2019.table) %>% 
+  colformat_int(j = 1, big.mark = "") %>%
+  colformat_double(j = 2:5, digits = 1) %>%
+  set_caption(paste0("Posterior mean, median, lower (LCL, 2.5%), and upper confidence limits (UCL, 97.5%) of the difference between the mean hatchling counts per 100 m per night between the 2019R and control (South) sectors. P_gt_0 is the proportion of the posterior distribution that is greater than zero."))  %>%
+  set_table_properties(width = 0.5, layout = "autofit")
+
+
+```
+
+
+Increase in hatchling production in the 2019R sector relative to the control sector ($p_{\mu}$) ranged from `r signif(min(ratio.mu.2019.table$Mean), 2)` in `r ratio.mu.2019.table[ratio.mu.2019.table$Mean == min(ratio.mu.2019.table$Mean), "Year"]` to `r signif(max(ratio.mu.2019.table$Mean), 2)` in `r ratio.mu.2019.table[ratio.mu.2019.table$Mean == max(ratio.mu.2019.table$Mean), "Year"]` (Table \@ref(tab:Table-ratio-mu-2019R), Figure \@ref(fig:Figure-ratio-mu-2019R)). 
+
+
+```{r Table-ratio-mu-2019R, echo=FALSE, warning=FALSE}
+flextable(ratio.mu.2019.table) %>% 
+    colformat_int(j = 1, big.mark = "") %>%
+  colformat_double(j = 2:5, digits = 1) %>%
+  set_caption(paste0("Posterior mean, median, lower (LCL, 2.5%), and upper confidence limits (UCL, 97.5%) of the ratio between the mean hatchling counts per 100 m per night between the 2019R and control (South) sectors. P_gt_1 is the proportion of the posterior distribution that is greater than zero."))  %>%
+  set_table_properties(width = 0.5, layout = "autofit")
+
+
+```
+
+
+```{r Figure-ratio-mu-2019R, echo=F, cache=T, fig.cap = "Posterior distributions of the ratio between the mean numbers of hatchlings per 100 m per night in the 2019R and control (South) sectors. Vertical lines indicate the ratio = 1.0"}
+knitr::include_graphics("figures/hatchling_production_ratio_2019R.png")
+
+```
+
+
+This modeling exercise indicated that there was a large variability in hatchling production among treatment sectors. Future analyses should include other covariates (e.g., the number of nesting females, location of treatment sectors, etc.) in order to examine biological and physical factors that may affect the hatchling production.  
+
+
+## Literature cited {-}
+Kellner K (2021) jagsUI: A Wrapper Around 'rjags' to Streamline 'JAGS'
+  Analyses. R package version 1.5.2. https://CRAN.R-project.org/package=jagsUI.
+  
+Plummer M (2017) JAGS Version 4.3.0 Manual. 
 
 
 ## Appendix:  {-}
 
 model{
 	
+	for (i in 1:n.South.seasons){
+		for (nSouth in 1:NSouth[i]){
+			ySouth[nSouth, i] ~ dnorm(muSouth[i], tauSouth[i])
+		}
+
+		muSouth[i] ~ dnorm(0, 0.1)I(0,)
+		sigmaSouth[i] ~ dgamma(0.1, 0.1)
+		tauSouth[i] <- 1/((sigmaSouth[i])^2)
+		
+	}
+
+	# 2014 and South are the same length
 	for (i in 1:n.2014.seasons){
 		# 2014R
 		for (n2014 in 1:N2014[i]){
@@ -289,20 +527,12 @@ model{
 		sigma2014[i] ~ dgamma(0.1, 0.1)
 		tau2014[i] <- 1/((sigma2014[i])^2)
 
-		# 2014 South
-		for (nSouth2014 in 1:NSouth2014[i]){
-			ySouth2014[nSouth2014, i] ~ dnorm(muSouth2014[i], tauSouth2014[i])
-		}
-
-		muSouth2014[i] ~ dnorm(0, 0.1)I(0,)
-		sigmaSouth2014[i] ~ dgamma(0.1, 0.1)
-		tauSouth2014[i] <- 1/((sigmaSouth2014[i])^2)
-
-		deltaMu2014[i] <- exp(mu2014[i]) - exp(muSouth2014[i])
-		ratio2014[i] <- exp(mu2014[i])/exp(muSouth2014[i])
+		deltaMu2014[i] <- exp(mu2014[i]) - exp(muSouth[i])
+		ratio2014[i] <- exp(mu2014[i])/exp(muSouth[i])
 
 	}
 	
+
 	for (j in 1:n.2017.seasons){
 		# 2017R
 		for (n2017 in 1:N2017[j]){
@@ -313,18 +543,9 @@ model{
 		sigma2017[j] ~ dgamma(0.1, 0.1)
 		tau2017[j] <- 1/((sigma2017[j])^2)
 
-		# South
-		for (nSouth2017 in 1:NSouth2017[j]){
-			ySouth2017[nSouth2017, j] ~ dnorm(muSouth2017[j], tauSouth2017[j])
-		}
-
-		muSouth2017[j] ~ dnorm(0, 0.1)I(0,)
-		sigmaSouth2017[j] ~ dgamma(0.1, 0.1)
-		tauSouth2017[j] <- 1/((sigma2017[j])^2)
-
 	    # need to offset by 3 years
-		deltaMu2017[j] <- exp(mu2017[j]) - exp(muSouth2017[j])
-		ratio2017[j] <- exp(mu2017[j])/exp(muSouth2017[j])
+		deltaMu2017[j] <- exp(mu2017[j]) - exp(muSouth[j+3])
+		ratio2017[j] <- exp(mu2017[j])/exp(muSouth[j+3])
 
 	}	
 
@@ -338,21 +559,9 @@ model{
 		sigma2019[k] ~ dgamma(0.1, 0.1)
 		tau2019[k] <- 1/((sigma2019[k])^2)
 
-		# 2019 South
-		for (nSouth2019 in 1:NSouth2019[k]){
-			ySouth2019[nSouth2019, k] ~ dnorm(muSouth2019[k], tauSouth2019[k])
-		}
-
-		muSouth2019[k] ~ dnorm(0, 0.1)I(0,)
-		sigmaSouth2019[k] ~ dgamma(0.1, 0.1)
-		tauSouth2019[k] <- 1/((sigmaSouth2019[k])^2)
-
 	    # need to offset by 5 years.
-		deltaMu2019[k] <- exp(mu2019[k]) - exp(muSouth2019[k])
-		ratio2019[k] <- exp(mu2019[k])/exp(muSouth2019[k])
+		deltaMu2019[k] <- exp(mu2019[k]) - exp(muSouth[k+5])
+		ratio2019[k] <- exp(mu2019[k])/exp(muSouth[k+5])
 	}	
 
 }
-
-  
-
