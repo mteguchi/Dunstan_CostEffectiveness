@@ -1,0 +1,361 @@
+---
+title: "Hatchling counts at Raine Island"
+author: "Tomo Eguchi"
+date: "`r Sys.Date()`"
+output: 
+  bookdown::word_document2: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# # remove all pakcages - detach() removes the first one.
+# loaded.packages <- (.packages())
+# if (length(loaded.packages > 0)){
+#   for (k in 1:length(loaded.packages)){
+#     detach()
+#   }
+# }
+
+rm(list = ls())
+library(tidyverse)
+library(readr)
+
+```
+
+
+At Raine Island, annual hatchling production has been determined via counts of hatchlings on the beach. Observers are stationed at multiple sectors, where they count hatchlings that come down the beach. A trench is dug and all hatchlings that fall into the trench are counted and released. During the 2018-2019 season, the survey was changed from 12 hrs (1800 to 0600) to 6 hrs (1800 - 0000) for logistical reasons. Furthermore, some counts were made from 100-m trenches whereas others were counted in 50-m trenches.  
+
+In order to look at possible effects of differences in sampling sheme (i.e., 12hr vs 6 hr and 100m vs 50m), I explore hatchling count data while standardizing the sampling duration and trench lengths. 
+
+```{r data-import, include=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
+
+col.def <- cols(date = col_date(format = "%d/%m/%Y"),
+                sector = col_factor(levels = c("A", "A2", "B", "D", "2014S", "2017S", "2019S", "2019N")),
+                island = col_character(),
+                trench_length_m = col_double(), 
+                survey_length = col_character(), 
+                total_before_1800 = col_integer(), 
+                total_1800_1900 = col_integer(), 
+                total_1900_2000 = col_integer(), 
+                total_2000_2100 = col_integer(),
+                total_2100_2200 = col_integer(),
+                total_2200_2300 = col_integer(),
+                total_2300_2400 = col_integer(),
+                total_2400_0100 = col_integer(),
+                total_0100_0200 = col_integer(), 
+                total_0200_0300 = col_integer(),
+                total_0300_0400 = col_integer(),
+                total_0400_0500 = col_integer(),
+                total_0500_0600 = col_integer(),
+                total_after_0600 = col_integer(),
+                nightly_total = col_integer())
+
+data.0 <- read_csv(file = "data/hatch_count_fullcount_2014-15-2021-22.csv",
+                   col_types = col.def) %>% 
+  discard(~ all(is.na(.))) %>%
+  mutate(survey_duration_hr = ifelse(survey_length == "12hr", 12, 6)) %>%
+  mutate(year = lubridate::year(date),
+         month = lubridate::month(date)) 
+
+
+data.0 %>%
+  select(-c("survey_length", "nightly_total")) %>%
+  pivot_longer(data.0,
+               cols = starts_with("total"),
+               names_to = "time",
+               values_to = "counts") %>%
+  mutate(hr = ifelse(time == "total_before_1800", 0,
+                     ifelse(time == "total_1800_1900", 1,
+                            ifelse(time == "total_1900_2000", 2,
+                                   ifelse(time == "total_2000_2100", 3,
+                                          ifelse(time == "total_2100_2200", 4,
+                                                 ifelse(time == "total_2200_2300", 5,
+                                                        ifelse(time == "total_2300_2400", 6,
+                                                               ifelse(time == "total_2400_0100", 7,
+                                                                      ifelse(time == "total_0100_0200", 8,
+                                                                             ifelse(time == "total_0200_0300", 9,
+                                                                                    ifelse(time == "total_0300_0400", 10,
+                                                                                           ifelse(time == "total_0400_0500", 11,
+                                                                                                  ifelse(time == "total_0500_0600", 12, 13)))))))))))))) %>%
+  mutate(counts_m = counts/trench_length_m) %>%
+  mutate(counts_m_NA = ifelse((survey_duration_hr == 6 & hr > 6), NA, counts_m)) -> data.1
+
+
+```
+
+
+Make sure the pivoting worked correctly:
+
+```{r pivot-check, message=FALSE, echo=FALSE, warning=FALSE}
+
+data.0 %>% 
+  filter(year == 2020, sector == "A") %>%
+  mutate(date.f = as.factor(date)) %>%
+  group_by(date.f) %>%
+  rowwise() %>%
+  mutate(daily.sum = sum(c_across(starts_with("total")))) -> data.0.A.2020.daily.sum
+
+
+data.1 %>% 
+  filter(year == 2020, sector == "A") %>%
+  mutate(date.f = as.factor(date)) %>%
+  group_by(date.f) %>%
+  summarize(daily.sum = sum(counts, na.rm = T)) -> data.1.A.2020.daily.sum
+
+
+data.0 %>% 
+  filter(year == 2015, sector == "2014S") %>%
+  mutate(date.f = as.factor(date)) %>%
+  group_by(date.f) %>%
+  rowwise() %>%
+  mutate(daily.sum = sum(c_across(starts_with("total")), na.rm = T)) -> data.0.2014S.2015.daily.sum
+
+
+data.1 %>% 
+  filter(year == 2015, sector == "2014S") %>%
+  mutate(date.f = as.factor(date)) %>%
+  group_by(date.f) %>%
+  summarize(daily.sum = sum(counts, na.rm = T)) -> data.1.2014S.2015.daily.sum
+
+```
+
+
+Two sets are the same so I assume that the pivoting operations worked fine to convert the wide format to long format. 
+
+
+Visualize 
+
+```{r raw-plot, echo=FALSE, message=FALSE, warning=FALSE}
+p.raw.counts <- ggplot(data = data.1) +
+  # geom_point(aes(x = hr, 
+  #                y = counts, 
+  #                color = sector)) +
+  geom_path(aes(x = hr, 
+                 y = counts_m_NA, 
+                 color = as.factor(year))) +
+  facet_wrap(~sector, nrow = 2)
+
+p.raw.counts
+ggsave(filename = "figures/raw_counts.png",
+       device = "png", dpi = 600,
+       plot = p.raw.counts)
+
+```
+
+These plots look a bit strange... look at each sector separately
+
+```{r sector_A, echo=FALSE, message=FALSE, warning=FALSE}
+
+data.1 %>% filter(sector == "A") -> data.1.A
+
+p.sector.A.1 <- ggplot(data.1.A) +
+  geom_path(aes(x = hr, y = counts_m_NA)) +
+  facet_wrap(~year)
+
+
+p.sector.A.1
+```
+
+
+```{r sector_A2, echo=FALSE, message=FALSE, warning=FALSE}
+
+data.1 %>% filter(sector == "A2") -> data.1.A2
+
+p.sector.A2.1 <- ggplot(data.1.A2) +
+  geom_path(aes(x = hr, y = counts_m_NA)) +
+  facet_wrap(~year)
+
+
+p.sector.A2.1
+```
+
+
+
+
+```{r sector_B, echo=FALSE, message=FALSE, warning=FALSE}
+
+data.1 %>% filter(sector == "B") -> data.1.B
+
+p.sector.B.1 <- ggplot(data.1.B) +
+  geom_path(aes(x = hr, y = counts_m_NA)) +
+  facet_wrap(~year)
+
+
+p.sector.B.1
+```
+
+
+
+```{r sector_D, echo=FALSE, message=FALSE, warning=FALSE}
+
+data.1 %>% filter(sector == "D") -> data.1.D
+
+p.sector.D.1 <- ggplot(data.1.D) +
+  geom_path(aes(x = hr, y = counts_m_NA)) +
+  facet_wrap(~year)
+
+
+p.sector.D.1
+```
+
+
+
+```{r sector_2014S, echo=FALSE, message=FALSE, warning=FALSE}
+
+data.1 %>% filter(sector == "2014S") -> data.1.2014S
+
+p.sector.2014S.1 <- ggplot(data.1.2014S) +
+  geom_path(aes(x = hr, y = counts_m_NA)) +
+  facet_wrap(~year)
+
+
+p.sector.2014S.1
+```
+
+
+
+```{r sector_2017S, echo=FALSE, message=FALSE, warning=FALSE}
+
+data.1 %>% filter(sector == "2017S") -> data.1.2017S
+
+p.sector.2017S.1 <- ggplot(data.1.2017S) +
+  geom_path(aes(x = hr, y = counts_m_NA)) +
+  facet_wrap(~year)
+
+
+p.sector.2017S.1
+```
+
+
+
+```{r sector_2019S, echo=FALSE, message=FALSE, warning=FALSE}
+
+data.1 %>% filter(sector == "2019S") -> data.1.2019S
+
+p.sector.2019S.1 <- ggplot(data.1.2019S) +
+  geom_path(aes(x = hr, y = counts_m_NA)) +
+  facet_wrap(~year)
+
+
+p.sector.2019S.1
+```
+
+
+```{r sector_2019N, echo=FALSE, message=FALSE, warning=FALSE}
+
+data.1 %>% filter(sector == "2019N") -> data.1.2019N
+
+p.sector.2019N.1 <- ggplot(data.1.2019N) +
+  geom_path(aes(x = hr, y = counts_m_NA)) +
+  facet_wrap(~year)
+
+
+p.sector.2019N.1
+```
+
+
+
+It appears that more hatchlings are generally found before midnight. Look at the ratio between the first and second half of sampling.
+
+```{r first-vs-second, echo=FALSE, message=FALSE, warning=FALSE}
+
+# filter out 12-hr data:
+data.1 %>% 
+  filter(survey_duration_hr == 12) -> data.1.12hr
+
+# First half
+data.1.12hr %>%
+  filter(hr < 7) %>%
+  group_by(sector, year, date) %>%
+  summarize(across(.cols = counts_m, 
+                   .fns = sum, 
+                   na.rm = T, .names = "counts_m_1")) -> sum.0.6.hrs.12hr
+
+# Second half
+data.1.12hr %>%
+  filter(hr > 6) %>%
+  group_by(sector, year, date) %>%
+  summarize(across(.cols = counts_m, 
+                   .fns = sum, 
+                   na.rm = T, .names = "counts_m_2")) -> sum.7.12.hrs.12hr
+
+# put them together and compute the ratio
+sum.0.6.hrs.12hr %>% 
+  left_join(sum.7.12.hrs.12hr, by = c("sector", "year", "date")) %>% 
+  mutate(ratio = counts_m_1/(counts_m_1 + counts_m_2))-> counts.1st.2nd
+
+
+p.ratio.sector <- ggplot(data = counts.1st.2nd) +
+  geom_point(aes(x = date, y = ratio)) +
+  facet_wrap(~sector)
+
+ggsave(p.ratio.sector, 
+       filename = "figures/ratio_sector.png",
+       device = "png", dpi = 600)
+```
+
+Look at variability among years within each sector
+
+```{r}
+
+counts.1st.2nd %>%
+  group_by(sector, year) %>%
+  summarise(var = var(ratio),
+            mean = mean(ratio)) -> year.sector.var.mean
+
+```
+
+
+
+```{r}
+p.ratio.year <- ggplot(data = counts.1st.2nd) +
+  geom_point(aes(x = sector, y = ratio)) +
+  facet_wrap(~year)
+
+
+ggsave(p.ratio.year, filename = "figures/ratio_year.png",
+       device = "png", dpi = 600)
+
+```
+
+These plots show that variability in the ratio is smaller among sectors within a year than among years within each sector. 
+
+Within year Means with 12-hr surveys
+
+```{r}
+
+counts.1st.2nd %>%
+  group_by(year) %>%
+  summarise(var = var(ratio),
+            mean = mean(ratio)) -> year.var.mean.ratio.12hr
+
+
+```
+
+
+Within year means with 6-hr surveys
+
+```{r}
+# filter out 6-hr data:
+data.1 %>% 
+  filter(survey_duration_hr == 6, hr < 7) %>%
+  group_by(sector, year, date) %>%
+  summarize(across(.cols = counts_m, 
+                   .fns = sum, 
+                   na.rm = T, .names = "counts_m_1")) -> sum.0.6.hrs.6hr
+
+
+sum.0.6.hrs.6hr %>%
+  group_by(year) %>%
+  summarise(var = var(counts_m_1),
+            mean = mean(counts_m_1)) -> year.var.mean.6hr
+
+# Combine with 12hr dataset:
+sum.6hr <- rbind(sum.0.6.hrs.12hr, sum.0.6.hrs.6hr)
+
+ggplot(data = sum.6hr) +
+  geom_point(aes(x = sector, y = counts_m_1)) +
+  facet_wrap(~year)
+```
+
