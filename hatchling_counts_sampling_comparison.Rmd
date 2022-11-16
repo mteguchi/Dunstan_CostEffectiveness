@@ -20,13 +20,32 @@ knitr::opts_chunk$set(echo = TRUE)
 rm(list = ls())
 library(tidyverse)
 library(readr)
+library(flextable)
+
+set_flextable_defaults(font.size = 9,
+                       font.family = "Cambria")
+
+save.fig.fcn <- function(fig, file.name, replace = F, dpi = 600, device = "png",
+           height = 3, width = 5, units = "in",
+           bg = "white"){
+  if (isTRUE(replace) | (!isTRUE(replace) & !file.exists(file.name)))
+    ggsave(fig, 
+           filename = file.name, 
+           dpi = dpi, device = device,
+           height = height, width = width, units = units,
+           bg = bg)
+  
+}
+
+
+save.fig <- T
+dpi.set <- 600
 
 ```
 
+At Raine Island, annual hatchling production has been determined via counts of hatchlings on the beach. Observers are stationed at multiple sectors, where they count hatchlings that come down the beach. A trench is dug and all hatchlings that fall into the trench are counted and released. During the 2018-2019 season, the survey was changed from 12 hrs (1800 to 0600) to 6 hrs (1800 - 0000) for logistical reasons. Furthermore, some counts were made from 100-m trenches whereas others were counted in 50-m trenches.
 
-At Raine Island, annual hatchling production has been determined via counts of hatchlings on the beach. Observers are stationed at multiple sectors, where they count hatchlings that come down the beach. A trench is dug and all hatchlings that fall into the trench are counted and released. During the 2018-2019 season, the survey was changed from 12 hrs (1800 to 0600) to 6 hrs (1800 - 0000) for logistical reasons. Furthermore, some counts were made from 100-m trenches whereas others were counted in 50-m trenches.  
-
-In order to look at possible effects of differences in sampling sheme (i.e., 12hr vs 6 hr and 100m vs 50m), I explore hatchling count data while standardizing the sampling duration and trench lengths. 
+In order to look at possible effects of differences in sampling scheme (i.e., 12hr vs 6 hr and 100m vs 50m), I explore hatchling count data while standardizing the sampling duration and trench lengths.
 
 ```{r data-import, include=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
 
@@ -85,9 +104,8 @@ data.0 %>%
 ```
 
 
-Make sure the pivoting worked correctly:
-
 ```{r pivot-check, message=FALSE, echo=FALSE, warning=FALSE}
+# Make sure the pivoting worked correctly:
 
 data.0 %>% 
   filter(year == 2020, sector == "A") %>%
@@ -118,13 +136,11 @@ data.1 %>%
   group_by(date.f) %>%
   summarize(daily.sum = sum(counts, na.rm = T)) -> data.1.2014S.2015.daily.sum
 
+# Two sets are the same so I assume that the pivoting operations worked fine to convert the wide format to long format.
+
 ```
 
 
-Two sets are the same so I assume that the pivoting operations worked fine to convert the wide format to long format. 
-
-
-Visualize 
 
 ```{r raw-plot, echo=FALSE, message=FALSE, warning=FALSE}
 p.raw.counts <- ggplot(data = data.1) +
@@ -134,113 +150,200 @@ p.raw.counts <- ggplot(data = data.1) +
   geom_path(aes(x = hr, 
                  y = counts_m_NA, 
                  color = as.factor(year))) +
-  facet_wrap(~sector, nrow = 2)
+  facet_wrap(~sector, nrow = 2) +
+  labs(color = "Year") +
+  xlab("Hours since 1800") + ylab("# hatchlings per meter")
 
-p.raw.counts
-ggsave(filename = "figures/raw_counts.png",
-       device = "png", dpi = 600,
-       plot = p.raw.counts)
+save.fig.fcn(p.raw.counts, 
+             file.name = paste0("figures/raw_counts_", dpi.set, "dpi.png"), 
+             replace = T, dpi = dpi.set)
 
 ```
 
-These plots look a bit strange... look at each sector separately
+```{r Figure-raw-counts, echo=FALSE, message=FALSE, fig.cap="The number of hatchlings per meter at 8 sectors."}
 
-```{r sector_A, echo=FALSE, message=FALSE, warning=FALSE}
+knitr::include_graphics(paste0("figures/raw_counts_", dpi.set, "dpi.png"))
+
+```
+
+In general, greater numbers of hatchlings were counted before midnight (6hrs since 1800) than after (Figure \@ref(fig:Figure-raw-counts)). In order to look at the details, each sector was examined separately. 
+
+
+## Sector A {-}
+
+```{r sector-A, echo=FALSE, message=FALSE, warning=FALSE}
 
 data.1 %>% filter(sector == "A") -> data.1.A
 
 p.sector.A.1 <- ggplot(data.1.A) +
   geom_path(aes(x = hr, y = counts_m_NA)) +
-  facet_wrap(~year)
+  facet_wrap(~year) + 
+  xlab("Hours since 1800") +
+  ylab("# hatchlings per meter")
+
+save.fig.fcn(p.sector.A.1, 
+             file.name = paste0("figures/sector_A_", dpi.set, "dpi.png"), 
+             replace = T, dpi = dpi.set)
+
+```
+
+At sector A, only 6-hr surveys were conducted in `r min(data.1.A$year)` - `r max(data.1.A$year)`. The observed variability among surveys in 2020 was large (Figure \@ref(fig:Figure-sector-A)).
 
 
-p.sector.A.1
+```{r Figure-sector-A, echo=FALSE, message=FALSE, fig.cap="The number of hatchlings per meter at sector A."}
+
+knitr::include_graphics(paste0("figures/sector_A_", dpi.set, "dpi.png"))
+
 ```
 
 
-```{r sector_A2, echo=FALSE, message=FALSE, warning=FALSE}
+## Sector A2 {-}
+
+```{r sector-A2, echo=FALSE, message=FALSE, warning=FALSE}
 
 data.1 %>% filter(sector == "A2") -> data.1.A2
 
 p.sector.A2.1 <- ggplot(data.1.A2) +
   geom_path(aes(x = hr, y = counts_m_NA)) +
-  facet_wrap(~year)
+  facet_wrap(~year)+ 
+  xlab("Hours since 1800") +
+  ylab("# hatchlings per meter")
 
 
-p.sector.A2.1
+save.fig.fcn(p.sector.A2.1, 
+             file.name = paste0("figures/sector_A2_", dpi.set, "dpi.png"), 
+             replace = T, dpi = dpi.set)
+
 ```
 
+In sector A2, 12-hr surveys were conducted from 2015 to 2018, whereas 6-hr surveys were conducted in 2019. 12-hr surveys indicated that hourly counts of hatchlings reached greatest in the first 6 hrs, especially 3-4 hrs from the beginning of each survey (2100-2200) and declined subsequently (Figure \@ref(fig:Figure-sector-A2)).
 
 
+```{r Figure-sector-A2, echo=FALSE, message=FALSE, fig.cap="The number of hatchlings per meter at sector A2."}
 
-```{r sector_B, echo=FALSE, message=FALSE, warning=FALSE}
+knitr::include_graphics(paste0("figures/sector_A2_", dpi.set, "dpi.png"))
+
+```
+
+## Sector B {-}
+
+```{r sector-B, echo=FALSE, message=FALSE, warning=FALSE}
 
 data.1 %>% filter(sector == "B") -> data.1.B
 
 p.sector.B.1 <- ggplot(data.1.B) +
   geom_path(aes(x = hr, y = counts_m_NA)) +
-  facet_wrap(~year)
+  facet_wrap(~year)+ 
+  xlab("Hours since 1800") +
+  ylab("# hatchlings per meter")
 
 
-p.sector.B.1
+save.fig.fcn(p.sector.B.1, 
+             file.name = paste0("figures/sector_B_", dpi.set, "dpi.png"), 
+             replace = T, dpi = dpi.set)
+
 ```
 
 
+In sector B, 12-hr surveys were conducted from 2015 to 2018, whereas 6-hr surveys were conducted from 2019 to 2022. 12-hr surveys in 2016 and 2018 indicated that hourly counts of hatchlings reached greatest in the first 6 hrs, especially 3-4 hrs from the beginning of each survey (2100-2200) and declined subsequently (Figure \@ref(fig:Figure-sector-B)). In other years (e.g., 2015 and 2017), no obvious peaks were observed, although the counts were higher during the first half of survey than the latter half. 
 
-```{r sector_D, echo=FALSE, message=FALSE, warning=FALSE}
+
+```{r Figure-sector-B, echo=FALSE, message=FALSE, fig.cap="The number of hatchlings per meter at sector B."}
+
+knitr::include_graphics(paste0("figures/sector_B_", dpi.set, "dpi.png"))
+
+```
+
+
+## Sector D {-}
+
+```{r sector-D, echo=FALSE, message=FALSE, warning=FALSE}
 
 data.1 %>% filter(sector == "D") -> data.1.D
 
 p.sector.D.1 <- ggplot(data.1.D) +
   geom_path(aes(x = hr, y = counts_m_NA)) +
-  facet_wrap(~year)
+  facet_wrap(~year)+ 
+  xlab("Hours since 1800") +
+  ylab("# hatchlings per meter")
 
+save.fig.fcn(p.sector.D.1, 
+             file.name = paste0("figures/sector_D_", dpi.set, "dpi.png"), 
+             replace = T, dpi = dpi.set)
 
-p.sector.D.1
 ```
 
 
+In sector B, 12-hr surveys were conducted in 2017 and 2018, whereas 6-hr surveys were conducted in 2016, 2019, and 2020. A 12-hr survey in 2017 indicated that hourly counts of hatchlings were greatest in the second hour of the survey (2000) and declined subsequently (Figure \@ref(fig:Figure-sector-D)). In 2018, a peak was observed at the 6th hour (2400). 
 
-```{r sector_2014S, echo=FALSE, message=FALSE, warning=FALSE}
+
+```{r Figure-sector-D, echo=FALSE, message=FALSE, fig.cap="The number of hatchlings per meter at sector D."}
+
+knitr::include_graphics(paste0("figures/sector_D_", dpi.set, "dpi.png"))
+
+```
+
+## Sector 2014S {-}
+
+```{r sector-2014S, echo=FALSE, message=FALSE, warning=FALSE}
 
 data.1 %>% filter(sector == "2014S") -> data.1.2014S
 
 p.sector.2014S.1 <- ggplot(data.1.2014S) +
   geom_path(aes(x = hr, y = counts_m_NA)) +
-  facet_wrap(~year)
+  facet_wrap(~year)+ 
+  xlab("Hours since 1800") +
+  ylab("# hatchlings per meter")
 
 
-p.sector.2014S.1
+save.fig.fcn(p.sector.2014S.1, 
+             file.name = paste0("figures/sector_2014S_", dpi.set, "dpi.png"), 
+             replace = T, dpi = dpi.set)
 ```
 
 
 
-```{r sector_2017S, echo=FALSE, message=FALSE, warning=FALSE}
+In sector 2014S, 12-hr surveys were conducted from 2015 to 2018, whereas 6-hr surveys were conducted from 2019 to 2022 (Figure \@ref(fig:Figure-sector-2014S)).  
+
+
+```{r Figure-sector-2014S, echo=FALSE, message=FALSE, fig.cap="The number of hatchlings per meter at sector 2014S."}
+
+knitr::include_graphics(paste0("figures/sector_2014S_", dpi.set, "dpi.png"))
+
+```
+
+
+```{r sector-2017S, echo=FALSE, message=FALSE, warning=FALSE}
 
 data.1 %>% filter(sector == "2017S") -> data.1.2017S
 
 p.sector.2017S.1 <- ggplot(data.1.2017S) +
   geom_path(aes(x = hr, y = counts_m_NA)) +
-  facet_wrap(~year)
+  facet_wrap(~year)+ 
+  xlab("Hours since 1800") +
+  ylab("# hatchlings per meter")
 
 
-p.sector.2017S.1
+save.fig.fcn(p.sector.2017S.1, 
+             file.name = paste0("figures/sector_2017S_", dpi.set, "dpi.png"), 
+             replace = T, dpi = dpi.set)
 ```
 
-
-
-```{r sector_2019S, echo=FALSE, message=FALSE, warning=FALSE}
+```{r sector-2019S, echo=FALSE, message=FALSE, warning=FALSE}
 
 data.1 %>% filter(sector == "2019S") -> data.1.2019S
 
 p.sector.2019S.1 <- ggplot(data.1.2019S) +
   geom_path(aes(x = hr, y = counts_m_NA)) +
-  facet_wrap(~year)
+  facet_wrap(~year)+ 
+  xlab("Hours since 1800") +
+  ylab("# hatchlings per meter")
 
 
-p.sector.2019S.1
+save.fig.fcn(p.sector.2019S.1, 
+             file.name = paste0("figures/sector_2019S_", dpi.set, "dpi.png"), 
+             replace = T, dpi = dpi.set)
 ```
-
 
 ```{r sector_2019N, echo=FALSE, message=FALSE, warning=FALSE}
 
@@ -248,13 +351,15 @@ data.1 %>% filter(sector == "2019N") -> data.1.2019N
 
 p.sector.2019N.1 <- ggplot(data.1.2019N) +
   geom_path(aes(x = hr, y = counts_m_NA)) +
-  facet_wrap(~year)
+  facet_wrap(~year)+ 
+  xlab("Hours since 1800") +
+  ylab("# hatchlings per meter")
 
 
-p.sector.2019N.1
+save.fig.fcn(p.sector.2019N.1, 
+             file.name = paste0("figures/sector_2019N_", dpi.set, "dpi.png"), 
+             replace = T, dpi = dpi.set)
 ```
-
-
 
 It appears that more hatchlings are generally found before midnight. Look at the ratio between the first and second half of sampling.
 
@@ -290,9 +395,11 @@ p.ratio.sector <- ggplot(data = counts.1st.2nd) +
   geom_point(aes(x = date, y = ratio)) +
   facet_wrap(~sector)
 
-ggsave(p.ratio.sector, 
-       filename = "figures/ratio_sector.png",
-       device = "png", dpi = 600)
+
+save.fig.fcn(p.ratio.sector, 
+             file.name = paste0("figures/ratio_sector_", dpi.set, "dpi.png"), 
+             replace = T, dpi = dpi.set)
+
 ```
 
 Look at variability among years within each sector
@@ -306,20 +413,18 @@ counts.1st.2nd %>%
 
 ```
 
-
-
 ```{r}
 p.ratio.year <- ggplot(data = counts.1st.2nd) +
   geom_point(aes(x = sector, y = ratio)) +
   facet_wrap(~year)
 
-
-ggsave(p.ratio.year, filename = "figures/ratio_year.png",
-       device = "png", dpi = 600)
+save.fig.fcn(p.ratio.year, 
+             file.name = paste0("figures/ratio_year_", dpi.set, "dpi.png"), 
+             replace = T, dpi = dpi.set)
 
 ```
 
-These plots show that variability in the ratio is smaller among sectors within a year than among years within each sector. 
+These plots show that variability in the ratio is smaller among sectors within a year than among years within each sector.
 
 Within year Means with 12-hr surveys
 
@@ -332,7 +437,6 @@ counts.1st.2nd %>%
 
 
 ```
-
 
 Within year means with 6-hr surveys
 
@@ -354,8 +458,12 @@ sum.0.6.hrs.6hr %>%
 # Combine with 12hr dataset:
 sum.6hr <- rbind(sum.0.6.hrs.12hr, sum.0.6.hrs.6hr)
 
-ggplot(data = sum.6hr) +
+p.counts.first.6hr <- ggplot(data = sum.6hr) +
   geom_point(aes(x = sector, y = counts_m_1)) +
   facet_wrap(~year)
-```
 
+save.fig.fcn(p.counts.first.6hr, 
+             file.name = paste0("figures/counts_6hr_all_", dpi.set, "dpi.png"), 
+             replace = T, dpi = dpi.set)
+
+```
