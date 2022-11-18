@@ -21,6 +21,7 @@ rm(list = ls())
 library(tidyverse)
 library(readr)
 library(flextable)
+library(cowplot)
 
 set_flextable_defaults(font.size = 9,
                        font.family = "Cambria")
@@ -43,9 +44,11 @@ dpi.set <- 600
 
 ```
 
-At Raine Island, annual hatchling production has been determined via counts of hatchlings on the beach. Observers are stationed at multiple sectors, where they count hatchlings that come down the beach. A trench is dug and all hatchlings that fall into the trench are counted and released. During the 2018-2019 season, the survey was changed from 12 hrs (1800 to 0600) to 6 hrs (1800 - 0000) for logistical reasons. Furthermore, some counts were made from 100-m trenches whereas others were counted in 50-m trenches.
+## Background
 
-In order to look at possible effects of differences in sampling scheme (i.e., 12hr vs 6 hr and 100m vs 50m), I explore hatchling count data while standardizing the sampling duration and trench lengths.
+At Raine Island, annual hatchling production has been determined via counts of hatchlings on the beach. Observers are stationed at multiple sectors, where they count hatchlings that come down the beach. A trench is dug and all hatchlings that fall into the trench are counted and released hourly. During the 2018-2019 season, the survey was changed from 12 hrs (1800 to 0600) to 6 hrs (1800 - 0000) for logistical reasons. 
+
+In order to look at possible effects of differences in sampling scheme (i.e., 12hr vs 6 hr), I compare hatchling count data between the two sampling design. I converted the counts to counts per meter using the length of a trench (50 m vs 100 m). All analyses were conducted on the number of observed hatchlings per meter per hour. Furthermore, in order to consider the differences in the number of nesting females per nesting season, I divided the number of hatchlings per meter per hour by the estimated number of females (Petersen estimates from vessel-based survey) divided by 1000. The unit of the variable of interest, therefore, is the number of hatchlings per meter per hour per 1000 females. 
 
 ```{r data-import, include=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
 
@@ -101,7 +104,26 @@ data.0 %>%
   mutate(counts_m_NA = ifelse((survey_duration_hr == 6 & hr > 6), NA, counts_m)) -> data.1
 
 
+# Ballpark figures of nesting female abundance - extracted from Figure 2 of Raine Island Recovery Project 2021-22 Technical report.pdf. - To be updated with more precise numbers. 
+
+n.females.df <- data.frame(year = c(2015:2022),
+                           n.females = c(15000, 5000, 12000, 20000, 1000, 38000, 1000, 12000))
+
+# combine the # females into the data
+data.1 %>% left_join(n.females.df, by = "year") %>%
+  mutate(counts_m_NA_female = 1000 * counts_m_NA/n.females) -> data.1
+
+p.females <- ggplot(n.females.df) +
+  geom_point(aes(x = year, y = n.females/1000), size = 2) +
+  xlab("") + ylab("Estimated number of females (1000s)")
+
+save.fig.fcn(p.females, 
+             file.name = paste0("figures/females_", dpi.set, "dpi.png"), 
+             replace = T, dpi = dpi.set)
+
 ```
+
+
 
 
 ```{r pivot-check, message=FALSE, echo=FALSE, warning=FALSE}
@@ -140,7 +162,16 @@ data.1 %>%
 
 ```
 
+In general, greater numbers of hatchlings were counted before midnight (6hrs since 1800) than after. The observed number of hatchlings ranged from `r signif(min(data.1$counts_m_NA, na.rm=T), 2)` to `r signif(max(data.1$counts_m_NA, na.rm=T), 2)` per meter per hour. When these numbers were standardized for the estimated number of adult females (in 1000s; Figure \@ref(fig:Figure-females)), they ranged from `r signif(min(data.1$counts_m_NA_female, na.rm=T), 2)` to `r signif(max(data.1$counts_m_NA_female, na.rm=T), 2)` per meter per hour per 1000 adult females (Figure \@ref(fig:Figure-raw-counts)).
 
+
+```{r Figure-females, echo=FALSE, message=FALSE, fig.cap="The estimated number of females per year from vessel-based Petersen estimates"}
+
+knitr::include_graphics(paste0("figures/females_", dpi.set, "dpi.png"))
+
+```
+
+In order to look at the details, each sector was examined separately. 
 
 ```{r raw-plot, echo=FALSE, message=FALSE, warning=FALSE}
 p.raw.counts <- ggplot(data = data.1) +
@@ -152,13 +183,30 @@ p.raw.counts <- ggplot(data = data.1) +
                  color = as.factor(year))) +
   facet_wrap(~sector, nrow = 2) +
   labs(color = "Year") +
+  theme(legend.position = "none") +
   xlab("Hours since 1800") + ylab("# hatchlings per meter")
 
-save.fig.fcn(p.raw.counts, 
+
+p.raw.counts.per.female <- ggplot(data = data.1) +
+  # geom_point(aes(x = hr, 
+  #                y = counts, 
+  #                color = sector)) +
+  geom_path(aes(x = hr, 
+                 y = counts_m_NA_female, 
+                 color = as.factor(year))) +
+  facet_wrap(~sector, nrow = 2) +
+  labs(color = "Year") +
+  xlab("Hours since 1800") + ylab("# hatchlings per meter per 1000 females")
+
+p.counts <- plot_grid(p.raw.counts, p.raw.counts.per.female,
+                      labels = c("(1)", "(2)"))
+
+save.fig.fcn(p.counts, 
              file.name = paste0("figures/raw_counts_", dpi.set, "dpi.png"), 
              replace = T, dpi = dpi.set)
 
 ```
+
 
 ```{r Figure-raw-counts, echo=FALSE, message=FALSE, fig.cap="The number of hatchlings per meter at 8 sectors."}
 
@@ -166,20 +214,31 @@ knitr::include_graphics(paste0("figures/raw_counts_", dpi.set, "dpi.png"))
 
 ```
 
-In general, greater numbers of hatchlings were counted before midnight (6hrs since 1800) than after (Figure \@ref(fig:Figure-raw-counts)). In order to look at the details, each sector was examined separately. 
+## Sector-specific trend
 
-
-## Sector A {-}
+### Sector A {-}
 
 ```{r sector-A, echo=FALSE, message=FALSE, warning=FALSE}
+xlab.txt <- "Hours since 1800"
+ylab.1.txt <- "# hatchlings per meter"
+ylab.2.txt <- "# hatchlings per meter per 1000 females"
 
 data.1 %>% filter(sector == "A") -> data.1.A
 
-p.sector.A.1 <- ggplot(data.1.A) +
+p.sector.A <- ggplot(data.1.A) +
   geom_path(aes(x = hr, y = counts_m_NA)) +
   facet_wrap(~year) + 
-  xlab("Hours since 1800") +
-  ylab("# hatchlings per meter")
+  xlab(xlab.txt) +
+  ylab(ylab.1.txt)
+
+p.sector.A.female <- ggplot(data.1.A) +
+  geom_path(aes(x = hr, y = counts_m_NA_female)) +
+  facet_wrap(~year) + 
+  xlab(xlab.txt) +
+  ylab(ylab.2.txt)
+
+p.sector.A.1 <- plot_grid(p.sector.A, p.sector.A.female,
+                          labels = c("(1)", "(2)"))
 
 save.fig.fcn(p.sector.A.1, 
              file.name = paste0("figures/sector_A_", dpi.set, "dpi.png"), 
@@ -187,7 +246,7 @@ save.fig.fcn(p.sector.A.1,
 
 ```
 
-At sector A, only 6-hr surveys were conducted in `r min(data.1.A$year)` - `r max(data.1.A$year)`. The observed variability among surveys in 2020 was large (Figure \@ref(fig:Figure-sector-A)).
+At sector A, only 6-hr surveys were conducted in `r min(data.1.A$year)` - `r max(data.1.A$year)`. The observed variability among surveys in 2020 was large (Figure \@ref(fig:Figure-sector-A)). In 2021, even though the number of hatchlings was low, the number of hatchligs per 1000 females was higher than the other two years (Figure \@ref(fig:Figure-sector-A)), indicating a negative relationship between hatching success rates and the number of females. 
 
 
 ```{r Figure-sector-A, echo=FALSE, message=FALSE, fig.cap="The number of hatchlings per meter at sector A."}
@@ -197,18 +256,27 @@ knitr::include_graphics(paste0("figures/sector_A_", dpi.set, "dpi.png"))
 ```
 
 
-## Sector A2 {-}
+### Sector A2 {-}
 
 ```{r sector-A2, echo=FALSE, message=FALSE, warning=FALSE}
 
 data.1 %>% filter(sector == "A2") -> data.1.A2
 
-p.sector.A2.1 <- ggplot(data.1.A2) +
+p.sector.A2 <- ggplot(data.1.A2) +
   geom_path(aes(x = hr, y = counts_m_NA)) +
   facet_wrap(~year)+ 
-  xlab("Hours since 1800") +
-  ylab("# hatchlings per meter")
+  xlab(xlab.txt) +
+  ylab(ylab.1.txt) +
+  theme(legend.position = "none")
 
+p.sector.A2.female <- ggplot(data.1.A2) +
+  geom_path(aes(x = hr, y = counts_m_NA_female)) +
+  facet_wrap(~year)+ 
+  xlab(xlab.txt) +
+  ylab(ylab.2.txt)
+
+p.sector.A2.1 <- plot_grid(p.sector.A2, p.sector.A2.female,
+                          labels = c("(1)", "(2)"))
 
 save.fig.fcn(p.sector.A2.1, 
              file.name = paste0("figures/sector_A2_", dpi.set, "dpi.png"), 
@@ -225,18 +293,26 @@ knitr::include_graphics(paste0("figures/sector_A2_", dpi.set, "dpi.png"))
 
 ```
 
-## Sector B {-}
+### Sector B {-}
 
 ```{r sector-B, echo=FALSE, message=FALSE, warning=FALSE}
 
 data.1 %>% filter(sector == "B") -> data.1.B
 
-p.sector.B.1 <- ggplot(data.1.B) +
+p.sector.B <- ggplot(data.1.B) +
   geom_path(aes(x = hr, y = counts_m_NA)) +
   facet_wrap(~year)+ 
-  xlab("Hours since 1800") +
-  ylab("# hatchlings per meter")
+  xlab(xlab.txt) +
+  ylab(ylab.1.txt) 
 
+p.sector.B.female <- ggplot(data.1.B) +
+  geom_path(aes(x = hr, y = counts_m_NA_female)) +
+  facet_wrap(~year)+ 
+  xlab(xlab.txt) +
+  ylab(ylab.2.txt) 
+
+p.sector.B.1 <- plot_grid(p.sector.B, p.sector.B.female,
+                          labels = c("(1)", "(2)"))
 
 save.fig.fcn(p.sector.B.1, 
              file.name = paste0("figures/sector_B_", dpi.set, "dpi.png"), 
@@ -255,17 +331,27 @@ knitr::include_graphics(paste0("figures/sector_B_", dpi.set, "dpi.png"))
 ```
 
 
-## Sector D {-}
+### Sector D {-}
 
 ```{r sector-D, echo=FALSE, message=FALSE, warning=FALSE}
 
 data.1 %>% filter(sector == "D") -> data.1.D
 
-p.sector.D.1 <- ggplot(data.1.D) +
+p.sector.D <- ggplot(data.1.D) +
   geom_path(aes(x = hr, y = counts_m_NA)) +
   facet_wrap(~year)+ 
-  xlab("Hours since 1800") +
-  ylab("# hatchlings per meter")
+  xlab(xlab.txt) +
+  ylab(ylab.1.txt)
+
+
+p.sector.D.female <- ggplot(data.1.D) +
+  geom_path(aes(x = hr, y = counts_m_NA_female)) +
+  facet_wrap(~year)+ 
+  xlab(xlab.txt) +
+  ylab(ylab.1.txt)
+
+p.sector.D.1 <- plot_grid(p.sector.D, p.sector.D.female,
+                          labels = c("(1)", "(2)"))
 
 save.fig.fcn(p.sector.D.1, 
              file.name = paste0("figures/sector_D_", dpi.set, "dpi.png"), 
@@ -283,24 +369,31 @@ knitr::include_graphics(paste0("figures/sector_D_", dpi.set, "dpi.png"))
 
 ```
 
-## Sector 2014S {-}
+### Sector 2014S {-}
 
 ```{r sector-2014S, echo=FALSE, message=FALSE, warning=FALSE}
 
 data.1 %>% filter(sector == "2014S") -> data.1.2014S
 
-p.sector.2014S.1 <- ggplot(data.1.2014S) +
+p.sector.2014S <- ggplot(data.1.2014S) +
   geom_path(aes(x = hr, y = counts_m_NA)) +
   facet_wrap(~year)+ 
-  xlab("Hours since 1800") +
-  ylab("# hatchlings per meter")
+  xlab(xlab.txt) +
+  ylab(ylab.1.txt)
 
+p.sector.2014S.female <- ggplot(data.1.2014S) +
+  geom_path(aes(x = hr, y = counts_m_NA_female)) +
+  facet_wrap(~year)+ 
+  xlab(xlab.txt) +
+  ylab(ylab.2.txt)
+
+p.sector.2014S.1 <- plot_grid(p.sector.2014S, p.sector.2014S.female,
+                          labels = c("(1)", "(2)"))
 
 save.fig.fcn(p.sector.2014S.1, 
              file.name = paste0("figures/sector_2014S_", dpi.set, "dpi.png"), 
              replace = T, dpi = dpi.set)
 ```
-
 
 
 In sector 2014S, 12-hr surveys were conducted from 2015 to 2018, whereas 6-hr surveys were conducted from 2019 to 2022 (Figure \@ref(fig:Figure-sector-2014S)).  
@@ -312,54 +405,107 @@ knitr::include_graphics(paste0("figures/sector_2014S_", dpi.set, "dpi.png"))
 
 ```
 
-
+### Sector 2017S {-}
 ```{r sector-2017S, echo=FALSE, message=FALSE, warning=FALSE}
 
 data.1 %>% filter(sector == "2017S") -> data.1.2017S
 
-p.sector.2017S.1 <- ggplot(data.1.2017S) +
+p.sector.2017S <- ggplot(data.1.2017S) +
   geom_path(aes(x = hr, y = counts_m_NA)) +
   facet_wrap(~year)+ 
-  xlab("Hours since 1800") +
-  ylab("# hatchlings per meter")
+  xlab(xlab.txt) +
+  ylab(ylab.1.txt)
 
+p.sector.2017S.female <- ggplot(data.1.2017S) +
+  geom_path(aes(x = hr, y = counts_m_NA_female)) +
+  facet_wrap(~year)+ 
+  xlab(xlab.txt) +
+  ylab(ylab.2.txt)
+
+p.sector.2017S.1 <- plot_grid(p.sector.2017S, p.sector.2017S.female,
+                          labels = c("(1)", "(2)"))
 
 save.fig.fcn(p.sector.2017S.1, 
              file.name = paste0("figures/sector_2017S_", dpi.set, "dpi.png"), 
              replace = T, dpi = dpi.set)
 ```
 
+In sector 2074S, 12-hr surveys were conducted in 2018, whereas 6-hr surveys were conducted from 2019 to 2022 (Figure \@ref(fig:Figure-sector-2017S)). Counts from 2018 indicated that the number of hatchlings was greater before the midnight than after. No apparent peaks were found for 2019, 2020, or 2021.  
+
+
+```{r Figure-sector-2017S, echo=FALSE, message=FALSE, fig.cap="The number of hatchlings per meter at sector 2017S."}
+
+knitr::include_graphics(paste0("figures/sector_2017S_", dpi.set, "dpi.png"))
+
+```
+
+### Sector 2019S {-}
 ```{r sector-2019S, echo=FALSE, message=FALSE, warning=FALSE}
 
 data.1 %>% filter(sector == "2019S") -> data.1.2019S
 
-p.sector.2019S.1 <- ggplot(data.1.2019S) +
+p.sector.2019S <- ggplot(data.1.2019S) +
   geom_path(aes(x = hr, y = counts_m_NA)) +
   facet_wrap(~year)+ 
-  xlab("Hours since 1800") +
-  ylab("# hatchlings per meter")
+  xlab(xlab.txt) +
+  ylab(ylab.1.txt)
 
+p.sector.2019S.female <- ggplot(data.1.2019S) +
+  geom_path(aes(x = hr, y = counts_m_NA_female)) +
+  facet_wrap(~year)+ 
+  xlab(xlab.txt) +
+  ylab(ylab.2.txt)
+
+p.sector.2019S.1 <- plot_grid(p.sector.2019S, p.sector.2019S.female,
+                          labels = c("(1)", "(2)"))
 
 save.fig.fcn(p.sector.2019S.1, 
              file.name = paste0("figures/sector_2019S_", dpi.set, "dpi.png"), 
              replace = T, dpi = dpi.set)
 ```
 
+In Sector 2019S, only 6-hr surveys were conducted. An apparent peak at 2 hrs after 1800 (2000) was observed for 2022, whereas the timing of the peak for 2020 was inconclusive between the two surveys. No apparent peak was observed for 2021 (Figure \@ref(fig:Figure-sector-2019S)). 
+
+```{r Figure-sector-2019S, echo=FALSE, message=FALSE, fig.cap="The number of hatchlings per meter at sector 2019S."}
+
+knitr::include_graphics(paste0("figures/sector_2019S_", dpi.set, "dpi.png"))
+
+```
+
+### Sector 2019N {-}
 ```{r sector_2019N, echo=FALSE, message=FALSE, warning=FALSE}
 
 data.1 %>% filter(sector == "2019N") -> data.1.2019N
 
-p.sector.2019N.1 <- ggplot(data.1.2019N) +
+p.sector.2019N <- ggplot(data.1.2019N) +
   geom_path(aes(x = hr, y = counts_m_NA)) +
   facet_wrap(~year)+ 
-  xlab("Hours since 1800") +
-  ylab("# hatchlings per meter")
+  xlab(xlab.txt) +
+  ylab(ylab.1.txt)
 
+p.sector.2019N.female <- ggplot(data.1.2019N) +
+  geom_path(aes(x = hr, y = counts_m_NA_female)) +
+  facet_wrap(~year)+ 
+  xlab(xlab.txt) +
+  ylab(ylab.2.txt)
+
+p.sector.2019N.1 <- plot_grid(p.sector.2019N, p.sector.2019N.female,
+                          labels = c("(1)", "(2)"))
 
 save.fig.fcn(p.sector.2019N.1, 
              file.name = paste0("figures/sector_2019N_", dpi.set, "dpi.png"), 
              replace = T, dpi = dpi.set)
 ```
+
+In sector 2019N, a peak was observed at 2-3 hrs after 1800 (2000-2100) in 2022 (Figure \@ref(fig:Figure-sector-2019N)).
+
+```{r Figure-sector-2019N, echo=FALSE, message=FALSE, fig.cap="The number of hatchlings per meter at sector 2019N."}
+
+knitr::include_graphics(paste0("figures/sector_2019N_", dpi.set, "dpi.png"))
+
+```
+
+## General trend
 
 It appears that more hatchlings are generally found before midnight. Look at the ratio between the first and second half of sampling.
 
