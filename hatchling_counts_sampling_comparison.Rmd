@@ -27,8 +27,10 @@ set_flextable_defaults(font.size = 9,
                        font.family = "Cambria")
 
 save.fig.fcn <- function(fig, file.name, replace = F, dpi = 600, device = "png",
-           height = 3, width = 5, units = "in",
-           bg = "white"){
+                         height = 4, 
+                         width = 6, 
+                         units = "in",
+                         bg = "white"){
   if (isTRUE(replace) | (!isTRUE(replace) & !file.exists(file.name)))
     ggsave(fig, 
            filename = file.name, 
@@ -38,13 +40,12 @@ save.fig.fcn <- function(fig, file.name, replace = F, dpi = 600, device = "png",
   
 }
 
-
 save.fig <- T
 dpi.set <- 600
 
 ```
 
-## Background
+## Background {-}
 
 At Raine Island, annual hatchling production has been determined via counts of hatchlings on the beach. Observers are stationed at multiple sectors, where they count hatchlings that come down the beach. A trench is dug and all hatchlings that fall into the trench are counted and released hourly. During the 2018-2019 season, the survey was changed from 12 hrs (1800 to 0600) to 6 hrs (1800 - 0000) for logistical reasons. 
 
@@ -214,7 +215,7 @@ knitr::include_graphics(paste0("figures/raw_counts_", dpi.set, "dpi.png"))
 
 ```
 
-## Sector-specific trend
+## Sector-specific pattern {-}
 
 ### Sector A {-}
 
@@ -249,7 +250,7 @@ save.fig.fcn(p.sector.A.1,
 At sector A, only 6-hr surveys were conducted in `r min(data.1.A$year)` - `r max(data.1.A$year)`. The observed variability among surveys in 2020 was large (Figure \@ref(fig:Figure-sector-A)). In 2021, even though the number of hatchlings was low, the number of hatchligs per 1000 females was higher than the other two years (Figure \@ref(fig:Figure-sector-A)), indicating a negative relationship between hatching success rates and the number of females. 
 
 
-```{r Figure-sector-A, echo=FALSE, message=FALSE, fig.cap="The number of hatchlings per meter at sector A."}
+```{r Figure-sector-A, echo=FALSE, message=FALSE, fig.cap="The number of hatchlings per meter (1) and the number of hatchlings per meter per 1000 females (2) at sector A."}
 
 knitr::include_graphics(paste0("figures/sector_A_", dpi.set, "dpi.png"))
 
@@ -287,7 +288,7 @@ save.fig.fcn(p.sector.A2.1,
 In sector A2, 12-hr surveys were conducted from 2015 to 2018, whereas 6-hr surveys were conducted in 2019. 12-hr surveys indicated that hourly counts of hatchlings reached greatest in the first 6 hrs, especially 3-4 hrs from the beginning of each survey (2100-2200) and declined subsequently (Figure \@ref(fig:Figure-sector-A2)).
 
 
-```{r Figure-sector-A2, echo=FALSE, message=FALSE, fig.cap="The number of hatchlings per meter at sector A2."}
+```{r Figure-sector-A2, echo=FALSE, message=FALSE, fig.cap="The number of hatchlings per meter (1) and the number of hatchlings per meter per 1000 females (2) at sector A2."}
 
 knitr::include_graphics(paste0("figures/sector_A2_", dpi.set, "dpi.png"))
 
@@ -324,7 +325,7 @@ save.fig.fcn(p.sector.B.1,
 In sector B, 12-hr surveys were conducted from 2015 to 2018, whereas 6-hr surveys were conducted from 2019 to 2022. 12-hr surveys in 2016 and 2018 indicated that hourly counts of hatchlings reached greatest in the first 6 hrs, especially 3-4 hrs from the beginning of each survey (2100-2200) and declined subsequently (Figure \@ref(fig:Figure-sector-B)). In other years (e.g., 2015 and 2017), no obvious peaks were observed, although the counts were higher during the first half of survey than the latter half. 
 
 
-```{r Figure-sector-B, echo=FALSE, message=FALSE, fig.cap="The number of hatchlings per meter at sector B."}
+```{r Figure-sector-B, echo=FALSE, message=FALSE, fig.cap="The number of hatchlings per meter (1) and the number of hatchlings per meter per 1000 females (2) at sector B."}
 
 knitr::include_graphics(paste0("figures/sector_B_", dpi.set, "dpi.png"))
 
@@ -360,10 +361,10 @@ save.fig.fcn(p.sector.D.1,
 ```
 
 
-In sector B, 12-hr surveys were conducted in 2017 and 2018, whereas 6-hr surveys were conducted in 2016, 2019, and 2020. A 12-hr survey in 2017 indicated that hourly counts of hatchlings were greatest in the second hour of the survey (2000) and declined subsequently (Figure \@ref(fig:Figure-sector-D)). In 2018, a peak was observed at the 6th hour (2400). 
+In sector D, 12-hr surveys were conducted in 2017 and 2018, whereas 6-hr surveys were conducted in 2016, 2019, and 2020. A 12-hr survey in 2017 indicated that hourly counts of hatchlings were greatest in the second hour of the survey (2000) and declined subsequently (Figure \@ref(fig:Figure-sector-D)). In 2018, a peak was observed at the 6th hour (2400). 
 
 
-```{r Figure-sector-D, echo=FALSE, message=FALSE, fig.cap="The number of hatchlings per meter at sector D."}
+```{r Figure-sector-D, echo=FALSE, message=FALSE, fig.cap="The number of hatchlings per meter (1) and the number of hatchlings per meter per 1000 females (2) at sector D."}
 
 knitr::include_graphics(paste0("figures/sector_D_", dpi.set, "dpi.png"))
 
@@ -396,10 +397,10 @@ save.fig.fcn(p.sector.2014S.1,
 ```
 
 
-In sector 2014S, 12-hr surveys were conducted from 2015 to 2018, whereas 6-hr surveys were conducted from 2019 to 2022 (Figure \@ref(fig:Figure-sector-2014S)).  
+In sector 2014S, 12-hr surveys were conducted from 2015 to 2018, whereas 6-hr surveys were conducted from 2019 to 2022 (Figure \@ref(fig:Figure-sector-2014S)). Higher counts were recorded in the first half (1800-2400) of the night.  
 
 
-```{r Figure-sector-2014S, echo=FALSE, message=FALSE, fig.cap="The number of hatchlings per meter at sector 2014S."}
+```{r Figure-sector-2014S, echo=FALSE, message=FALSE, fig.cap="The number of hatchlings per meter (1) and the number of hatchlings per meter per 1000 females (2) at sector 2014S."}
 
 knitr::include_graphics(paste0("figures/sector_2014S_", dpi.set, "dpi.png"))
 
@@ -430,10 +431,10 @@ save.fig.fcn(p.sector.2017S.1,
              replace = T, dpi = dpi.set)
 ```
 
-In sector 2074S, 12-hr surveys were conducted in 2018, whereas 6-hr surveys were conducted from 2019 to 2022 (Figure \@ref(fig:Figure-sector-2017S)). Counts from 2018 indicated that the number of hatchlings was greater before the midnight than after. No apparent peaks were found for 2019, 2020, or 2021.  
+In sector 2017S, 12-hr surveys were conducted in 2018, whereas 6-hr surveys were conducted from 2019 to 2021 (Figure \@ref(fig:Figure-sector-2017S)). Counts from 2018 indicated that the number of hatchlings was greater before the midnight than after. No apparent peaks were found for 2019, 2020, or 2021.  
 
 
-```{r Figure-sector-2017S, echo=FALSE, message=FALSE, fig.cap="The number of hatchlings per meter at sector 2017S."}
+```{r Figure-sector-2017S, echo=FALSE, message=FALSE, fig.cap="The number of hatchlings per meter (1) and the number of hatchlings per meter per 1000 females (2) at sector 2017S."}
 
 knitr::include_graphics(paste0("figures/sector_2017S_", dpi.set, "dpi.png"))
 
@@ -466,7 +467,7 @@ save.fig.fcn(p.sector.2019S.1,
 
 In Sector 2019S, only 6-hr surveys were conducted. An apparent peak at 2 hrs after 1800 (2000) was observed for 2022, whereas the timing of the peak for 2020 was inconclusive between the two surveys. No apparent peak was observed for 2021 (Figure \@ref(fig:Figure-sector-2019S)). 
 
-```{r Figure-sector-2019S, echo=FALSE, message=FALSE, fig.cap="The number of hatchlings per meter at sector 2019S."}
+```{r Figure-sector-2019S, echo=FALSE, message=FALSE, fig.cap="The number of hatchlings per meter (1) and the number of hatchlings per meter per 1000 females (2) at sector 2019S."}
 
 knitr::include_graphics(paste0("figures/sector_2019S_", dpi.set, "dpi.png"))
 
@@ -499,15 +500,19 @@ save.fig.fcn(p.sector.2019N.1,
 
 In sector 2019N, a peak was observed at 2-3 hrs after 1800 (2000-2100) in 2022 (Figure \@ref(fig:Figure-sector-2019N)).
 
-```{r Figure-sector-2019N, echo=FALSE, message=FALSE, fig.cap="The number of hatchlings per meter at sector 2019N."}
+```{r Figure-sector-2019N, echo=FALSE, message=FALSE, fig.cap="The number of hatchlings per meter (1) and the number of hatchlings per meter per 1000 females (2) at sector 2019N."}
 
 knitr::include_graphics(paste0("figures/sector_2019N_", dpi.set, "dpi.png"))
 
 ```
 
-## General trend
+## Estimating counts for 12-hr from 6-hr sampling {-}
 
-It appears that more hatchlings are generally found before midnight. Look at the ratio between the first and second half of sampling.
+It appears that more hatchlings are generally found before midnight. An objective of this project is to estimate the total number of hatchlings per night (1800 - 0600) from a reduced sampling design that counted the number of hatchlings in 6-hr period (1800 - 2400). Two approaches were used to estimate the total counts from partial counts: (1) using the ratios between the first and second half and (2) develop a regression model to determine the relationship between the first and second halves.
+
+### Ratios between the two halves
+
+Look at the ratio between the first and second halves of sampling.
 
 ```{r first-vs-second, echo=FALSE, message=FALSE, warning=FALSE}
 
