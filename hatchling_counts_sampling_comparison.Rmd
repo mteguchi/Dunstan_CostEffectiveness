@@ -79,7 +79,8 @@ data.0 <- read_csv(file = "data/hatch_count_fullcount_2014-15-2021-22.csv",
   discard(~ all(is.na(.))) %>%
   mutate(survey_duration_hr = ifelse(survey_length == "12hr", 12, 6)) %>%
   mutate(year = lubridate::year(date),
-         month = lubridate::month(date)) 
+         month = lubridate::month(date),
+         date_num = as.numeric(date)) 
 
 
 data.0 %>%
@@ -510,9 +511,7 @@ knitr::include_graphics(paste0("figures/sector_2019N_", dpi.set, "dpi.png"))
 
 It appears that more hatchlings are generally found before midnight. An objective of this project is to estimate the total number of hatchlings per night (1800 - 0600) from a reduced sampling design that counted the number of hatchlings in 6-hr period (1800 - 2400). Two approaches were used to estimate the total counts from partial counts: (1) using the ratios between the first and second half and (2) develop a regression model to determine the relationship between the first and second halves.
 
-### Ratios between the two halves
-
-Look at the ratio between the first and second halves of sampling.
+### Ratios between the two sampling periods (1800-0600 vs. 1800-2400)
 
 ```{r first-vs-second, echo=FALSE, message=FALSE, warning=FALSE}
 
@@ -553,14 +552,39 @@ save.fig.fcn(p.ratio.sector,
 
 ```
 
-Look at variability among years within each sector
+The proportion of hatchlings that were counted during the first 6 hrs, i.e., 1800 to 2400, relative to the 12-hr period (1800-0600) ranged from `r signif(min(counts.1st.2nd$ratio), 3)` to `r signif(max(counts.1st.2nd$ratio), 3)`. Majority of them were greater than 0.5 (`r counts.1st.2nd %>% filter(ratio > 0.5) %>% nrow()` of `r nrow(counts.1st.2nd`), mean = `r signif(mean(counts.1st.2nd$ratio), 3)`, SE = `r signif(sqrt(var(counts.1st.2nd$ratio))/sqrt(nrow(counts.1st.2nd)), 3)`). Two counts that resulted in low proportions of hatchlings during the first half of the evenings occurred in 2018 in sector A2 (Figure \@ref(fig:)).
 
-```{r}
+
+```{r Figure-ratio-sectors, echo=FALSE, message=FALSE, fig.cap="The proportion of hatchlings per meter during the first half of the evening (1800-2400) in the total number of hatchlings (1800-0600)."}
+
+knitr::include_graphics(paste0("figures/ratio_sector_", dpi.set, "dpi.png"))
+
+```
+
+```{r sector-year-summary, echo=FALSE, message=FALSE}
+
+# counts.1st.2nd %>%
+#   group_by(sector, year) %>%
+#   summarise(var = var(ratio),
+#             mean = mean(ratio)) -> year.sector.var.mean
+# 
 
 counts.1st.2nd %>%
-  group_by(sector, year) %>%
-  summarise(var = var(ratio),
-            mean = mean(ratio)) -> year.sector.var.mean
+  group_by(year,sector) %>%
+  summarize(mean.ratio = mean(ratio),
+            SE.ratio = sqrt(var(ratio))/sqrt(n()),
+            n = n()) -> counts.1st.2nd.means
+
+counts.1st.2nd %>%
+  group_by(year) %>%
+  summarise(mean.sectors = mean(ratio),
+            SE.sectors = sqrt(var(ratio))/sqrt(n())) -> counts.1st.2nd.sectors
+
+counts.1st.2nd %>%
+  group_by(sector) %>%
+  summarise(mean.years = mean(ratio),
+            SE.years = sqrt(var(ratio))/sqrt(n())) -> counts.1st.2nd.years
+
 
 ```
 
@@ -575,7 +599,36 @@ save.fig.fcn(p.ratio.year,
 
 ```
 
-These plots show that variability in the ratio is smaller among sectors within a year than among years within each sector.
+These plots show that variability in the ratio is smaller among sectors within a year than among years within each sector, except 2018 in sector A2 (Figure \@ref(fig:Figure-ratio-years)). Standard errors within year ranged from `r signif(min(counts.1st.2nd.sectors$SE.sectors), 3)` to `r signif(max(counts.1st.2nd.sectors$SE.sectors), 3)`, whereas those within sector ranged from `r signif(min(counts.1st.2nd.years$SE.years), 3)` to `r signif(max(counts.1st.2nd.years$SE.years), 3)`.
+
+
+```{r Figure-ratio-years,, echo=FALSE, message=FALSE, fig.cap="The proportion of hatchlings per meter during the first half of the evening (1800-2400) in the total number of hatchlings (1800-0600) within each sector."}
+
+knitr::include_graphics(paste0("figures/ratio_year_", dpi.set, "dpi.png"))
+
+```
+
+How to use these ratios using cross validation...
+1. Estimate the second half of each survey using the ratio from the rest. 
+2. Estimate the second half of each survey using the ratio from other years. 
+
+NEED TO CHANGE THE DATE_NUM TO ACTUAL SEQUENCE, THEY ARE NOT... THEY NEED TO BE IN 1 TO 50.
+
+```{r cross-validation-1, echo=FALSE, message=FALSE}
+# Create a sequential ID number for each survey
+data.1 %>%
+  mutate(date.seq = date_num - min(date_num) + 1) -> data.1
+
+# first, I use all surveys except one. 
+n.surveys <- length(unique(data.1$date.seq))
+
+k <- 1
+for (k in 1:n.surveys){
+  data.1.1 <- data.1 %>% filter(date.seq != k)
+}
+
+```
+
 
 Within year Means with 12-hr surveys
 
