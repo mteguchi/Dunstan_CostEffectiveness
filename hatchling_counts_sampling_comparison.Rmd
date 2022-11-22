@@ -515,31 +515,36 @@ It appears that more hatchlings are generally found before midnight. An objectiv
 
 ```{r first-vs-second, echo=FALSE, message=FALSE, warning=FALSE}
 
-# filter out 12-hr data:
-data.1 %>% 
-  filter(survey_duration_hr == 12) -> data.1.12hr
+calculate.ratio <- function(data.1){
+  # filter out 12-hr data:
+  data.1 %>% 
+    filter(survey_duration_hr == 12) -> data.1.12hr
+  
+  # First half
+  data.1.12hr %>%
+    filter(hr < 7) %>%
+    group_by(sector, year, date) %>%
+    summarize(across(.cols = counts_m, 
+                     .fns = sum, 
+                     na.rm = T, .names = "counts_m_1")) -> sum.0.6.hrs.12hr
+  
+  # Second half
+  data.1.12hr %>%
+    filter(hr > 6) %>%
+    group_by(sector, year, date) %>%
+    summarize(across(.cols = counts_m, 
+                     .fns = sum, 
+                     na.rm = T, .names = "counts_m_2")) -> sum.7.12.hrs.12hr
+  
+  # put them together and compute the ratio
+  sum.0.6.hrs.12hr %>% 
+    left_join(sum.7.12.hrs.12hr, by = c("sector", "year", "date")) %>% 
+    mutate(ratio = counts_m_1/(counts_m_1 + counts_m_2))-> counts.1st.2nd
+  
+  return(counts.1st.2nd)  
+}
 
-# First half
-data.1.12hr %>%
-  filter(hr < 7) %>%
-  group_by(sector, year, date) %>%
-  summarize(across(.cols = counts_m, 
-                   .fns = sum, 
-                   na.rm = T, .names = "counts_m_1")) -> sum.0.6.hrs.12hr
-
-# Second half
-data.1.12hr %>%
-  filter(hr > 6) %>%
-  group_by(sector, year, date) %>%
-  summarize(across(.cols = counts_m, 
-                   .fns = sum, 
-                   na.rm = T, .names = "counts_m_2")) -> sum.7.12.hrs.12hr
-
-# put them together and compute the ratio
-sum.0.6.hrs.12hr %>% 
-  left_join(sum.7.12.hrs.12hr, by = c("sector", "year", "date")) %>% 
-  mutate(ratio = counts_m_1/(counts_m_1 + counts_m_2))-> counts.1st.2nd
-
+counts.1st.2nd <- calculate.ratio(data.1)
 
 p.ratio.sector <- ggplot(data = counts.1st.2nd) +
   geom_point(aes(x = date, y = ratio)) +
@@ -608,26 +613,111 @@ knitr::include_graphics(paste0("figures/ratio_year_", dpi.set, "dpi.png"))
 
 ```
 
-How to use these ratios using cross validation...
-1. Estimate the second half of each survey using the ratio from the rest. 
-2. Estimate the second half of each survey using the ratio from other years. 
-
-NEED TO CHANGE THE DATE_NUM TO ACTUAL SEQUENCE, THEY ARE NOT... THEY NEED TO BE IN 1 TO 50.
+Cross validations were conducted for all date- and sector-specific surveys that were 12 hr long. The second half of each survey was computed using the first half of the survey and the proportion of the first half that was computed using either (1) all sectors for that year, (2) only the same sector for that year, (3) all other sectors for that year, or (4) all sectors from other years.  
 
 ```{r cross-validation-1, echo=FALSE, message=FALSE}
+compute.2nd <- function(m.1st, mean.ratio){
+  m.2nd <- ((1/mean.ratio) - 1) * m.1st 
+}
+
+# Only 12-hr surveys are used in this exercise:
+data.1 %>% filter(survey_duration_hr > 6) -> data.1.12hr
+
 # Create a sequential ID number for each survey
-data.1 %>%
-  mutate(date.seq = date_num - min(date_num) + 1) -> data.1
+date_num_df <- data.frame(date_num = unique(data.1.12hr$date_num),
+                          date_seq = 1:length(unique(data.1.12hr$date_num)))
+
+data.1.12hr %>%
+  left_join(date_num_df, by = "date_num") -> data.1.12hr
+
+counts.1st.2nd.12hr <- calculate.ratio(data.1.12hr)
+
+data.out <- counts.1st.2nd.12hr
+data.out$estim.1 <-  NA
+data.out$estim.all <- NA
+data.out$estim.others <- NA
+data.out$estim.other.yrs <- NA
 
 # first, I use all surveys except one. 
-n.surveys <- length(unique(data.1$date.seq))
+n.surveys <- length(unique(data.1.12hr$date_seq))
 
 k <- 1
 for (k in 1:n.surveys){
-  data.1.1 <- data.1 %>% filter(date.seq != k)
+  data.1.k <- data.1.12hr %>% filter(date_seq == k)
+  counts.1st.2nd.k <- calculate.ratio(data.1.k)
+  
+  year.k <- counts.1st.2nd.k$year[1]
+  date.k <- counts.1st.2nd.k$date[1]
+  
+  data.1.1 <- data.1.12hr %>% filter(date_seq != k, year == year.k)
+  counts.1st.2nd.1 <- calculate.ratio(data.1.1)
+  
+  # data from other years
+  data.1.other.years  <- data.1.12hr %>% filter(year != year.k)
+  counts.1st.2nd.other.years <- calculate.ratio(data.1.other.years)
+  mean.other.years <- mean(counts.1st.2nd.other.years$ratio)
+
+  # use the same sector or use all or all other:
+  k1 <- 2
+  for (k1 in 1:nrow(counts.1st.2nd.k)){
+    
+    sector.1 <- counts.1st.2nd.k$sector[k1] %>% as.character()
+    m.1st <- counts.1st.2nd.k$counts_m_1[k1]
+    
+    # same sector:
+    counts.1st.2nd.1 %>%
+      filter( sector == sector.1) -> ratio.1.sector
+    
+    # other sectors
+    counts.1st.2nd.1 %>%
+      filter(sector != sector.1) -> ratio.other.sectors
+      
+    mean.1.sector <- mean(ratio.1.sector$ratio)
+    mean.all.sectors <- mean(counts.1st.2nd.1$ratio)
+    mean.other.sectors <- mean(ratio.other.sectors$ratio)
+    
+    data.out[data.out$sector == sector.1 & 
+               data.out$date == date.k, "estim.1"] <- compute.2nd(m.1st, mean.1.sector)
+    data.out[data.out$sector == sector.1 & 
+               data.out$date == date.k, "estim.all"] <- compute.2nd(m.1st, mean.all.sectors)
+    data.out[data.out$sector == sector.1 & 
+               data.out$date == date.k, "estim.others"] <- compute.2nd(m.1st, mean.other.sectors)
+    data.out[data.out$sector == sector.1 & 
+               data.out$date == date.k, "estim.other.yrs"] <- compute.2nd(m.1st, mean.other.years)
+  }
+
 }
 
+data.out %>%
+  mutate(dif.1 = estim.1 - counts_m_2,
+         dif.all = estim.all - counts_m_2,
+         dif.others = estim.others - counts_m_2,
+         dif.other.yrs = estim.other.yrs - counts_m_2) -> data.out
+
+p.estimates.1 <- ggplot(data = data.out) +
+  geom_jitter(aes(x = sector, 
+                  y = dif.1), 
+              color = "orange", size = 2,
+              width = 0.2, height = 0) +
+  geom_jitter(aes(x = sector, y = dif.all), 
+              color = "purple", size = 2,
+              width = 0.2, height = 0) +
+  geom_jitter(aes(x = sector, y = dif.others), 
+              color = "red", size = 2,
+              width = 0.2, height = 0) +
+  geom_jitter(aes(x = sector, y = dif.other.yrs), 
+              color = "yellow", size = 2,
+              width = 0.2, height = 0) +
+  facet_wrap(~ year)
+
+save.fig.fcn(p.estimates.1, 
+             file.name = paste0("figures/ratio_estimates_", dpi.set, "dpi.png"), 
+             replace = T, dpi = dpi.set)
+
 ```
+
+
+
 
 
 Within year Means with 12-hr surveys
