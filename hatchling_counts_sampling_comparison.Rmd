@@ -607,13 +607,13 @@ save.fig.fcn(p.ratio.year,
 These plots show that variability in the ratio is smaller among sectors within a year than among years within each sector, except 2018 in sector A2 (Figure \@ref(fig:Figure-ratio-years)). Standard errors within year ranged from `r signif(min(counts.1st.2nd.sectors$SE.sectors), 3)` to `r signif(max(counts.1st.2nd.sectors$SE.sectors), 3)`, whereas those within sector ranged from `r signif(min(counts.1st.2nd.years$SE.years), 3)` to `r signif(max(counts.1st.2nd.years$SE.years), 3)`.
 
 
-```{r Figure-ratio-years,, echo=FALSE, message=FALSE, fig.cap="The proportion of hatchlings per meter during the first half of the evening (1800-2400) in the total number of hatchlings (1800-0600) within each sector."}
+```{r Figure-ratio-years, echo=FALSE, message=FALSE, fig.cap="The proportion of hatchlings per meter during the first half of the evening (1800-2400) in the total number of hatchlings (1800-0600) within each sector."}
 
 knitr::include_graphics(paste0("figures/ratio_year_", dpi.set, "dpi.png"))
 
 ```
 
-Cross validations were conducted for all date- and sector-specific surveys that were 12 hr long. The second half of each survey was computed using the first half of the survey and the proportion of the first half that was computed using either (1) all sectors for that year, (2) only the same sector for that year, (3) all other sectors for that year, or (4) all sectors from other years.  
+Cross validations were conducted for all date- and sector-specific surveys that were 12 hr long. The second half of each survey was computed using the first half of the survey and the proportion of the first half that was computed using either (1) only the same sector for that year, (2) all sectors for that year, (3) all other sectors for that year, or (4) all sectors from other years. 
 
 ```{r cross-validation-1, echo=FALSE, message=FALSE}
 compute.2nd <- function(m.1st, mean.ratio){
@@ -714,10 +714,78 @@ save.fig.fcn(p.estimates.1,
              file.name = paste0("figures/ratio_estimates_", dpi.set, "dpi.png"), 
              replace = T, dpi = dpi.set)
 
+ratio.summary.table <- data.frame(Sets = c("One sector", "All sectors", "Other sectors", "Other years"),
+                                  Mean = c(mean(data.out$dif.1, na.rm = T), mean(data.out$dif.all),
+                                           mean(data.out$dif.others), mean(data.out$dif.other.yrs)),
+                                  SD = c(sqrt(var(data.out$dif.1, na.rm = T)), sqrt(var(data.out$dif.all)),
+                                         sqrt(var(data.out$dif.others)), sqrt(var(data.out$dif.other.yrs))),
+                                  min = c(min(data.out$dif.1, na.rm = T), min(data.out$dif.all),
+                                           min(data.out$dif.others), min(data.out$dif.other.yrs)),
+                                  max = c(max(data.out$dif.1, na.rm = T), max(data.out$dif.all),
+                                           max(data.out$dif.others), max(data.out$dif.other.yrs)))
+
 ```
 
 
 
+```{r Figure-ratio, echo=FALSE, message=FALSE, fig.cap="The differences between the observed and calculated numbers of hatchlings using the ratio between the first and total number of hatchlings. Calculations were conducted in a cross validation manner where each survey was withheld from computing the ratio to be used in calculating the second half of the evening. Colors indicate different sets of data to cross validate: orange = using the same sector within the same year, purple = using all sectors within the same year, red = using other sectors witin the same year, and yellow = using all sectors from other years."}
+
+knitr::include_graphics(paste0("figures/ratio_estimates_", dpi.set, "dpi.png"))
+
+```
+
+
+The comparison of the calculated values (i.e., hatchling counts during the second half of each survey) indicated that the using all sectors from all other years resulted in smallest variability in the difference between the true and calculated values, followed by using all sectors within the same year (Table \@ref(tab:Table-summary-ratio), Figure \@ref(fig:Figure-ratio)). It is important to note that using all sectors or one sector within the same year requires some 12-hr sampling to be conducted within each year. 
+
+
+```{r Table-summary-ratio, echo=FALSE, warning=FALSE}
+flextable(ratio.summary.table) %>% 
+  #hline(i = (nrow(ratio.summary.table)-1)) %>%
+ set_caption(paste0("A comparison of data sets for cross validation to calculate the second half of a survey from the first half. Results in the table indicate the differences from the true values.")) %>%
+  set_table_properties(width = 0.5, layout = "autofit") %>%
+  colformat_double(j = c("Mean", "SD", "min", "max"), digits = 2)
+
+```
+
+
+### Statistical modeling of hatchling counts
+
+In this section, I use a statistical model to estimate the number of hatchlings during the second half of the night from the first half. The number of observed hatchlings per meter was modeled as a function of time of night (hrs since 1800), year, sector, and survey, which was treated as a random effect. 
+
+I was going to use GAM but that's not going to work... I think I have to estimate the proportion of the second half as a function of covariates then estimate the number from the estimated proportion and the observed first half. 2022-11-23
+
+```{r gam, echo=FALSE, message=FALSE}
+library(mgcv)
+data.1.12hr %>%
+  filter(!is.na(counts_m_NA)) -> data.1.12hr.noNA
+
+# Sector as a grouping variable and date_seq (survey ID) as a random effect
+gam.1 <- gam(counts_m_NA ~ s(hr) + sector + s(date_seq, bs = "re"),
+             data = data.1.12hr.noNA,
+             method = "REML")
+
+# Remove sectors 
+gam.2 <- gam(counts_m_NA ~ s(hr) +  s(date_seq, bs = "re"),
+             data = data.1.12hr.noNA,
+             method = "REML")
+
+library(visreg)
+visreg(gam.1, 
+       xvar = "hr", 
+       by = "sector", 
+       data = data.1.12hr.noNA, method = "REML")
+
+# visreg(gam.2, xvar = "hr", 
+#        data = data.1.12hr.noNA, method = "REML")
+
+data.1 %>% 
+    filter(survey_duration_hr == 6) -> data.1.6hr
+  
+data.1.6hr %>% 
+  select(sector, hr, counts_m_NA) %>%
+  na.omit() -> data.1.6hr.predict
+
+```
 
 
 Within year Means with 12-hr surveys
