@@ -750,9 +750,35 @@ flextable(ratio.summary.table) %>%
 
 ### Statistical modeling of hatchling counts
 
-In this section, I use a statistical model to estimate the number of hatchlings during the second half of the night from the first half. The number of observed hatchlings per meter was modeled as a function of time of night (hrs since 1800), year, sector, and survey, which was treated as a random effect. 
+In this section, I use a statistical model to estimate the number of hatchlings during the second half of the night from the first half. I treated the observed number of hatchlings per meter from 1800 to 2400 (n) in the j-th sector of the k-th sampling day during the y-th year as a Poisson random deviate:
 
-I was going to use GAM but that's not going to work... I think I have to estimate the proportion of the second half as a function of covariates then estimate the number from the estimated proportion and the observed first half. 2022-11-23
+$ n_{j, k, y} \sim POI(\lambda_{j, k, y})$. 
+
+The number of hatchlings per meter from 2400 to 0600 (m) is also a Poisson random deviate and its mean is a function of $\lambda_{j,k,y}$ and the proportion of the number of hatchlings from 1800 to 2400 to that from 1800 to 2400 ($p{y}$). I removed the sector- and sampling-day specific subscripts for the proportion because the proportion among sectors within a year was not as variable as among years (Figure \@ref(fig:Figure-ratio-years)):
+
+$ m_{j,k,y} \sim POI(\frac{\lambda_{j,k,y}}{{p_{y}}}) $.
+
+The mean ($\lambda_{j, k, y}$) is a function of covariates (year (Y) and the number of females ($N_{female}$), whereas the sampling day ($D_{j,k,y}$) is a random-effect variable):
+
+$\lambda_{j,k,y} = D_{j,k,y} + \beta_1 Y + \beta_2 N_{female} + \epsilon_{j,k,y}$,
+
+where $\epsilon_{j,k,y} \sim N(0, v_\epsilon)$. 
+
+Using these likelihood functions, I estimated the missing values of $m_{j,k,y}$ in a Bayesian approach. I used the following prior distributions.
+
+$ \lambda_{j,k,y} \sim GAM(0.1, 0.5)$
+
+$ p_y \sim BETA(2, 1)$
+
+The density functions for these prior distributions are shown in Figure X. 
+
+To test the modeling approach, I first used only data with 12-hr sampling and conducted cross-validations by withholding one 2400-0600 period at a time. 
+
+
+I was going to use GAM but that's not going to work... To predict the second half from first, GAM would require covariates that are available for all hours, not just hours and dates, which are lacking...
+The number of observed hatchlings per meter was modeled as a function of time of night (hrs since 1800), year, sector, and survey, which was treated as a random effect. 
+
+I think I have to estimate the proportion of the second half as a function of covariates then estimate the number from the estimated proportion and the observed first half. 2022-11-23
 
 ```{r gam, echo=FALSE, message=FALSE}
 library(mgcv)
