@@ -1,0 +1,73 @@
+# JAGS model for estimating hatchling counts at Raine Island
+
+# Model to estimate hatchling counts from 2400 to 0600 using covariates.
+# This is part of exercise to determine if the 6-hr sampling is sufficient
+# to determine the hatchling production at Raine Island. Hatchling 
+# counts were conducted for 12 hrs in the past but due to the logistical
+# challenges, they reduced the sampling to 6 hrs in the recent years.
+# I estimate the second half of observed hatchling counts from the first 
+# half and older data, i.e., 12-hr sampling.
+
+# Details can be found in hatchling_counts_sampling_comparison.Rmd
+
+# 2022-11-29 Tomo Eguchi
+ 
+
+model{
+	for (y in 1:n.years){
+		for (j in 1:n.sectors[y]){
+			for (k in 1:n.days[y,j]){
+				n[y,sectors[y,j], k] ~ dpois(lambda[y,sectors[y,j],k])
+				m[y,sectors[y,j], k] ~ dpois(lambda[y,sectors[y,j],k] * p[j])
+				
+				# + Y[years[y]] removed from below because of non convergence.
+				# + B.day * D[y,sectors[y,j],k] also
+				#  + B.N.fem * N.fem[y] 
+				# e[j] is the overdispersion for within sectors   
+				lambda[y, sectors[y,j], k] <- length[y,sectors[y,j],k] * exp(S[sectors[y,j]] + Y[years[y]]+ B.day * D[y,sectors[y,j],k] + B.N.fem * N.fem[y]+ e[j])
+								
+			}
+		}
+		
+	}
+	
+	for (k in 1:num.sectors){
+		S[k] ~ dnorm(mu.S, tau.S)
+		Y[k] ~ dnorm(mu.Y, tau.Y)
+		e[k] ~ dnorm(0, tau.e[k])
+		p[k] ~ dbeta(2,2)
+	}
+	
+	#for (y in 1:n.years){
+    #	for (j in 1:n.sectors[y]){
+	#		for (k in 1:n.days[y,j]){
+	#			e[y, sectors[y,j], k] ~ dnorm(0, tau.e[j])
+	#		}
+	#	}
+	#}
+	
+	mu.S ~ dnorm(0, 0.01)
+	tau.S <- 1/var.S
+	var.S ~ dgamma(1, 0.1)
+	sigma.S <- sqrt(var.S)
+	
+	for (j in 1:num.sectors){
+		tau.e[j] <- 1/var.e[j]
+		var.e[j] ~ dgamma(1, 0.1)
+		sigma.e[j] <- sqrt(var.e[j])
+	}
+	
+	mu.Y ~ dnorm(0, 0.01)
+	tau.Y <- 1/var.Y
+	var.Y ~ dgamma(1, 0.1)
+	sigma.Y <- sqrt(var.Y)
+
+	#B0 ~ dnorm(0, 0.01)
+	#B1 ~ dnorm(0, 0.01)
+	B.N.fem ~ dnorm(0, 0.01)
+	B.day ~ dnorm(0, 0.01)
+
+	#for (k in 1:n.years){
+	#	p[k] ~ dbeta(2, 2)
+	#}
+}
