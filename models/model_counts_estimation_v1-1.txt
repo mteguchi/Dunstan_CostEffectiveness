@@ -10,8 +10,6 @@
 
 # Details can be found in hatchling_counts_sampling_comparison.Rmd
 
-# For v2, I changed p to be year and sector specific. 
-
 # 2022-11-29 Tomo Eguchi
  
 
@@ -20,10 +18,13 @@ model{
 		for (j in 1:n.sectors[y]){
 			for (k in 1:n.days[y,j]){
 				n[y,sectors[y,j], k] ~ dpois(lambda[y,sectors[y,j],k])
-				m[y,sectors[y,j], k] ~ dpois(lambda[y,sectors[y,j],k] * p[y,j])
+				m[y,sectors[y,j], k] ~ dpois(lambda[y,sectors[y,j],k] * p[y])
 				
-				# + Y[years[y]] removed from below because it did not converge
-				lambda[y,sectors[y,j],k] <- length[y,sectors[y,j],k] * exp(S[sectors[y,j]] + B.N.fem * N.fem[y] + B.day * D[y,sectors[y,j],k])
+				# + Y[years[y]] removed from below because of non convergence.
+				# + B.day * D[y,sectors[y,j],k] also
+				#  + B.N.fem * N.fem[y] 
+				# e[j] is the overdispersion for within sectors - does not help...
+				lambda[y, sectors[y,j], k] <- length[y,sectors[y,j],k] * exp(S[sectors[y,j]] + B.day * D[y,sectors[y,j],k] + B.N.fem * N.fem[y])
 								
 			}
 		}
@@ -32,35 +33,18 @@ model{
 	
 	for (k in 1:num.sectors){
 		S[k] ~ dnorm(mu.S, tau.S)
-		#Y[k] ~ dnorm(mu.Y, tau.Y)
-		#e[k] ~ dnorm(0, tau.e[k])
 	}
+	
+	for (y in 1:n.years){
+		p[y] ~ dbeta(2,2)
+    }
 	
 	mu.S ~ dnorm(0, 0.01)
 	tau.S <- 1/var.S
-	var.S ~ dgamma(0.1, 0.01)
+	var.S ~ dgamma(1, 0.1)
 	sigma.S <- sqrt(var.S)
 	
-	mu.Y ~ dnorm(0, 0.01)
-	tau.Y <- 1/var.Y
-	var.Y ~ dgamma(0.1, 0.01)
-	sigma.Y <- sqrt(var.Y)
-
-	#for (j in 1:num.sectors){
-	#	tau.e[j] <- 1/var.e[j]
-	#	var.e[j] ~ dgamma(1, 0.1)
-	#	sigma.e[j] <- sqrt(var.e[j])
-	#}
-	
-	#B0 ~ dnorm(0, 0.01)
-	#B1 ~ dnorm(0, 0.01)
 	B.N.fem ~ dnorm(0, 0.01)
 	B.day ~ dnorm(0, 0.01)
 
-	for (k in 1:n.years){
-		for (j in 1:n.sectors[k]){
-			p[k,j] ~ dbeta(2, 2)
-		}
-
-	}
 }
