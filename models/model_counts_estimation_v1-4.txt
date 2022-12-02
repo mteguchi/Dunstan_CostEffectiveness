@@ -18,28 +18,22 @@ model{
 		for (j in 1:n.sectors[y]){
 			for (k in 1:n.days[y,j]){
 				n[y,sectors[y,j], k] ~ dpois(lambda[y,sectors[y,j],k])
-				m[y,sectors[y,j], k] ~ dpois(lambda[y,sectors[y,j],k] * p[sectors[y,j]])
+				m[y,sectors[y,j], k] ~ dpois(lambda[y,sectors[y,j],k] * p[y])
 				
 				# + Y[years[y]] removed from below because of non convergence.
 				# + B.day * D[y,sectors[y,j],k] also
 				#  + B.N.fem * N.fem[y] 
 				# e[j] is the overdispersion for within sectors - does not help...
-				lambda[y, sectors[y,j], k] <- length[y,sectors[y,j],k] * exp(S[sectors[y,j]] + B.N.fem * N.fem[y])
+				lambda[y, sectors[y,j], k] <- length[y,sectors[y,j],k] * exp(B.day * D[y,sectors[y,j],k] + B.N.fem * N.fem[y])
 								
 			}
 		}
 		
 	}
 	
-	for (k in 1:num.sectors){
-		S[k] ~ dnorm(mu.S, tau.S)
-		p[k] ~ dunif(0, 2) #dbeta(2,2)
-	}
-		
-	mu.S ~ dnorm(0, 0.01)
-	tau.S <- 1/var.S
-	var.S ~ dgamma(1, 0.1)
-	sigma.S <- sqrt(var.S)
+	for (y in 1:n.years){
+		p[y] ~ dunif(0, 2) #dbeta(2,2)
+    }
 		
 	B.N.fem ~ dnorm(0, 0.01)
 	B.day ~ dnorm(0, 0.01)

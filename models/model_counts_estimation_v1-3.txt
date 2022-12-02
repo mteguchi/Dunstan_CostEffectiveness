@@ -44,6 +44,6 @@ model{
 	B.day ~ dnorm(0, 0.01)
 
 	for (k in 1:n.years){
-		p[k] ~ dbeta(2, 2)
+		p[k] ~ dunif(0, 2) #dbeta(2, 2)
 	}
 }

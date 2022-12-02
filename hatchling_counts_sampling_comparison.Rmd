@@ -914,147 +914,290 @@ jags.data <- list(n = out.list$n,
 # vk-1 is with # days since Jan 1, # females, and Sector random effects
 # vk-2 is without # days but with # females, and sector random effects
 # vk-3 is no # days and no # females and just sector random effects
+# vk-4 has no sector random effects. Just # females and # days.
 
 # v1 has year specific proportions (p[year])
-model.ver <- "v1-1"
-model.file <- paste0("models/model_counts_estimation_", model.ver, ".txt")
-jm.v1_1 <- jags(jags.data,
-                inits = NULL,
-                parameters.to.save= jags.params,
-                model.file = model.file,
-                n.chains = MCMC.params$n.chains,
-                n.burnin = MCMC.params$n.burnin,
-                n.thin = MCMC.params$n.thin,
-                n.iter = MCMC.params$n.samples,
-                DIC = T, parallel=T)
 
-model.ver <- "v1-2" 
-model.file <- paste0("models/model_counts_estimation_", model.ver, ".txt")
-jm.v1_2 <- jags(jags.data,
-                inits = NULL,
-                parameters.to.save= jags.params,
-                model.file = model.file,
-                n.chains = MCMC.params$n.chains,
-                n.burnin = MCMC.params$n.burnin,
-                n.thin = MCMC.params$n.thin,
-                n.iter = MCMC.params$n.samples,
-                DIC = T, parallel=T)
+if (!file.exists("RData/jags_out_hatchling_counts.rds")){
+  start.time <- now()
+  model.ver <- "v1-1"
+  model.file <- paste0("models/model_counts_estimation_", model.ver, ".txt")
+  jm.v1_1 <- jags(jags.data,
+                  inits = NULL,
+                  parameters.to.save= jags.params,
+                  model.file = model.file,
+                  n.chains = MCMC.params$n.chains,
+                  n.burnin = MCMC.params$n.burnin,
+                  n.thin = MCMC.params$n.thin,
+                  n.iter = MCMC.params$n.samples,
+                  DIC = T, parallel=T)
+  
+  model.ver <- "v1-2" 
+  model.file <- paste0("models/model_counts_estimation_", model.ver, ".txt")
+  jm.v1_2 <- jags(jags.data,
+                  inits = NULL,
+                  parameters.to.save= jags.params,
+                  model.file = model.file,
+                  n.chains = MCMC.params$n.chains,
+                  n.burnin = MCMC.params$n.burnin,
+                  n.thin = MCMC.params$n.thin,
+                  n.iter = MCMC.params$n.samples,
+                  DIC = T, parallel=T)
+  
+  model.ver <- "v1-3"
+  model.file <- paste0("models/model_counts_estimation_", model.ver, ".txt")
+  jm.v1_3 <- jags(jags.data,
+                  inits = NULL,
+                  parameters.to.save= jags.params,
+                  model.file = model.file,
+                  n.chains = MCMC.params$n.chains,
+                  n.burnin = MCMC.params$n.burnin,
+                  n.thin = MCMC.params$n.thin,
+                  n.iter = MCMC.params$n.samples,
+                  DIC = T, parallel=T)
+  
+  model.ver <- "v1-4"
+  model.file <- paste0("models/model_counts_estimation_", model.ver, ".txt")
+  jm.v1_4 <- jags(jags.data,
+                  inits = NULL,
+                  parameters.to.save= jags.params,
+                  model.file = model.file,
+                  n.chains = MCMC.params$n.chains,
+                  n.burnin = MCMC.params$n.burnin,
+                  n.thin = MCMC.params$n.thin,
+                  n.iter = MCMC.params$n.samples,
+                  DIC = T, parallel=T)
 
-model.ver <- "v1-3"
-model.file <- paste0("models/model_counts_estimation_", model.ver, ".txt")
-jm.v1_3 <- jags(jags.data,
-                inits = NULL,
-                parameters.to.save= jags.params,
-                model.file = model.file,
-                n.chains = MCMC.params$n.chains,
-                n.burnin = MCMC.params$n.burnin,
-                n.thin = MCMC.params$n.thin,
-                n.iter = MCMC.params$n.samples,
-                DIC = T, parallel=T)
+  # v2 has sector and year specific proportions (p[year, sector])
+  model.ver <- "v2-1"
+  model.file <- paste0("models/model_counts_estimation_", model.ver, ".txt")
+  jm.v2_1 <- jags(jags.data,
+                  inits = NULL,
+                  parameters.to.save= jags.params,
+                  model.file = model.file,
+                  n.chains = MCMC.params$n.chains,
+                  n.burnin = MCMC.params$n.burnin,
+                  n.thin = MCMC.params$n.thin,
+                  n.iter = MCMC.params$n.samples,
+                  DIC = T, parallel=T)
+  
+  model.ver <- "v2-2" 
+  model.file <- paste0("models/model_counts_estimation_", model.ver, ".txt")
+  jm.v2_2 <- jags(jags.data,
+                  inits = NULL,
+                  parameters.to.save= jags.params,
+                  model.file = model.file,
+                  n.chains = MCMC.params$n.chains,
+                  n.burnin = MCMC.params$n.burnin,
+                  n.thin = MCMC.params$n.thin,
+                  n.iter = MCMC.params$n.samples,
+                  DIC = T, parallel=T)
+  
+  model.ver <- "v2-3"
+  model.file <- paste0("models/model_counts_estimation_", model.ver, ".txt")
+  jm.v2_3 <- jags(jags.data,
+                  inits = NULL,
+                  parameters.to.save= jags.params,
+                  model.file = model.file,
+                  n.chains = MCMC.params$n.chains,
+                  n.burnin = MCMC.params$n.burnin,
+                  n.thin = MCMC.params$n.thin,
+                  n.iter = MCMC.params$n.samples,
+                  DIC = T, parallel=T)
+  
+  model.ver <- "v2-4"
+  model.file <- paste0("models/model_counts_estimation_", model.ver, ".txt")
+  jm.v2_4 <- jags(jags.data,
+                  inits = NULL,
+                  parameters.to.save= jags.params,
+                  model.file = model.file,
+                  n.chains = MCMC.params$n.chains,
+                  n.burnin = MCMC.params$n.burnin,
+                  n.thin = MCMC.params$n.thin,
+                  n.iter = MCMC.params$n.samples,
+                  DIC = T, parallel=T)
 
-# v2 has sector and year specific proportions (p[year, sector])
-model.ver <- "v2-1"
-model.file <- paste0("models/model_counts_estimation_", model.ver, ".txt")
-jm.v2_1 <- jags(jags.data,
-                inits = NULL,
-                parameters.to.save= jags.params,
-                model.file = model.file,
-                n.chains = MCMC.params$n.chains,
-                n.burnin = MCMC.params$n.burnin,
-                n.thin = MCMC.params$n.thin,
-                n.iter = MCMC.params$n.samples,
-                DIC = T, parallel=T)
+  # v3 has sector specific proportions (p[sector])
+  model.ver <- "v3-1"
+  model.file <- paste0("models/model_counts_estimation_", model.ver, ".txt")
+  jm.v3_1 <- jags(jags.data,
+                  inits = NULL,
+                  parameters.to.save= jags.params,
+                  model.file = model.file,
+                  n.chains = MCMC.params$n.chains,
+                  n.burnin = MCMC.params$n.burnin,
+                  n.thin = MCMC.params$n.thin,
+                  n.iter = MCMC.params$n.samples,
+                  DIC = T, parallel=T)
+  
+  model.ver <- "v3-2" 
+  model.file <- paste0("models/model_counts_estimation_", model.ver, ".txt")
+  jm.v3_2 <- jags(jags.data,
+                  inits = NULL,
+                  parameters.to.save= jags.params,
+                  model.file = model.file,
+                  n.chains = MCMC.params$n.chains,
+                  n.burnin = MCMC.params$n.burnin,
+                  n.thin = MCMC.params$n.thin,
+                  n.iter = MCMC.params$n.samples,
+                  DIC = T, parallel=T)
+  
+  model.ver <- "v3-3"
+  model.file <- paste0("models/model_counts_estimation_", model.ver, ".txt")
+  jm.v3_3 <- jags(jags.data,
+                  inits = NULL,
+                  parameters.to.save= jags.params,
+                  model.file = model.file,
+                  n.chains = MCMC.params$n.chains,
+                  n.burnin = MCMC.params$n.burnin,
+                  n.thin = MCMC.params$n.thin,
+                  n.iter = MCMC.params$n.samples,
+                  DIC = T, parallel=T)
+  
+  model.ver <- "v3-4"
+  model.file <- paste0("models/model_counts_estimation_", model.ver, ".txt")
+  jm.v3_4 <- jags(jags.data,
+                  inits = NULL,
+                  parameters.to.save= jags.params,
+                  model.file = model.file,
+                  n.chains = MCMC.params$n.chains,
+                  n.burnin = MCMC.params$n.burnin,
+                  n.thin = MCMC.params$n.thin,
+                  n.iter = MCMC.params$n.samples,
+                  DIC = T, parallel=T)
+  
+  # v4 has sector-year-day specific proportions (p[year, sector, day])
+  model.ver <- "v4-1"
+  model.file <- paste0("models/model_counts_estimation_", model.ver, ".txt")
+  jm.v4_1 <- jags(jags.data,
+                  inits = NULL,
+                  parameters.to.save= jags.params,
+                  model.file = model.file,
+                  n.chains = MCMC.params$n.chains,
+                  n.burnin = MCMC.params$n.burnin,
+                  n.thin = MCMC.params$n.thin,
+                  n.iter = MCMC.params$n.samples,
+                  DIC = T, parallel=T)
+  
+  model.ver <- "v4-2" 
+  model.file <- paste0("models/model_counts_estimation_", model.ver, ".txt")
+  jm.v4_2 <- jags(jags.data,
+                  inits = NULL,
+                  parameters.to.save= jags.params,
+                  model.file = model.file,
+                  n.chains = MCMC.params$n.chains,
+                  n.burnin = MCMC.params$n.burnin,
+                  n.thin = MCMC.params$n.thin,
+                  n.iter = MCMC.params$n.samples,
+                  DIC = T, parallel=T)
+  
+  model.ver <- "v4-3"
+  model.file <- paste0("models/model_counts_estimation_", model.ver, ".txt")
+  jm.v4_3 <- jags(jags.data,
+                  inits = NULL,
+                  parameters.to.save= jags.params,
+                  model.file = model.file,
+                  n.chains = MCMC.params$n.chains,
+                  n.burnin = MCMC.params$n.burnin,
+                  n.thin = MCMC.params$n.thin,
+                  n.iter = MCMC.params$n.samples,
+                  DIC = T, parallel=T)
 
-model.ver <- "v2-2" 
-model.file <- paste0("models/model_counts_estimation_", model.ver, ".txt")
-jm.v2_2 <- jags(jags.data,
-                inits = NULL,
-                parameters.to.save= jags.params,
-                model.file = model.file,
-                n.chains = MCMC.params$n.chains,
-                n.burnin = MCMC.params$n.burnin,
-                n.thin = MCMC.params$n.thin,
-                n.iter = MCMC.params$n.samples,
-                DIC = T, parallel=T)
+  model.ver <- "v4-4"
+  model.file <- paste0("models/model_counts_estimation_", model.ver, ".txt")
+  jm.v4_4 <- jags(jags.data,
+                  inits = NULL,
+                  parameters.to.save= jags.params,
+                  model.file = model.file,
+                  n.chains = MCMC.params$n.chains,
+                  n.burnin = MCMC.params$n.burnin,
+                  n.thin = MCMC.params$n.thin,
+                  n.iter = MCMC.params$n.samples,
+                  DIC = T, parallel=T)
 
-model.ver <- "v2-3"
-model.file <- paste0("models/model_counts_estimation_", model.ver, ".txt")
-jm.v2_3 <- jags(jags.data,
-                inits = NULL,
-                parameters.to.save= jags.params,
-                model.file = model.file,
-                n.chains = MCMC.params$n.chains,
-                n.burnin = MCMC.params$n.burnin,
-                n.thin = MCMC.params$n.thin,
-                n.iter = MCMC.params$n.samples,
-                DIC = T, parallel=T)
+  end.time <- now()
+  
+  out.list <- list(v1_1 = jm.v1_1,
+                   v1_2 = jm.v1_2,
+                   v1_3 = jm.v1_3,
+                   v1_4 = jm.v1_4,
+                   v2_1 = jm.v2_1,
+                   v2_2 = jm.v2_2,
+                   v2_3 = jm.v2_3,
+                   v2_4 = jm.v2_4,
+                   v3_1 = jm.v3_1,
+                   v3_2 = jm.v3_2,
+                   v3_3 = jm.v3_3,
+                   v3_4 = jm.v3_4,
+                   v4_1 = jm.v4_1,
+                   v4_2 = jm.v4_2,
+                   v4_3 = jm.v4_3,
+                   v4_4 = jm.v4_4,
+                   jags.data = jags.data,
+                   jags.params = jags.params,
+                   MCMC.params = MCMC.params,
+                   run.date = Sys.Date(),
+                   system = Sys.info(),
+                   run.time = end.time - start.time)
+  
+  saveRDS(out.list, file = "RData/jags_out_hatchling_counts.rds")
+} else {
+  out.list <- readRDS("RData/jags_out_hatchling_counts.rds")
+}
 
-# v3 has sector specific proportions (p[sector])
-model.ver <- "v3-1"
-model.file <- paste0("models/model_counts_estimation_", model.ver, ".txt")
-jm.v3_1 <- jags(jags.data,
-                inits = NULL,
-                parameters.to.save= jags.params,
-                model.file = model.file,
-                n.chains = MCMC.params$n.chains,
-                n.burnin = MCMC.params$n.burnin,
-                n.thin = MCMC.params$n.thin,
-                n.iter = MCMC.params$n.samples,
-                DIC = T, parallel=T)
-
-model.ver <- "v3-2" 
-model.file <- paste0("models/model_counts_estimation_", model.ver, ".txt")
-jm.v3_2 <- jags(jags.data,
-                inits = NULL,
-                parameters.to.save= jags.params,
-                model.file = model.file,
-                n.chains = MCMC.params$n.chains,
-                n.burnin = MCMC.params$n.burnin,
-                n.thin = MCMC.params$n.thin,
-                n.iter = MCMC.params$n.samples,
-                DIC = T, parallel=T)
-
-model.ver <- "v3-3"
-model.file <- paste0("models/model_counts_estimation_", model.ver, ".txt")
-jm.v3_3 <- jags(jags.data,
-                inits = NULL,
-                parameters.to.save= jags.params,
-                model.file = model.file,
-                n.chains = MCMC.params$n.chains,
-                n.burnin = MCMC.params$n.burnin,
-                n.thin = MCMC.params$n.thin,
-                n.iter = MCMC.params$n.samples,
-                DIC = T, parallel=T)
-
-DIC.df <- data.frame(model = c("v1-1", "v1-2", "v1-3",
-                               "v2-1", "v2-2", "v2-3", 
-                               "v3-1", "v3-2", "v3-3"),
-                     DIC = c(jm.v1_1$DIC, jm.v1_2$DIC, jm.v1_3$DIC, 
-                             jm.v2_1$DIC, jm.v2_2$DIC, jm.v2_3$DIC, 
-                             jm.v3_1$DIC, jm.v3_2$DIC, jm.v3_3$DIC),
-                     Rhat = c(lapply(jm.v1_1$Rhat, max, na.rm = T) %>% unlist() %>% max(),
-                              lapply(jm.v1_2$Rhat, max, na.rm = T) %>% unlist() %>% max(),
-                              lapply(jm.v1_3$Rhat, max, na.rm = T) %>% unlist() %>% max(),
-                              lapply(jm.v2_1$Rhat, max, na.rm = T) %>% unlist() %>% max(),
-                              lapply(jm.v2_2$Rhat, max, na.rm = T) %>% unlist() %>% max(),
-                              lapply(jm.v2_3$Rhat, max, na.rm = T) %>% unlist() %>% max(),
-                              lapply(jm.v3_1$Rhat, max, na.rm = T) %>% unlist() %>% max(),
-                              lapply(jm.v3_2$Rhat, max, na.rm = T) %>% unlist() %>% max(),
-                              lapply(jm.v3_3$Rhat, max, na.rm = T) %>% unlist() %>% max())) %>%
+DIC.df <- data.frame(model = c("v1-1", "v1-2", "v1-3", "v1-4",
+                               "v2-1", "v2-2", "v2-3", "v2-4",
+                               "v3-1", "v3-2", "v3-3", "v3-4",
+                               "v4-1", "v4-2", "v4-3", "v4-4"),
+                     DIC = c(out.list$v1_1$DIC, out.list$v1_2$DIC, 
+                             out.list$v1_3$DIC, out.list$v1_4$DIC, 
+                             out.list$v2_1$DIC, out.list$v2_2$DIC, 
+                             out.list$v2_3$DIC, out.list$v2_4$DIC, 
+                             out.list$v3_1$DIC, out.list$v3_2$DIC, 
+                             out.list$v3_3$DIC, out.list$v3_4$DIC,
+                             out.list$v4_1$DIC, out.list$v4_2$DIC, 
+                             out.list$v4_3$DIC, out.list$v4_4$DIC),
+                     Rhat = c(lapply(out.list$v1_1$Rhat, max, na.rm = T) %>% unlist() %>% max(),
+                              lapply(out.list$v1_2$Rhat, max, na.rm = T) %>% unlist() %>% max(),
+                              lapply(out.list$v1_3$Rhat, max, na.rm = T) %>% unlist() %>% max(),
+                              lapply(out.list$v1_4$Rhat, max, na.rm = T) %>% unlist() %>% max(),
+                              lapply(out.list$v2_1$Rhat, max, na.rm = T) %>% unlist() %>% max(),
+                              lapply(out.list$v2_2$Rhat, max, na.rm = T) %>% unlist() %>% max(),
+                              lapply(out.list$v2_3$Rhat, max, na.rm = T) %>% unlist() %>% max(),
+                              lapply(out.list$v2_4$Rhat, max, na.rm = T) %>% unlist() %>% max(),
+                              lapply(out.list$v3_1$Rhat, max, na.rm = T) %>% unlist() %>% max(),
+                              lapply(out.list$v3_2$Rhat, max, na.rm = T) %>% unlist() %>% max(),
+                              lapply(out.list$v3_3$Rhat, max, na.rm = T) %>% unlist() %>% max(),
+                              lapply(out.list$v3_4$Rhat, max, na.rm = T) %>% unlist() %>% max(),
+                              lapply(out.list$v4_1$Rhat, max, na.rm = T) %>% unlist() %>% max(),
+                              lapply(out.list$v4_2$Rhat, max, na.rm = T) %>% unlist() %>% max(),
+                              lapply(out.list$v4_3$Rhat, max, na.rm = T) %>% unlist() %>% max(),
+                              lapply(out.list$v4_4$Rhat, max, na.rm = T) %>% unlist() %>% max())) %>%
   mutate(dDIC = DIC - min(DIC)) %>%
   arrange(dDIC)
 
 ```
 
-THey seemed to converge okay; all maximum Rhat values are < 1.02. v2-1 is the best model among these. So, let's use that for cross validation etc. Take a look at posterior trace plots.
+
+They seemed to converge okay; all maximum Rhat values are < 1.02. v4-1 is the best model among these. So, let's use that for cross validation etc. Take a look at posterior trace plots.
 
 
-```{r jags-results-v1-1, echo=FALSE, message=FALSE}
-jm <- jm.v2_1
-mcmc_trace(jm$samples, c("p[1,1]", "p[1,2]", "p[1,4]", 
-                         "p[2,1]", "p[2,2]", "p[2,4]",
-                         "p[3,1]", "p[3,2]", "p[3,3]", "p[3,4]",
-                         "p[4,1]", "p[4,2]", "p[4,3]", "p[4,4]", "p[4,5]"))
+```{r Table-model-summary, echo=FALSE, warning=FALSE}
+flextable(DIC.df) %>% 
+  #hline(i = (nrow(ratio.summary.table)-1)) %>%
+ set_caption(paste0("Model comparison.")) %>%
+  set_table_properties(width = 0.5, layout = "autofit") %>%
+  colformat_double(j = c("DIC", "Rhat", "dDIC"), digits = 2)
+
+```
+
+
+
+```{r jags-results-v4-1, echo=FALSE, message=FALSE}
+jm <- out.list$v4_1
+mcmc_trace(jm$samples, c("p[1,1,1]", "p[1,1,2]", "p[1,1,3]", 
+                         "p[1,1,4]", "p[1,1,5]", "p[1,1,6]",
+                         "p[1,1,7]", "p[2,1,1]", "p[2,1,2]"))
 
 
 ```
@@ -1080,19 +1223,23 @@ mcmc_trace(jm$samples, c("mu.S", "sigma.S"))
 The model is appeared to be working. Next is to do cross validation and estimate one m at a time. 
 
 ```{r X-validation-1, echo=FALSE, message=FALSE}
-model.ver <- "v2-1"
+model.ver <- "v4-1"
 model.file <- paste0("models/model_counts_estimation_", model.ver, ".txt")
 
 if (!file.exists(paste0("RData/cross-validation_out_", model.ver, ".rds"))){
+  start.time <- now()
   # Prepare the output dataframe
   counts.X.val <- counts.1st.2nd.jags.data %>%
     mutate(estim.X.val = NA,
            q2.5.X.val = NA,
+           q50.X.val = NA,
            q97.5.X.val = NA)
 
   # take one m out at a time and run jags on the modified dataset:
   k <- 1
   for (k in 1:nrow(counts.1st.2nd.jags.data)){
+    print(paste( k, " of ", nrow(counts.1st.2nd.jags.data)))
+    
     x.val.jags.data <- counts.1st.2nd.jags.data
     # Turn one to NA
     x.val.jags.data$counts_2[k] <- NA
@@ -1115,7 +1262,7 @@ if (!file.exists(paste0("RData/cross-validation_out_", model.ver, ".rds"))){
                       n.sectors = out.list$n.sectors,
                       num.sectors = max(out.list$n.sectors),
                       n.days = n.days,
-                      N.fem = years.df$n.females,
+                      N.fem = as.vector(scale(years.df$n.females)),
                       years = unique(counts.1st.2nd.jags.data$year_num))
     
     jags.params <- c("lambda", "p", "B.N.fem",
@@ -1137,19 +1284,24 @@ if (!file.exists(paste0("RData/cross-validation_out_", model.ver, ".rds"))){
     # values for those three
     mean.x <- jm$mean$m[Y,S,]
     q2.5.x <- jm$q2.5$m[Y,S,]
+    q50.x <- jm$q50$m[Y,S,]
     q97.5.x <- jm$q97.5$m[Y,S,]
     
     dif.x <- mean.x - q2.5.x
     
     counts.X.val$estim.X.val[k] <- mean.x[dif.x > 0] %>% na.omit()
     counts.X.val$q2.5.X.val[k] <- q2.5.x[dif.x > 0] %>% na.omit()
+    counts.X.val$q50.X.val[k] <- q50.x[dif.x > 0] %>% na.omit()
     counts.X.val$q97.5.X.val[k] <- q97.5.x[dif.x > 0] %>% na.omit()
     
   }
   
+  end.time <- now()
   cross.validation.out <- list(output = counts.X.val,
+                               input.jags.data = counts.1st.2nd.jags.data,
                                run.date = Sys.Date(),
-                               system = Sys.info())
+                               system = Sys.info(),
+                               run.time = end.time - start.time)
   saveRDS(cross.validation.out,
           file = paste0("RData/cross-validation_out_", model.ver, ".rds"))  
 } else {
@@ -1173,15 +1325,17 @@ ggplot(cross.validation.out$output) +
 
 ```
 
-Not very good... Why do they all have similar negative slopes? 
+Not very good... 
 
+Next, I try binomial likelihood instead of Poisson
 
 
 ```{r modeling-2, echo=FALSE, message=FALSE}
-model.file <- "models/model_counts_estimation_v2.txt"
+model.ver <- "v5-1"
+model.file <- paste0("models/model_counts_estimation_", model.ver, ".txt")
 
 jags.params <- c("lambda", "p", "B.N.fem",
-                 "B.day", "S",
+                 "B.day", "S", "theta", "N", "B0",
                  "mu.S", "sigma.S", "deviance")
 
 out.list <- create.n.m.D.length(n.years, n.sectors, n.days, counts.1st.2nd.jags.data)

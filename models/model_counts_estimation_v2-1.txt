@@ -44,7 +44,7 @@ model{
 
 	for (k in 1:n.years){
 		for (j in 1:n.sectors[k]){
-			p[k,sectors[k,j]] ~ dbeta(2, 2)
+			p[k,sectors[k,j]] ~ dunif(0, 2) #dbeta(2, 2)
 		}
 	}
 }
