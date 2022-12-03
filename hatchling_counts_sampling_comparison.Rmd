@@ -725,9 +725,31 @@ data.out %>%
   mutate(dif.1 = estim.1 - counts_m_2,
          dif.all = estim.all - counts_m_2,
          dif.others = estim.others - counts_m_2,
-         dif.other.yrs = estim.other.yrs - counts_m_2) -> data.out
+         dif.other.yrs = estim.other.yrs - counts_m_2,
+         year.seq = year - 2015 + 1,
+         year.seq.f = as.factor(year.seq)) -> data.out
 
 p.estimates.1 <- ggplot(data = data.out) +
+  geom_point(aes(x = counts_m_2, y = estim.1, color = sector)) +
+  geom_abline(slope = 1, intercept = 0)+
+  facet_wrap(~ year)
+
+p.estimates.all <- ggplot(data = data.out) +
+  geom_point(aes(x = counts_m_2, y = estim.all, color = sector)) +
+  geom_abline(slope = 1, intercept = 0)+
+  facet_wrap(~ year)
+
+p.estimates.other.years <- ggplot(data = data.out) +
+  geom_point(aes(x = counts_m_2, y = estim.other.yrs, color = sector)) +
+  geom_abline(slope = 1, intercept = 0)+
+  facet_wrap(~ year)
+
+p.estimates.others <- ggplot(data = data.out) +
+  geom_point(aes(x = counts_m_2, y = estim.others, color = sector)) +
+  geom_abline(slope = 1, intercept = 0)+
+  facet_wrap(~ year)
+
+p.difs.1 <- ggplot(data = data.out) +
   geom_jitter(aes(x = sector, 
                   y = dif.1), 
               color = "orange", size = 2,
@@ -743,11 +765,12 @@ p.estimates.1 <- ggplot(data = data.out) +
               width = 0.2, height = 0) +
   facet_wrap(~ year)
 
-save.fig.fcn(p.estimates.1, 
-             file.name = paste0("figures/ratio_estimates_", dpi.set, "dpi.png"), 
+save.fig.fcn(p.difs.1, 
+             file.name = paste0("figures/ratio_difs_", dpi.set, "dpi.png"), 
              replace = T, dpi = dpi.set)
 
-ratio.summary.table <- data.frame(Sets = c("One sector", "All sectors", "Other sectors", "Other years"),
+ratio.summary.table <- data.frame(Sets = c("One sector", "All sectors", 
+                                           "Other sectors", "Other years"),
                                   Mean = c(mean(data.out$dif.1, na.rm = T), mean(data.out$dif.all),
                                            mean(data.out$dif.others), mean(data.out$dif.other.yrs)),
                                   SD = c(sqrt(var(data.out$dif.1, na.rm = T)), sqrt(var(data.out$dif.all)),
@@ -756,6 +779,11 @@ ratio.summary.table <- data.frame(Sets = c("One sector", "All sectors", "Other s
                                            min(data.out$dif.others), min(data.out$dif.other.yrs)),
                                   max = c(max(data.out$dif.1, na.rm = T), max(data.out$dif.all),
                                            max(data.out$dif.others), max(data.out$dif.other.yrs)))
+
+```
+
+
+```{r Figure-X-validation, echo=FALSE, message=FALSE, fig.cap = "Observed and predicted numbers of hatchlings }
 
 ```
 
