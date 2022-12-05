@@ -733,24 +733,28 @@ p.estimates.1 <- ggplot(data = data.out) +
   geom_point(aes(x = counts_m_2, y = estim.1, color = sector)) +
   geom_abline(slope = 1, intercept = 0)+
   xlab("") + ylab("Calculated counts per m")+
+  theme(axis.title = element_text(size = 10)) +
   facet_wrap(~ year)
 
 p.estimates.all <- ggplot(data = data.out) +
   geom_point(aes(x = counts_m_2, y = estim.all, color = sector)) +
   geom_abline(slope = 1, intercept = 0)+
-  xlab("") + ylab("Calculated counts per m")+
+  xlab("") + ylab("")+
+  #theme(axis.title = element_text(size = 10)) +
   facet_wrap(~ year)
 
 p.estimates.other.years <- ggplot(data = data.out) +
   geom_point(aes(x = counts_m_2, y = estim.other.yrs, color = sector)) +
   geom_abline(slope = 1, intercept = 0)+
   xlab("Observed counts per m") + ylab("Calculated counts per m")+
+  theme(axis.title = element_text(size = 10)) +
   facet_wrap(~ year)
 
 p.estimates.others <- ggplot(data = data.out) +
   geom_point(aes(x = counts_m_2, y = estim.others, color = sector)) +
   geom_abline(slope = 1, intercept = 0)+
-  xlab("Observed counts per m") + ylab("Calculated counts per m")+
+  xlab("Observed counts per m") + ylab("")+
+  theme(axis.title = element_text(size = 10)) +
   facet_wrap(~ year)
 
 
