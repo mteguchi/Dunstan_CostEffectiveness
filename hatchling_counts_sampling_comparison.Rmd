@@ -732,22 +732,44 @@ data.out %>%
 p.estimates.1 <- ggplot(data = data.out) +
   geom_point(aes(x = counts_m_2, y = estim.1, color = sector)) +
   geom_abline(slope = 1, intercept = 0)+
+  xlab("") + ylab("Calculated counts per m")+
   facet_wrap(~ year)
 
 p.estimates.all <- ggplot(data = data.out) +
   geom_point(aes(x = counts_m_2, y = estim.all, color = sector)) +
   geom_abline(slope = 1, intercept = 0)+
+  xlab("") + ylab("Calculated counts per m")+
   facet_wrap(~ year)
 
 p.estimates.other.years <- ggplot(data = data.out) +
   geom_point(aes(x = counts_m_2, y = estim.other.yrs, color = sector)) +
   geom_abline(slope = 1, intercept = 0)+
+  xlab("Observed counts per m") + ylab("Calculated counts per m")+
   facet_wrap(~ year)
 
 p.estimates.others <- ggplot(data = data.out) +
   geom_point(aes(x = counts_m_2, y = estim.others, color = sector)) +
   geom_abline(slope = 1, intercept = 0)+
+  xlab("Observed counts per m") + ylab("Calculated counts per m")+
   facet_wrap(~ year)
+
+
+p.estimates <- plot_grid(p.estimates.1 + theme(legend.position = "none"), 
+                         p.estimates.all + theme(legend.position = "none"), 
+                         p.estimates.other.years + theme(legend.position = "none"), 
+                         p.estimates.others + theme(legend.position = "none"),
+                         labels = c("A", "B", "C", "D"),
+                         nrow = 2)
+
+legend <- get_legend(p.estimates.1 + guides(color = guide_legend(nrow = 1)) +
+                       theme(legend.position = "bottom"))
+
+p.estimates.grid <- plot_grid(p.estimates, legend, ncol = 1,
+                              rel_heights = c(1, 0.1))
+
+save.fig.fcn(p.estimates.grid, 
+             file.name = paste0("figures/ratio_counts_", dpi.set, "dpi.png"), 
+             replace = T, dpi = dpi.set)
 
 p.difs.1 <- ggplot(data = data.out) +
   geom_jitter(aes(x = sector, 
@@ -783,15 +805,16 @@ ratio.summary.table <- data.frame(Sets = c("One sector", "All sectors",
 ```
 
 
-```{r Figure-X-validation, echo=FALSE, message=FALSE, fig.cap = "Observed and predicted numbers of hatchlings }
+```{r Figure-X-validation, echo=FALSE, message=FALSE, fig.cap = "Observed and calculated numbers of hatchlings using the ratio between the first and total number of hatchlings. Calculations were conducted in a cross validation manner where each survey was withheld from computing the ratio to be used in calculating the second half of the evening. A: Using the same sector within the same year, B: Using all sectors within the same year, C: Using other sectors within the same year, and D: Using all sectors from other years." }
 
+knitr::include_graphics(paste0("figures/ratio_counts_", dpi.set, "dpi.png"))
 ```
 
 
 
 ```{r Figure-ratio, echo=FALSE, message=FALSE, fig.cap="The differences between the observed and calculated numbers of hatchlings using the ratio between the first and total number of hatchlings. Calculations were conducted in a cross validation manner where each survey was withheld from computing the ratio to be used in calculating the second half of the evening. Colors indicate different sets of data to cross validate: orange = using the same sector within the same year, purple = using all sectors within the same year, red = using other sectors witin the same year, and yellow = using all sectors from other years."}
 
-knitr::include_graphics(paste0("figures/ratio_estimates_", dpi.set, "dpi.png"))
+knitr::include_graphics(paste0("figures/ratio_difs_", dpi.set, "dpi.png"))
 
 ```
 
