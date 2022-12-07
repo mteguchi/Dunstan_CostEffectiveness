@@ -16,21 +16,28 @@
  
 
 model{
-	for (y in 1:n.years){
-		for (j in 1:n.sectors[y]){
-			for (k in 1:n.days[y,j]){
-				n[y,sectors[y,j], k] ~ dpois(lambda[y,sectors[y,j],k])
-				m[y,sectors[y,j], k] ~ dpois(lambda[y,sectors[y,j],k] * p[y, sectors[y,j],k])
-				
-				# + Y[years[y]] removed from below because it did not converge
-				lambda[y,sectors[y,j],k] <- length[y,sectors[y,j],k] * exp(S[sectors[y,j]] + B.N.fem * N.fem[y])
-								
-			}
-		}
+
+	for (k in 1:n.data){
+		n[k] ~ dpois(lambda[year[k], sector[k], seq_date[k]])
+		m[k] ~ dpois(lambda[year[k], sector[k], seq_date[k]] * p[year[k], sector[k], seq_date[k]])
 		
+		loglik.n[k] <- logdensity.pois(n[k], lambda[year[k], sector[k], seq_date[k]]) 
+		loglik.m[k] <- logdensity.pois(m[k], lambda[year[k], sector[k], seq_date[k]] * p[year[k], sector[k], seq_date[k]])  
+		
+		lambda[year[k], sector[k], seq_date[k]] <- length[k] * exp(S[sector[k]] + B.N.fem * N.fem[k])
+	
 	}
 	
-	for (k in 1:num.sectors){
+	for (y in 1:n.years){
+		for (j in 1:n.sectors){
+			for (i in 1:max.seq_date){
+				p[y, j, i] ~ dunif(0,2)
+			}
+			
+		}
+	}
+	
+	for (k in 1:n.sectors){
 		S[k] ~ dnorm(mu.S, tau.S)
 
 	}
@@ -43,13 +50,5 @@ model{
 	B.N.fem ~ dnorm(0, 0.01)
 	B.day ~ dnorm(0, 0.01)
 
-	for (k in 1:n.years){
-		for (j in 1:n.sectors[k]){
-			for (i in 1:n.days[k,j]){
-				p[k, sectors[k,j], i] ~ dunif(0, 2) #dbeta(2, 2)
-			}
-			
-		}
 
-	}
 }

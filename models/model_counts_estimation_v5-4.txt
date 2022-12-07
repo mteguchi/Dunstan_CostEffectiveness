@@ -10,8 +10,6 @@
 
 # Details can be found in hatchling_counts_sampling_comparison.Rmd
 
-# For v2, I changed p to be year and sector specific. 
-
 # 2022-11-29 Tomo Eguchi
  
 
@@ -19,20 +17,19 @@ model{
 
 	for (k in 1:n.data){
 		n[k] ~ dpois(lambda[year[k], sector[k], seq_date[k]])
-		m[k] ~ dpois(lambda[year[k], sector[k], seq_date[k]] * p[sector[k]])
+		m[k] ~ dpois(lambda[year[k], sector[k], seq_date[k]] * p)
 		
 		loglik.n[k] <- logdensity.pois(n[k], lambda[year[k], sector[k], seq_date[k]]) 
-		loglik.m[k] <- logdensity.pois(m[k], lambda[year[k], sector[k], seq_date[k]] * p[sector[k]])  
+		loglik.m[k] <- logdensity.pois(m[k], lambda[year[k], sector[k], seq_date[k]] * p)  
 		
 		lambda[year[k], sector[k], seq_date[k]] <- length[k] * exp(B.day * day[k] + B.N.fem * N.fem[k])
+		
+	}						
 	
-	}
+	p ~ dunif(0, 2) #dbeta(2,2)
 
+		
 	B.N.fem ~ dnorm(0, 0.01)
 	B.day ~ dnorm(0, 0.01)
-
-	for (k in 1:n.sectors){	
-		p[k] ~ dunif(0, 2) #dbeta(2, 2)
-	}
 
 }

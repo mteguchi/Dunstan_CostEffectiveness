@@ -23,6 +23,34 @@ library(readr)
 library(flextable)
 library(cowplot)
 library(lubridate)
+library(loo)
+
+# functions:
+compute.LOOIC <- function(loglik.mat, data.vector, MCMC.params){
+  n.per.chain <- (MCMC.params$n.samples - MCMC.params$n.burnin)/MCMC.params$n.thin
+  
+  #loglik.vec <- as.vector(loglik)
+  
+  # each column corresponds to a data point and rows are MCMC samples
+  #loglik.mat <- matrix(loglik.vec, nrow = n.per.chain * MCMC.params$n.chains)
+  # take out the columns that correspond to missing data points
+  loglik.mat <- loglik.mat[, !is.na(data.vector)]
+  
+  Reff <- relative_eff(exp(loglik.mat),
+                       chain_id = rep(1:MCMC.params$n.chains,
+                                      each = n.per.chain),
+                       cores = 4)
+  
+  loo.out <- rstanarm::loo(loglik.mat, 
+                           r_eff = Reff, 
+                           cores = 4, k_threshold = 0.7)
+  
+  out.list <- list(Reff = Reff,
+                   loo.out = loo.out)
+  
+  return(out.list)  
+}
+
 
 set_flextable_defaults(font.size = 9,
                        font.family = "Cambria")
@@ -110,7 +138,7 @@ data.0 %>%
 # Ballpark figures of nesting female abundance - extracted from Figure 2 of Raine Island Recovery Project 2021-22 Technical report.pdf. - To be updated with more precise numbers. 
 
 n.females.df <- data.frame(year = c(2015:2022),
-                           n.females = c(15000, 5000, 12000, 20000, 1000, 38000, 1000, 12000))
+                           n.females = scale(c(15000, 5000, 12000, 20000, 1000, 38000, 1000, 12000)))
 
 # combine the # females into the data
 data.1 %>% left_join(n.females.df, by = "year") %>%
@@ -838,23 +866,33 @@ flextable(ratio.summary.table) %>%
 
 ### Statistical modeling of hatchling counts {-}
 
-In this section, I use a statistical model to estimate the number of hatchlings during the second half of the night from the first half. I treated the observed number of hatchlings from 1800 to 2400 (n) in the j-th sector of the k-th sampling day during the y-th year as a Poisson random deviate:
+In this section, I use a statistical model to estimate the number of hatchlings during the second half of the night from the first half. I treated the observed number of hatchlings from 1800 to 2400 (n) in the j-th sector of the k-th sampling day during the y-th year as a Poisson random deviate. Sampling distance (L) jwas changed from 100 m to 50 m. Consequently, the sampling length needs to be accounted for in the model. When taking the natural log of the counts per distance, 
+
+$ ln(n/L) = ln(n) - ln(L) $.
+
+We assume that we can model the relationship $ln(n/L)$ with a function, say $f(...)$, where $\dots$ indicate one or more parameters. 
+
+$$
+\begin{aligned}
+ln(n) - ln(L) &= f(...) \\
+ ln(n) &= f(...) + ln(L) \\
+ n &= L \exp(f(...)) 
+\end{aligned} 
+$$
 
 $ n_{j, k, y} \sim POI(\lambda_{j, k, y})$. 
 
 The number of hatchlings from 2400 to 0600 (m) is also a Poisson random deviate and its mean is a function of $\lambda_{j,k,y}$ and the proportion of the number of hatchlings from 1800 to 2400 to that from 1800 to 2400 ($p{y}$). I removed the sector- and sampling-day specific subscripts for the proportion because the proportion among sectors within a year was not as variable as among years (Figure \@ref(fig:Figure-ratio-years)):
 
-$ m_{j,k,y} \sim POI(\lambda_{j,k,y} p_{y}) $.
+$ m_{j,k,y} \sim POI(\lambda_{j,k,y} \times p_{j,k,y}) $.
 
-The mean ($\lambda_{j, k, y}$) is a function of covariates (year (Y) and the number of females ($N_{female}$), whereas the sampling day ($D_{j,k,y}$) is a random-effect variable):
+The mean ($\lambda_{j, k, y}$) is a function of covariates, including year (Y) and the number of females ($N_{female}$), the day of sampling (# days since Jan 1; $D_{j,k,y}$), and sector ($S_{j,y}$):
 
 $\lambda_{j,k,y} = L_{j,k,y} \times exp(B0 + \beta_1 Y + \beta_2 N_{y} + \beta_3 D_{j,k,y}) $,
 
-where $L_{j,k,y}$ is the trench length of the survey,d $D_{j,k,y} $ is days since December 20th, and $N_y$ is the estimated number of females for the year. 
-
 Using these likelihood functions, I estimated the missing values of $m_{j,k,y}$ in a Bayesian approach. I used the following prior distributions.
 
-$ \lambda_{j,k,y} \sim GAM(0.1, 0.5)$
+$ \lambda_{j,k,y} \sim GAM(0.1, 0.01)$
 
 $ p_y \sim BETA(2, 1)$
 
@@ -867,53 +905,19 @@ To test the modeling approach, I first used only data with 12-hr sampling and co
 library("jagsUI")
 library("bayesplot")
 
-create.n.m.D.length <- function(n.years, n.sectors, n.days, counts.1st.2nd.jags.data){
-  n <- m <- D <- length <- array(dim = c(n.years, max(n.sectors), max(n.days, na.rm = T)))
-  n.sectors <- vector(mode = "numeric", 
-                      length = length(unique(counts.1st.2nd.jags.data$year_num)))
-  
-  k1 <- k2 <- k3 <- 1
-  for (k1 in 1:n.years){
-    counts.1st.2nd.jags.data %>%
-      filter(year_num == k1) -> tmp.k1
-    n.sectors[k1] <- length(unique(tmp.k1$sector_num))
-    sectors.k1 <- unique(tmp.k1$sector_num)
-    for (k2 in 1:n.sectors[k1]){
-      tmp.k1 %>% 
-        filter(sector_num == sectors.k1[k2]) -> tmp
-      for (k3 in 1:n.days[k1, k2]){
-        n[k1, sectors.k1[k2], k3] <- tmp$counts_1[k3]
-        m[k1, sectors.k1[k2], k3] <- tmp$counts_2[k3]
-        D[k1, sectors.k1[k2], k3] <- tmp$n.days[k3]
-        length[k1, sectors.k1[k2], k3] <- tmp$length[k3]
-      }
-      
-    }
-  }
-  
-  return(list(n = n,
-              m = m,
-              D = D,
-              length = length,
-              n.sectors = n.sectors))
-}
-
-# v1 has year specific proportion p. v2 has year and sector specific p
-# Convergence didn't reach for v1. So, I'm just using v2
-#model.file <- "models/model_counts_estimation_v1.txt"
 MCMC.params <- list(n.chains = 5,
                     n.samples = 100000,
                     n.burnin = 80000,
                     n.thin = 5)
 
 
-# Calculate number of days since December 20 of each year
-counts.1st.2nd %>% 
-  mutate(n.days = 11 + as.numeric(ymd(date) - ymd(paste0(year, "-01-01")))) -> counts.1st.2nd
+# Calculate number of days since Jan 1 of each year
+ counts.1st.2nd %>% 
+   mutate(n.days = 11 + as.numeric(ymd(date) - ymd(paste0(year, "-01-01")))) -> counts.1st.2nd
   
 # 
-# date_num_df <- data.frame(date_num = unique(counts.1st.2nd$date_num),
-#                           date_seq = 1:length(unique(counts.1st.2nd$date_num)))
+date_num_df <- data.frame(date_num = unique(counts.1st.2nd$date_num),
+                           date_seq = 1:length(unique(counts.1st.2nd$date_num)))
 
 # numeric sectors
 sector_num_df <- data.frame(sector = unique(counts.1st.2nd$sector),
@@ -923,271 +927,95 @@ years.df <- data.frame(year = unique(counts.1st.2nd$year)) %>%
     left_join(n.females.df, by = "year") 
 
 counts.1st.2nd %>%
-  #left_join(date_num_df, by = "date_num") %>%
+  left_join(date_num_df, by = "date_num") %>%
   left_join(sector_num_df, by = "sector") %>%
   select(-c(date, date_num)) %>%
-  mutate(year_num = year - min(data.1$year) + 1) -> counts.1st.2nd.jags.data
-
-n.years <- length(unique(counts.1st.2nd.jags.data$year_num))
-n.sectors <- vector(mode = "numeric", 
-                    length = length(unique(counts.1st.2nd.jags.data$year_num)))
-sectors <- n.days <- array(dim = c(n.years, length(unique(counts.1st.2nd.jags.data$sector_num))))
-
-k1 <- k2 <- 1
-for (k1 in 1:n.years){
-  counts.1st.2nd.jags.data %>%
-    filter(year_num == k1) -> tmp.k1
-  n.sectors[k1] <- length(unique(tmp.k1$sector_num))
-  sectors.k1 <- unique(tmp.k1$sector_num)
-  for (k2 in 1:n.sectors[k1]){
-    tmp.k1 %>% 
-      filter(sector_num == sectors.k1[k2]) -> tmp
-    n.days[k1, k2] <- nrow(tmp)
-    sectors[k1, k2] <- tmp$sector_num[1]
-  }
-}
- 
-out.list <- create.n.m.D.length(n.years, n.sectors, n.days, counts.1st.2nd.jags.data)
+  mutate(year_num = year - min(data.1$year) + 1) %>%
+  group_by(year_num, sector_num) %>%
+  mutate(seq_date = row_number()) %>%
+  left_join(years.df, by = "year") -> counts.1st.2nd.jags.data
 
 jags.params <- c("lambda", "p", 
                  "S", "mu.S", "sigma.S",
-                 "B.N.fem", "B.day",
-                  "deviance")
+                 "B.N.fem", "B.day", "sigma.n",
+                 "deviance", "loglik.n", "loglik.m")
 
-jags.data <- list(n = out.list$n,
-                  m = out.list$m,
-                  length = out.list$length,
-                  D = out.list$D,
-                  sectors = sectors,
+# for Poisson likelihood
+# jags.data <- list(n = counts.1st.2nd.jags.data$counts_1,
+#                   m = counts.1st.2nd.jags.data$counts_2,
+#                   length = counts.1st.2nd.jags.data$length,
+#                   day = counts.1st.2nd.jags.data$n.days,
+#                   sector = counts.1st.2nd.jags.data$sector_num,
+#                   n.years = length(unique(counts.1st.2nd.jags.data$year_num)),
+#                   n.sectors = length(unique(counts.1st.2nd.jags.data$sector_num)),
+#                   N.fem = counts.1st.2nd.jags.data$n.females,
+#                   year = counts.1st.2nd.jags.data$year_num,
+#                   seq_date = counts.1st.2nd.jags.data$seq_date,
+#                   max.seq_date = max(counts.1st.2nd.jags.data$seq_date, na.rm = T),
+#                   n.data = nrow(counts.1st.2nd.jags.data))
+
+# for log normal likelihood
+jags.data <- list(n = log(counts.1st.2nd.jags.data$counts_1 + 1),
+                  m = log(counts.1st.2nd.jags.data$counts_2 + 1),
+                  length = counts.1st.2nd.jags.data$length,
+                  day = counts.1st.2nd.jags.data$n.days,
+                  sector = counts.1st.2nd.jags.data$sector_num,
                   n.years = length(unique(counts.1st.2nd.jags.data$year_num)),
-                  n.sectors = out.list$n.sectors,
-                  num.sectors = max(out.list$n.sectors),
-                  n.days = n.days,
-                  N.fem = as.vector(scale(years.df$n.females)),
-                  years = unique(counts.1st.2nd.jags.data$year_num))
+                  n.sectors = length(unique(counts.1st.2nd.jags.data$sector_num)),
+                  N.fem = counts.1st.2nd.jags.data$n.females,
+                  year = counts.1st.2nd.jags.data$year_num,
+                  seq_date = counts.1st.2nd.jags.data$seq_date,
+                  max.seq_date = max(counts.1st.2nd.jags.data$seq_date, na.rm = T),
+                  n.data = nrow(counts.1st.2nd.jags.data))
 
 # vk-1 is with # days since Jan 1, # females, and Sector random effects
 # vk-2 is without # days but with # females, and sector random effects
 # vk-3 is no # days and no # females and just sector random effects
-# vk-4 has no sector random effects. Just # females and # days.
+# vk-4 has no sector effects. Just # females and # days.
 
 # v1 has year specific proportions (p[year])
+#out.file.name <- "RData/jags_out_hatchling_counts.rds"
+out.file.name <- "RData/jags_out_hatchling_log_counts.rds"
+model.base.name <- "models/model_log_counts_estimation_"
 
-if (!file.exists("RData/jags_out_hatchling_counts.rds")){
+if (!file.exists(out.file.name)){
+  model.names <- c("v1-1", "v1-2", "v1-3", "v1-4",
+                   "v2-1", "v2-2", "v2-3", "v2-4",
+                   "v3-1", "v3-2", "v3-3", "v3-4",
+                   "v4-1", "v4-2", "v4-3", "v4-4",
+                   "v5-1", "v5-2", "v5-3", "v5-4")
+  jags.out <- LOOIC.out.n <- LOOIC.out.m <- list()
   start.time <- now()
-  model.ver <- "v1-1"
-  model.file <- paste0("models/model_counts_estimation_", model.ver, ".txt")
-  jm.v1_1 <- jags(jags.data,
-                  inits = NULL,
-                  parameters.to.save= jags.params,
-                  model.file = model.file,
-                  n.chains = MCMC.params$n.chains,
-                  n.burnin = MCMC.params$n.burnin,
-                  n.thin = MCMC.params$n.thin,
-                  n.iter = MCMC.params$n.samples,
-                  DIC = T, parallel=T)
   
-  model.ver <- "v1-2" 
-  model.file <- paste0("models/model_counts_estimation_", model.ver, ".txt")
-  jm.v1_2 <- jags(jags.data,
-                  inits = NULL,
-                  parameters.to.save= jags.params,
-                  model.file = model.file,
-                  n.chains = MCMC.params$n.chains,
-                  n.burnin = MCMC.params$n.burnin,
-                  n.thin = MCMC.params$n.thin,
-                  n.iter = MCMC.params$n.samples,
-                  DIC = T, parallel=T)
-  
-  model.ver <- "v1-3"
-  model.file <- paste0("models/model_counts_estimation_", model.ver, ".txt")
-  jm.v1_3 <- jags(jags.data,
-                  inits = NULL,
-                  parameters.to.save= jags.params,
-                  model.file = model.file,
-                  n.chains = MCMC.params$n.chains,
-                  n.burnin = MCMC.params$n.burnin,
-                  n.thin = MCMC.params$n.thin,
-                  n.iter = MCMC.params$n.samples,
-                  DIC = T, parallel=T)
-  
-  model.ver <- "v1-4"
-  model.file <- paste0("models/model_counts_estimation_", model.ver, ".txt")
-  jm.v1_4 <- jags(jags.data,
-                  inits = NULL,
-                  parameters.to.save= jags.params,
-                  model.file = model.file,
-                  n.chains = MCMC.params$n.chains,
-                  n.burnin = MCMC.params$n.burnin,
-                  n.thin = MCMC.params$n.thin,
-                  n.iter = MCMC.params$n.samples,
-                  DIC = T, parallel=T)
-
-  # v2 has sector and year specific proportions (p[year, sector])
-  model.ver <- "v2-1"
-  model.file <- paste0("models/model_counts_estimation_", model.ver, ".txt")
-  jm.v2_1 <- jags(jags.data,
-                  inits = NULL,
-                  parameters.to.save= jags.params,
-                  model.file = model.file,
-                  n.chains = MCMC.params$n.chains,
-                  n.burnin = MCMC.params$n.burnin,
-                  n.thin = MCMC.params$n.thin,
-                  n.iter = MCMC.params$n.samples,
-                  DIC = T, parallel=T)
-  
-  model.ver <- "v2-2" 
-  model.file <- paste0("models/model_counts_estimation_", model.ver, ".txt")
-  jm.v2_2 <- jags(jags.data,
-                  inits = NULL,
-                  parameters.to.save= jags.params,
-                  model.file = model.file,
-                  n.chains = MCMC.params$n.chains,
-                  n.burnin = MCMC.params$n.burnin,
-                  n.thin = MCMC.params$n.thin,
-                  n.iter = MCMC.params$n.samples,
-                  DIC = T, parallel=T)
-  
-  model.ver <- "v2-3"
-  model.file <- paste0("models/model_counts_estimation_", model.ver, ".txt")
-  jm.v2_3 <- jags(jags.data,
-                  inits = NULL,
-                  parameters.to.save= jags.params,
-                  model.file = model.file,
-                  n.chains = MCMC.params$n.chains,
-                  n.burnin = MCMC.params$n.burnin,
-                  n.thin = MCMC.params$n.thin,
-                  n.iter = MCMC.params$n.samples,
-                  DIC = T, parallel=T)
-  
-  model.ver <- "v2-4"
-  model.file <- paste0("models/model_counts_estimation_", model.ver, ".txt")
-  jm.v2_4 <- jags(jags.data,
-                  inits = NULL,
-                  parameters.to.save= jags.params,
-                  model.file = model.file,
-                  n.chains = MCMC.params$n.chains,
-                  n.burnin = MCMC.params$n.burnin,
-                  n.thin = MCMC.params$n.thin,
-                  n.iter = MCMC.params$n.samples,
-                  DIC = T, parallel=T)
-
-  # v3 has sector specific proportions (p[sector])
-  model.ver <- "v3-1"
-  model.file <- paste0("models/model_counts_estimation_", model.ver, ".txt")
-  jm.v3_1 <- jags(jags.data,
-                  inits = NULL,
-                  parameters.to.save= jags.params,
-                  model.file = model.file,
-                  n.chains = MCMC.params$n.chains,
-                  n.burnin = MCMC.params$n.burnin,
-                  n.thin = MCMC.params$n.thin,
-                  n.iter = MCMC.params$n.samples,
-                  DIC = T, parallel=T)
-  
-  model.ver <- "v3-2" 
-  model.file <- paste0("models/model_counts_estimation_", model.ver, ".txt")
-  jm.v3_2 <- jags(jags.data,
-                  inits = NULL,
-                  parameters.to.save= jags.params,
-                  model.file = model.file,
-                  n.chains = MCMC.params$n.chains,
-                  n.burnin = MCMC.params$n.burnin,
-                  n.thin = MCMC.params$n.thin,
-                  n.iter = MCMC.params$n.samples,
-                  DIC = T, parallel=T)
-  
-  model.ver <- "v3-3"
-  model.file <- paste0("models/model_counts_estimation_", model.ver, ".txt")
-  jm.v3_3 <- jags(jags.data,
-                  inits = NULL,
-                  parameters.to.save= jags.params,
-                  model.file = model.file,
-                  n.chains = MCMC.params$n.chains,
-                  n.burnin = MCMC.params$n.burnin,
-                  n.thin = MCMC.params$n.thin,
-                  n.iter = MCMC.params$n.samples,
-                  DIC = T, parallel=T)
-  
-  model.ver <- "v3-4"
-  model.file <- paste0("models/model_counts_estimation_", model.ver, ".txt")
-  jm.v3_4 <- jags(jags.data,
-                  inits = NULL,
-                  parameters.to.save= jags.params,
-                  model.file = model.file,
-                  n.chains = MCMC.params$n.chains,
-                  n.burnin = MCMC.params$n.burnin,
-                  n.thin = MCMC.params$n.thin,
-                  n.iter = MCMC.params$n.samples,
-                  DIC = T, parallel=T)
-  
-  # v4 has sector-year-day specific proportions (p[year, sector, day])
-  model.ver <- "v4-1"
-  model.file <- paste0("models/model_counts_estimation_", model.ver, ".txt")
-  jm.v4_1 <- jags(jags.data,
-                  inits = NULL,
-                  parameters.to.save= jags.params,
-                  model.file = model.file,
-                  n.chains = MCMC.params$n.chains,
-                  n.burnin = MCMC.params$n.burnin,
-                  n.thin = MCMC.params$n.thin,
-                  n.iter = MCMC.params$n.samples,
-                  DIC = T, parallel=T)
-  
-  model.ver <- "v4-2" 
-  model.file <- paste0("models/model_counts_estimation_", model.ver, ".txt")
-  jm.v4_2 <- jags(jags.data,
-                  inits = NULL,
-                  parameters.to.save= jags.params,
-                  model.file = model.file,
-                  n.chains = MCMC.params$n.chains,
-                  n.burnin = MCMC.params$n.burnin,
-                  n.thin = MCMC.params$n.thin,
-                  n.iter = MCMC.params$n.samples,
-                  DIC = T, parallel=T)
-  
-  model.ver <- "v4-3"
-  model.file <- paste0("models/model_counts_estimation_", model.ver, ".txt")
-  jm.v4_3 <- jags(jags.data,
-                  inits = NULL,
-                  parameters.to.save= jags.params,
-                  model.file = model.file,
-                  n.chains = MCMC.params$n.chains,
-                  n.burnin = MCMC.params$n.burnin,
-                  n.thin = MCMC.params$n.thin,
-                  n.iter = MCMC.params$n.samples,
-                  DIC = T, parallel=T)
-
-  model.ver <- "v4-4"
-  model.file <- paste0("models/model_counts_estimation_", model.ver, ".txt")
-  jm.v4_4 <- jags(jags.data,
-                  inits = NULL,
-                  parameters.to.save= jags.params,
-                  model.file = model.file,
-                  n.chains = MCMC.params$n.chains,
-                  n.burnin = MCMC.params$n.burnin,
-                  n.thin = MCMC.params$n.thin,
-                  n.iter = MCMC.params$n.samples,
-                  DIC = T, parallel=T)
+  k <- 1
+  for (k in 18:length(model.names)){
+    #model.file <- paste0("models/model_counts_estimation_", model.names[k], ".txt")
+    model.file <- paste0(model.base.name, model.names[k], ".txt")
+    jags.out[[k]] <- jags(jags.data,
+                          inits = NULL,
+                          parameters.to.save= jags.params,
+                          model.file = model.file,
+                          n.chains = MCMC.params$n.chains,
+                          n.burnin = MCMC.params$n.burnin,
+                          n.thin = MCMC.params$n.thin,
+                          n.iter = MCMC.params$n.samples,
+                          DIC = T, parallel=T)
+    
+    LOOIC.out.n[[k]] <- compute.LOOIC(loglik.mat = jags.out[[k]]$sims.list$loglik.n,
+                                      data.vector = jags.data$n,
+                                      MCMC.params = MCMC.params)
+    
+    LOOIC.out.m[[k]] <- compute.LOOIC(loglik.mat = jags.out[[k]]$sims.list$loglik.m,
+                                      data.vector = jags.data$n,
+                                      MCMC.params = MCMC.params)
+  }
 
   end.time <- now()
   
-  out.list <- list(v1_1 = jm.v1_1,
-                   v1_2 = jm.v1_2,
-                   v1_3 = jm.v1_3,
-                   v1_4 = jm.v1_4,
-                   v2_1 = jm.v2_1,
-                   v2_2 = jm.v2_2,
-                   v2_3 = jm.v2_3,
-                   v2_4 = jm.v2_4,
-                   v3_1 = jm.v3_1,
-                   v3_2 = jm.v3_2,
-                   v3_3 = jm.v3_3,
-                   v3_4 = jm.v3_4,
-                   v4_1 = jm.v4_1,
-                   v4_2 = jm.v4_2,
-                   v4_3 = jm.v4_3,
-                   v4_4 = jm.v4_4,
+  out.list <- list(model.names = model.names,
+                   jm.out = jags.out,
+                   LOOIC.out.m = LOOIC.out.m,
+                   LOOIC.out.n = LOOIC.out.n,
                    jags.data = jags.data,
                    jags.params = jags.params,
                    MCMC.params = MCMC.params,
@@ -1195,41 +1023,31 @@ if (!file.exists("RData/jags_out_hatchling_counts.rds")){
                    system = Sys.info(),
                    run.time = end.time - start.time)
   
-  saveRDS(out.list, file = "RData/jags_out_hatchling_counts.rds")
+  saveRDS(out.list, file = out.file.name)
 } else {
-  out.list <- readRDS("RData/jags_out_hatchling_counts.rds")
+  #out.list <- readRDS("RData/jags_out_hatchling_counts.rds")
+  out.list <- readRDS(out.file.name)
 }
 
-DIC.df <- data.frame(model = c("v1-1", "v1-2", "v1-3", "v1-4",
-                               "v2-1", "v2-2", "v2-3", "v2-4",
-                               "v3-1", "v3-2", "v3-3", "v3-4",
-                               "v4-1", "v4-2", "v4-3", "v4-4"),
-                     DIC = c(out.list$v1_1$DIC, out.list$v1_2$DIC, 
-                             out.list$v1_3$DIC, out.list$v1_4$DIC, 
-                             out.list$v2_1$DIC, out.list$v2_2$DIC, 
-                             out.list$v2_3$DIC, out.list$v2_4$DIC, 
-                             out.list$v3_1$DIC, out.list$v3_2$DIC, 
-                             out.list$v3_3$DIC, out.list$v3_4$DIC,
-                             out.list$v4_1$DIC, out.list$v4_2$DIC, 
-                             out.list$v4_3$DIC, out.list$v4_4$DIC),
-                     Rhat = c(lapply(out.list$v1_1$Rhat, max, na.rm = T) %>% unlist() %>% max(),
-                              lapply(out.list$v1_2$Rhat, max, na.rm = T) %>% unlist() %>% max(),
-                              lapply(out.list$v1_3$Rhat, max, na.rm = T) %>% unlist() %>% max(),
-                              lapply(out.list$v1_4$Rhat, max, na.rm = T) %>% unlist() %>% max(),
-                              lapply(out.list$v2_1$Rhat, max, na.rm = T) %>% unlist() %>% max(),
-                              lapply(out.list$v2_2$Rhat, max, na.rm = T) %>% unlist() %>% max(),
-                              lapply(out.list$v2_3$Rhat, max, na.rm = T) %>% unlist() %>% max(),
-                              lapply(out.list$v2_4$Rhat, max, na.rm = T) %>% unlist() %>% max(),
-                              lapply(out.list$v3_1$Rhat, max, na.rm = T) %>% unlist() %>% max(),
-                              lapply(out.list$v3_2$Rhat, max, na.rm = T) %>% unlist() %>% max(),
-                              lapply(out.list$v3_3$Rhat, max, na.rm = T) %>% unlist() %>% max(),
-                              lapply(out.list$v3_4$Rhat, max, na.rm = T) %>% unlist() %>% max(),
-                              lapply(out.list$v4_1$Rhat, max, na.rm = T) %>% unlist() %>% max(),
-                              lapply(out.list$v4_2$Rhat, max, na.rm = T) %>% unlist() %>% max(),
-                              lapply(out.list$v4_3$Rhat, max, na.rm = T) %>% unlist() %>% max(),
-                              lapply(out.list$v4_4$Rhat, max, na.rm = T) %>% unlist() %>% max())) %>%
+LOOIC.df <- data.frame(model = out.list$model.names,
+                     DIC = lapply(out.list$jm.out, 
+                                  FUN = function(x) x$DIC) %>% unlist(),
+                     Rhat = lapply(out.list$jm.out, 
+                                   FUN = function(x) x$Rhat %>% unlist() %>% 
+                                     max(na.rm = T)) %>% unlist(),
+                     LOOIC.m = lapply(out.list$LOOIC.out.m, 
+                                      FUN = function(x) x$loo.out$estimates["looic", "Estimate"]) %>% 
+                       unlist(),
+                     max.pareto.m = lapply(out.list$LOOIC.out.m, 
+                                           FUN = function(x) x$loo.out$diagnostics$pareto_k %>% max()) %>%
+                       unlist(),
+                     LOOIC.n = lapply(out.list$LOOIC.out.n, 
+                                      FUN = function(x) x$loo.out$estimates["looic", "Estimate"]) %>% unlist(),
+                                          max.pareto.n = lapply(out.list$LOOIC.out.n, 
+                                           FUN = function(x) x$loo.out$diagnostics$pareto_k %>% max()) %>%
+                       unlist()) %>%
   mutate(dDIC = DIC - min(DIC)) %>%
-  arrange(dDIC)
+  arrange(LOOIC.n)
 
 ```
 
@@ -1238,23 +1056,23 @@ They seemed to converge okay; all maximum Rhat values are < 1.02. v4-1 is the be
 
 
 ```{r Table-model-summary, echo=FALSE, warning=FALSE}
-flextable(DIC.df) %>% 
+flextable(LOOIC.df) %>% 
   #hline(i = (nrow(ratio.summary.table)-1)) %>%
  set_caption(paste0("Model comparison.")) %>%
   set_table_properties(width = 0.5, layout = "autofit") %>%
-  colformat_double(j = c("DIC", "Rhat", "dDIC"), digits = 2)
+  colformat_double(j = c("DIC", "Rhat", "LOOIC.m", "max.pareto.m", "LOOIC.n", "max.pareto.n", "dDIC"), digits = 2)
 
 ```
 
 
 
 ```{r jags-results-v4-1, echo=FALSE, message=FALSE}
-jm <- out.list$v4_1
-mcmc_trace(jm$samples, c("p[1,1,1]", "p[1,1,2]", "p[1,1,3]", 
-                         "p[1,1,4]", "p[1,1,5]", "p[1,1,6]",
-                         "p[1,1,7]", "p[2,1,1]", "p[2,1,2]"))
+jm <- out.list$jm.out[[which(out.list$model.names == "v5-1")]]
+# mcmc_trace(jm$samples, c("p[1,1,1]", "p[1,1,2]", "p[1,1,3]", 
+#                          "p[1,1,4]", "p[1,1,5]", "p[1,1,6]",
+#                          "p[1,1,7]", "p[2,1,1]", "p[2,1,2]"))
 
-
+mcmc_trace(jm$samples, "p")
 ```
 
 
@@ -1278,10 +1096,13 @@ mcmc_trace(jm$samples, c("mu.S", "sigma.S"))
 The model is appeared to be working. Next is to do cross validation and estimate one m at a time. 
 
 ```{r X-validation-1, echo=FALSE, message=FALSE}
-model.ver <- "v4-1"
-model.file <- paste0("models/model_counts_estimation_", model.ver, ".txt")
+model.ver <- "v5-1"
+model.file <- paste0(model.base.name, model.ver, ".txt")
 
-if (!file.exists(paste0("RData/cross-validation_out_", model.ver, ".rds"))){
+#cross.validation.out.file.name <- paste0("RData/cross-validation_out_", model.ver, ".rds")
+cross.validation.out.file.name <- paste0("RData/cross-validation_out_log_counts_", model.ver, ".rds")
+
+if (!file.exists(cross.validation.out.file.name)){
   start.time <- now()
   # Prepare the output dataframe
   counts.X.val <- counts.1st.2nd.jags.data %>%
@@ -1303,27 +1124,39 @@ if (!file.exists(paste0("RData/cross-validation_out_", model.ver, ".rds"))){
     # Sector index
     S <- x.val.jags.data$sector_num[k]
     
-    out.list <- create.n.m.D.length(n.years, 
-                                    n.sectors, 
-                                    n.days, 
-                                    x.val.jags.data)
-    
-    jags.data <- list(n = out.list$n,
-                      m = out.list$m,
-                      length = out.list$length,
-                      D = out.list$D,
-                      sectors = sectors,
-                      n.years = length(unique(counts.1st.2nd.jags.data$year_num)),
-                      n.sectors = out.list$n.sectors,
-                      num.sectors = max(out.list$n.sectors),
-                      n.days = n.days,
-                      N.fem = as.vector(scale(years.df$n.females)),
-                      years = unique(counts.1st.2nd.jags.data$year_num))
+    # Poisson data
+    # jags.data <- list(n = x.val.jags.data$counts_1,
+    #               m = x.val.jags.data$counts_2,
+    #               length = x.val.jags.data$length,
+    #               day = x.val.jags.data$n.days,
+    #               sector = x.val.jags.data$sector_num,
+    #               n.years = length(unique(x.val.jags.data$year_num)),
+    #               n.sectors = length(unique(x.val.jags.data$sector_num)),
+    #               N.fem = x.val.jags.data$n.females,
+    #               year = x.val.jags.data$year_num,
+    #               seq_date = x.val.jags.data$seq_date,
+    #               max.seq_date = max(x.val.jags.data$seq_date, na.rm = T),
+    #               n.data = nrow(x.val.jags.data))
+
+    # log Normal data
+    jags.data <- list(n = log(x.val.jags.data$counts_1+1),
+                      m = log(x.val.jags.data$counts_2+1),
+                      length = x.val.jags.data$length,
+                      day = x.val.jags.data$n.days,
+                      sector = x.val.jags.data$sector_num,
+                      n.years = length(unique(x.val.jags.data$year_num)),
+                      n.sectors = length(unique(x.val.jags.data$sector_num)),
+                      N.fem = x.val.jags.data$n.females,
+                      year = x.val.jags.data$year_num,
+                      seq_date = x.val.jags.data$seq_date,
+                      max.seq_date = max(x.val.jags.data$seq_date, na.rm = T),
+                      n.data = nrow(x.val.jags.data))
     
     jags.params <- c("lambda", "p", "B.N.fem",
                      "B.day", "S",
                      "mu.S", "sigma.S", 
-                     "m", "deviance")
+                     "m", "deviance",
+                     "loglik.m", "loglik.n")
     
     jm <- jags(jags.data,
                inits = NULL,
@@ -1335,19 +1168,11 @@ if (!file.exists(paste0("RData/cross-validation_out_", model.ver, ".rds"))){
                n.iter = MCMC.params$n.samples,
                DIC = T, parallel=T)
     
-    # find all m in mean, q2.5 and q97.5. Then pull out the one that has different
-    # values for those three
-    mean.x <- jm$mean$m[Y,S,]
-    q2.5.x <- jm$q2.5$m[Y,S,]
-    q50.x <- jm$q50$m[Y,S,]
-    q97.5.x <- jm$q97.5$m[Y,S,]
-    
-    dif.x <- mean.x - q2.5.x
-    
-    counts.X.val$estim.X.val[k] <- mean.x[dif.x > 0] %>% na.omit()
-    counts.X.val$q2.5.X.val[k] <- q2.5.x[dif.x > 0] %>% na.omit()
-    counts.X.val$q50.X.val[k] <- q50.x[dif.x > 0] %>% na.omit()
-    counts.X.val$q97.5.X.val[k] <- q97.5.x[dif.x > 0] %>% na.omit()
+    # find all m in mean, q2.5 and q97.5. 
+    counts.X.val$estim.X.val[k] <- exp(jm$mean$m[k])
+    counts.X.val$q2.5.X.val[k] <- exp(jm$q2.5$m[k])
+    counts.X.val$q50.X.val[k] <- exp(jm$q50$m[k])
+    counts.X.val$q97.5.X.val[k] <- exp(jm$q97.5$m[k])
     
   }
   
@@ -1358,10 +1183,10 @@ if (!file.exists(paste0("RData/cross-validation_out_", model.ver, ".rds"))){
                                system = Sys.info(),
                                run.time = end.time - start.time)
   saveRDS(cross.validation.out,
-          file = paste0("RData/cross-validation_out_", model.ver, ".rds"))  
+          file = cross.validation.out.file.name)  
 } else {
   
-  cross.validation.out <- readRDS(file = paste0("RData/cross-validation_out_", model.ver, ".rds"))
+  cross.validation.out <- readRDS(file = cross.validation.out.file.name)
 }
 
 ggplot(cross.validation.out$output) +
