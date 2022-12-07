@@ -1,0 +1,46 @@
+# JAGS model for estimating hatchling counts at Raine Island
+
+# Model to estimate hatchling counts from 2400 to 0600 using covariates.
+# This is part of exercise to determine if the 6-hr sampling is sufficient
+# to determine the hatchling production at Raine Island. Hatchling 
+# counts were conducted for 12 hrs in the past but due to the logistical
+# challenges, they reduced the sampling to 6 hrs in the recent years.
+# I estimate the second half of observed hatchling counts from the first 
+# half and older data, i.e., 12-hr sampling.
+
+# Details can be found in hatchling_counts_sampling_comparison.Rmd
+
+# For v2, I changed p to be year and sector specific. 
+
+# 2022-11-29 Tomo Eguchi
+ 
+
+model{
+	for (k in 1:n.data){
+		n[k] ~ dnorm(lambda[year[k], sector[k], seq_date[k]], tau.n)
+		m[k] ~ dnorm(lambda[year[k], sector[k], seq_date[k]] * p[year[k], sector[k], seq_date[k]], tau.n)
+		
+		loglik.n[k] <- logdensity.norm(n[k], lambda[year[k], sector[k], seq_date[k]], tau.n) 
+		loglik.m[k] <- logdensity.norm(m[k], lambda[year[k], sector[k], seq_date[k]] * p[year[k], sector[k], seq_date[k]], tau.n)  
+		
+		lambda[year[k], sector[k], seq_date[k]] <- length[k] * exp(B.day * day[k] + B.N.fem * N.fem[k])
+	
+	}
+	
+	for (y in 1:n.years){
+		for (j in 1:n.sectors){
+			for (i in 1:max.seq_date){
+				p[y, j, i] ~ dunif(0,2)
+			}
+			
+		}
+	}
+
+	B.N.fem ~ dnorm(0, 0.01)
+	B.day ~ dnorm(0, 0.01)
+
+	tau.n <- 1/var.n
+	var.n ~ dgamma(1, 0.1)
+	sigma.n <- sqrt(var.n)
+	
+}
