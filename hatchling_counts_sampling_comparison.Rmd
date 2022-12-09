@@ -52,6 +52,13 @@ compute.LOOIC <- function(loglik.mat, data.vector, MCMC.params){
 }
 
 
+# a function to extract posterior samples from jags output
+extract.samples <- function(varname, zm){
+  dev <- unlist(lapply(zm, FUN = function(x) x[, varname]))
+  return(dev)
+}
+
+
 set_flextable_defaults(font.size = 9,
                        font.family = "Cambria")
 
@@ -1067,11 +1074,17 @@ flextable(LOOIC.df) %>%
 
 
 ```{r jags-results-v4-1, echo=FALSE, message=FALSE}
-jm <- out.list$jm.out[[which(out.list$model.names == "v1-2")]]
+jm <- out.list$jm.out[[which(out.list$model.names == "v5-1")]]
 
+# for v5-1
+mcmc_trace(jm$samples, c("p"))
+
+# for v3-2
+# mcmc_trace(jm$samples, c("p[1]", "p[2]", "p[3]",
+#                          "p[4]", "p[5]"))
 # for v1-2
-mcmc_trace(jm$samples, c("p[1]", "p[2]", "p[3]",
-                         "p[4]"))
+# mcmc_trace(jm$samples, c("p[1]", "p[2]", "p[3]",
+#                          "p[4]"))
 
 # for v4-1
 # mcmc_trace(jm$samples, c("p[1,1,1]", "p[1,1,2]", "p[1,1,3]",
@@ -1109,7 +1122,7 @@ mcmc_trace(jm$samples, c("sigma.n", "B.N.fem"))
 The model is appeared to be working. Next is to do cross validation and estimate one m at a time. 
 
 ```{r X-validation-1, echo=FALSE, message=FALSE}
-model.ver <- "v1-2"
+model.ver <- "v5-1"
 model.file <- paste0(model.base.name, model.ver, ".txt")
 
 #cross.validation.out.file.name <- paste0("RData/cross-validation_out_", model.ver, ".rds")
@@ -1175,6 +1188,7 @@ if (!file.exists(cross.validation.out.file.name)){
                      "B.day", "S",
                      "mu.S", "sigma.S", 
                      "m", "deviance",
+                     "sigma.n",
                      "loglik.m", "loglik.n")
     
     jm <- jags(jags.data,
@@ -1187,6 +1201,19 @@ if (!file.exists(cross.validation.out.file.name)){
                n.iter = MCMC.params$n.samples,
                DIC = T, parallel=T)
     
+    # calculate m[k] using the posterior samples - this is not quite working... 2022-12-08
+    lambda.samples <- extract.samples(paste0("lambda[", jags.data$year[k], ",",
+                                             jags.data$sector[k], ",",
+                                             jags.data$seq_date[k], "]"),
+                                      jm$samples)
+    
+    sigma.n.samples <- extract.samples("sigma.n", jm$samples)
+    
+    if (model.ver == "v5-1"){
+      m.k <- rnorm(mean = lambda.samples, sd = sigma.n.samples, n = 1)
+      
+    }
+    
     # find all m in mean, q2.5 and q97.5. 
     counts.X.val$estim.m[k] <- exp(jm$mean$m[k]) - 1
     counts.X.val$q2.5.m[k] <- exp(jm$q2.5$m[k]) - 1
@@ -1194,10 +1221,10 @@ if (!file.exists(cross.validation.out.file.name)){
     counts.X.val$q97.5.m[k] <- exp(jm$q97.5$m[k]) - 1
     
     # find appropriate p in mean, q2.5 and q97.5. 
-    counts.X.val$estim.lambda[k] <- exp(jm$mean$lambda[Y,S,D]) - 1
-    counts.X.val$q2.5.lambda[k] <- exp(jm$q2.5$lambda[Y,S,D]) - 1
-    counts.X.val$q50.lambda[k] <- exp(jm$q50$lambda[Y,S,D]) - 1
-    counts.X.val$q97.5.lambda[k] <- exp(jm$q97.5$lambda[Y,S,D]) - 1
+    counts.X.val$estim.lambda[k] <- jm$mean$lambda[Y,S,D]
+    counts.X.val$q2.5.lambda[k] <- jm$q2.5$lambda[Y,S,D]
+    counts.X.val$q50.lambda[k] <- jm$q50$lambda[Y,S,D]
+    counts.X.val$q97.5.lambda[k] <- jm$q97.5$lambda[Y,S,D]
     
   }
   
