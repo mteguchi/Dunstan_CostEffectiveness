@@ -887,11 +887,15 @@ ln(n) - ln(L) &= f(...) \\
 \end{aligned} 
 $$
 
-$ n_{j, k, y} \sim POI(\lambda_{j, k, y})$. 
+First, I considered the Poisson distribution as the likelihood function for the observed counts ($n$ and $m$). However, it did not fit well according to the Pareto k statistics, which measure how well a statistical model fit to the observed data in the Bayesian context (ref here). Consequently, I altered the likelihood function to the normal distribution and transformed the observed counts in the natural log scale. In order to deal with zero counts, I added one to each count.
 
-The number of hatchlings from 2400 to 0600 (m) is also a Poisson random deviate and its mean is a function of $\lambda_{j,k,y}$ and the proportion of the number of hatchlings from 1800 to 2400 to that from 1800 to 2400 ($p{y}$). I removed the sector- and sampling-day specific subscripts for the proportion because the proportion among sectors within a year was not as variable as among years (Figure \@ref(fig:Figure-ratio-years)):
+$ ln(n_{j, k, y} + 1) \sim N(\lambda_{j, k, y}, \sigma_n)$,
 
-$ m_{j,k,y} \sim POI(\lambda_{j,k,y} \times p_{j,k,y}) $.
+where $\sigma_n$ is the standard deviation. 
+
+The number of hatchlings from 2400 to 0600 (m) (plus one) in the natural log space is also a normal random deviate and its mean is a function of $\lambda_{j,k,y}$ and the proportion of the number of hatchlings from 1800 to 2400 to that from 1800 to 2400 ($p_{j,k,y}$). I tested various assumptions of this proportion by considering how $p$ was shared among years, sectors, and sampling days. In other words, the sector-, year- and sampling-day specific subscripts were removed in some models:
+
+$ ln(m_{j,k,y} +1) \sim N(\lambda_{j,k,y} \times p_{j,k,y}, \sigma_m) $.
 
 The mean ($\lambda_{j, k, y}$) is a function of covariates, including year (Y) and the number of females ($N_{female}$), the day of sampling (# days since Jan 1; $D_{j,k,y}$), and sector ($S_{j,y}$):
 
@@ -944,7 +948,8 @@ counts.1st.2nd %>%
 
 jags.params <- c("lambda", "p", 
                  "S", "mu.S", "sigma.S",
-                 "B.N.fem", "B.day", "sigma.n",
+                 "B.N.fem", "B.day", 
+                 "sigma.n", "sigma.m",
                  "deviance", "loglik.n", "loglik.m")
 
 # for Poisson likelihood
@@ -973,7 +978,9 @@ jags.data <- list(n = log(counts.1st.2nd.jags.data$counts_1 + 1),
                   year = counts.1st.2nd.jags.data$year_num,
                   seq_date = counts.1st.2nd.jags.data$seq_date,
                   max.seq_date = max(counts.1st.2nd.jags.data$seq_date, na.rm = T),
-                  n.data = nrow(counts.1st.2nd.jags.data))
+                  n.data = nrow(counts.1st.2nd.jags.data),
+                  gamma.alpha = 1,
+                  gamma.beta = 0.1)
 
 # vk-1 is with # days since Jan 1, # females, and Sector random effects
 # vk-2 is without # days but with # females, and sector random effects
@@ -995,7 +1002,7 @@ if (!file.exists(out.file.name)){
   start.time <- now()
   
   k <- 1
-  for (k in 18:length(model.names)){
+  for (k in 1:length(model.names)){
     #model.file <- paste0("models/model_counts_estimation_", model.names[k], ".txt")
     model.file <- paste0(model.base.name, model.names[k], ".txt")
     jags.out[[k]] <- jags(jags.data,
@@ -1073,29 +1080,32 @@ flextable(LOOIC.df) %>%
 
 
 
-```{r jags-results-v4-1, echo=FALSE, message=FALSE}
-jm <- out.list$jm.out[[which(out.list$model.names == "v5-1")]]
+```{r p-trace-plots, echo=FALSE, message=FALSE}
+model.ver <- "v5-2"
+jm <- out.list$jm.out[[which(out.list$model.names == model.ver)]]
 
-# for v5-1
-mcmc_trace(jm$samples, c("p"))
-
-# for v3-2
-# mcmc_trace(jm$samples, c("p[1]", "p[2]", "p[3]",
-#                          "p[4]", "p[5]"))
-# for v1-2
-# mcmc_trace(jm$samples, c("p[1]", "p[2]", "p[3]",
-#                          "p[4]"))
-
-# for v4-1
-# mcmc_trace(jm$samples, c("p[1,1,1]", "p[1,1,2]", "p[1,1,3]",
-#                          "p[1,1,4]", "p[1,1,5]", "p[1,1,6]",
-#                          "p[1,1,7]", "p[2,1,1]", "p[2,1,2]"))
-
-#mcmc_trace(jm$samples, "p")  # for v5-1
+if (grep("v5", model.ver) == 1){
+  # for v5-1
+  mcmc_trace(jm$samples, c("p"))
+  
+} else if (grep("v3", model.ver) == 1){
+  #for v3-2
+  mcmc_trace(jm$samples, c("p[1]", "p[2]", "p[3]",
+                           "p[4]", "p[5]"))
+} else if (grep("v1", model.ver) == 1){
+  # for v1-2
+  mcmc_trace(jm$samples, c("p[1]", "p[2]", "p[3]",
+                           "p[4]"))
+} else if (grep("v4", model.ver) == 1){
+  # for v4-1
+  mcmc_trace(jm$samples, c("p[1,1,1]", "p[1,1,2]", "p[1,1,3]",
+                           "p[1,1,4]", "p[1,1,5]", "p[1,1,6]",
+                           "p[1,1,7]", "p[2,1,1]", "p[2,1,2]"))
+}
 ```
 
 
-```{r jags-results-v1-2, echo=FALSE, message=FALSE}
+```{r S-trace-plots, echo=FALSE, message=FALSE}
 
 mcmc_trace(jm$samples, c("S[1]", "S[2]", "S[3]", "S[4]", "S[5]"))
 
@@ -1103,7 +1113,7 @@ mcmc_trace(jm$samples, c("S[1]", "S[2]", "S[3]", "S[4]", "S[5]"))
 ```
 
 
-```{r jags-results-v1-4, echo=FALSE, message=FALSE}
+```{r muS-sS-trace-plots, echo=FALSE, message=FALSE}
 
 mcmc_trace(jm$samples, c("mu.S", "sigma.S"))
 
@@ -1111,9 +1121,9 @@ mcmc_trace(jm$samples, c("mu.S", "sigma.S"))
 ```
 
 
-```{r jags-results-v1-5, echo=FALSE, message=FALSE}
+```{r sigma.n-B.N.fem-trace-plots, echo=FALSE, message=FALSE}
 
-mcmc_trace(jm$samples, c("sigma.n", "B.N.fem"))
+mcmc_trace(jm$samples, c("sigma.n", "sigma.m", "B.N.fem"))
 
 
 ```
@@ -1122,7 +1132,6 @@ mcmc_trace(jm$samples, c("sigma.n", "B.N.fem"))
 The model is appeared to be working. Next is to do cross validation and estimate one m at a time. 
 
 ```{r X-validation-1, echo=FALSE, message=FALSE}
-model.ver <- "v5-1"
 model.file <- paste0(model.base.name, model.ver, ".txt")
 
 #cross.validation.out.file.name <- paste0("RData/cross-validation_out_", model.ver, ".rds")
@@ -1171,24 +1180,13 @@ if (!file.exists(cross.validation.out.file.name)){
     #               n.data = nrow(x.val.jags.data))
 
     # log Normal data
-    jags.data <- list(n = log(x.val.jags.data$counts_1+1),
-                      m = log(x.val.jags.data$counts_2+1),
-                      length = x.val.jags.data$length,
-                      day = x.val.jags.data$n.days,
-                      sector = x.val.jags.data$sector_num,
-                      n.years = length(unique(x.val.jags.data$year_num)),
-                      n.sectors = length(unique(x.val.jags.data$sector_num)),
-                      N.fem = x.val.jags.data$n.females,
-                      year = x.val.jags.data$year_num,
-                      seq_date = x.val.jags.data$seq_date,
-                      max.seq_date = max(x.val.jags.data$seq_date, na.rm = T),
-                      n.data = nrow(x.val.jags.data))
-    
+    jags.data$m <- log(x.val.jags.data$counts_2+1)
+
     jags.params <- c("lambda", "p", "B.N.fem",
                      "B.day", "S",
                      "mu.S", "sigma.S", 
                      "m", "deviance",
-                     "sigma.n",
+                     "sigma.n", "sigma.m",
                      "loglik.m", "loglik.n")
     
     jm <- jags(jags.data,

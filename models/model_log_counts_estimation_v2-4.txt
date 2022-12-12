@@ -19,10 +19,10 @@ model{
 
 	for (k in 1:n.data){
 		n[k] ~ dnorm(lambda[year[k], sector[k], seq_date[k]], tau.n)
-		m[k] ~ dnorm(lambda[year[k], sector[k], seq_date[k]] * p[year[k], sector[k]], tau.n)
+		m[k] ~ dnorm(lambda[year[k], sector[k], seq_date[k]] * p[year[k], sector[k]], tau.m)
 		
 		loglik.n[k] <- logdensity.norm(n[k], lambda[year[k], sector[k], seq_date[k]], tau.n) 
-		loglik.m[k] <- logdensity.norm(m[k], lambda[year[k], sector[k], seq_date[k]] * p[year[k], sector[k]], tau.n)  
+		loglik.m[k] <- logdensity.norm(m[k], lambda[year[k], sector[k], seq_date[k]] * p[year[k], sector[k]], tau.m)  
 		
 		lambda[year[k], sector[k], seq_date[k]] <- length[k] * exp(B.day * day[k] + B.N.fem * N.fem[k])
 	
@@ -39,7 +39,11 @@ model{
 	}
 	
 	tau.n <- 1/var.n
-	var.n ~ dgamma(1, 0.1)
+	var.n ~ dgamma(gamma.alpha, gamma.beta)
 	sigma.n <- sqrt(var.n)
+	
+	tau.m <- 1/var.m
+	var.m ~ dgamma(gamma.alpha, gamma.beta)
+	sigma.m <- sqrt(var.m)
 	
 }
