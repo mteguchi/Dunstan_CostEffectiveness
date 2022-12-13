@@ -30,7 +30,7 @@ model{
 
 	for (k in 1:n.sectors){
 		S[k] ~ dnorm(mu.S, tau.S)
-		p[k] ~ dunif(0, max.p) #dbeta(2, 2)
+		p[k] ~ dunif(min.p, max.p) #dbeta(2, 2)
 	}
 	
 	mu.S ~ dnorm(0, 0.01)

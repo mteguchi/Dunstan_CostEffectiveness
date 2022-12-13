@@ -28,7 +28,7 @@ model{
 	
 	}
 	
-	p ~ dunif(0,max.p)
+	p ~ dunif(min.p,max.p)
 	
 	for (k in 1:n.sectors){
 		S[k] ~ dnorm(mu.S, tau.S)

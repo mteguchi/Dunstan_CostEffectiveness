@@ -31,7 +31,7 @@ model{
 	for (y in 1:n.years){
 		for (j in 1:n.sectors){
 			for (i in 1:max.seq_date){
-				p[y, j, i] ~ dunif(0,max.p)
+				p[y, j, i] ~ dunif(min.p,max.p)
 			}
 			
 		}

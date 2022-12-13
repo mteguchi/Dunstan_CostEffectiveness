@@ -26,7 +26,7 @@ model{
 		
 	}						
 	
-	p ~ dunif(0, max.p) #dbeta(2,2)
+	p ~ dunif(min.p, max.p) #dbeta(2,2)
 
 		
 	B.N.fem ~ dnorm(0, 0.01)

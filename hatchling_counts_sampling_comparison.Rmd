@@ -981,7 +981,8 @@ jags.data <- list(n = log(counts.1st.2nd.jags.data$counts_1 + 1),
                   n.data = nrow(counts.1st.2nd.jags.data),
                   gamma.alpha = 1,
                   gamma.beta = 0.1,
-                  max.p = 3)
+                  max.p = 10,
+                  min.p = -10)
 
 # vk-1 is with # days since Jan 1, # females, and Sector random effects
 # vk-2 is without # days but with # females, and sector random effects
@@ -994,11 +995,12 @@ out.file.name <- "RData/jags_out_hatchling_log_counts.rds"
 model.base.name <- "models/model_log_counts_estimation_"
 
 if (!file.exists(out.file.name)){
-  model.names <- c("v1-1", "v1-2", "v1-3", "v1-4",
-                   "v2-1", "v2-2", "v2-3", "v2-4",
-                   "v3-1", "v3-2", "v3-3", "v3-4",
-                   "v4-1", "v4-2", "v4-3", "v4-4",
-                   "v5-1", "v5-2", "v5-3", "v5-4")
+  model.names <- c("v1-1", "v1-2", "v1-3", "v1-4", "v1-5",
+                   "v2-1", "v2-2", "v2-3", "v2-4", "v2-5",
+                   "v3-1", "v3-2", "v3-3", "v3-4", "v3-5",
+                   "v4-1", "v4-2", "v4-3", "v4-4", "v4-5",
+                   "v5-1", "v5-2", "v5-3", "v5-4", "v5-5")
+  
   jags.out <- LOOIC.out.n <- LOOIC.out.m <- list()
   start.time <- now()
   
