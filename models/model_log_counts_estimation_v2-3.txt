@@ -19,7 +19,7 @@ model{
 
 	for (k in 1:n.data){
 		n[k] ~ dnorm(lambda[year[k], sector[k], seq_date[k]], tau.n)
-		m[k] ~ dnorm(lambda[year[k], sector[k], seq_date[k]] * p[year[k], sector[k]], tau.m)
+		m[k] ~ dnorm(lambda[year[k], sector[k], seq_date[k]] + p[year[k], sector[k]], tau.m)
 		
 		loglik.n[k] <- logdensity.norm(n[k], lambda[year[k], sector[k], seq_date[k]], tau.n) 
 		loglik.m[k] <- logdensity.norm(m[k], lambda[year[k], sector[k], seq_date[k]] + p[year[k], sector[k]], tau.m)  
@@ -42,7 +42,7 @@ model{
 
 	for (k in 1:n.years){
 		for (j in 1:n.sectors){
-			p[k, j] ~ dunif(0, 2) #dbeta(2, 2)
+			p[k, j] ~ dunif(0, max.p) #dbeta(2, 2)
 		}
 
 	}

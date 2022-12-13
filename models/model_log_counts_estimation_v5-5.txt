@@ -10,8 +10,6 @@
 
 # Details can be found in hatchling_counts_sampling_comparison.Rmd
 
-# For v2, I changed p to be year and sector specific. 
-
 # 2022-11-29 Tomo Eguchi
  
 
@@ -19,30 +17,21 @@ model{
 
 	for (k in 1:n.data){
 		n[k] ~ dnorm(lambda[year[k], sector[k], seq_date[k]], tau.n)
-		m[k] ~ dnorm(lambda[year[k], sector[k], seq_date[k]] + p[sector[k]], tau.m)
+		m[k] ~ dnorm(lambda[year[k], sector[k], seq_date[k]] + p, tau.m)
 		
 		loglik.n[k] <- logdensity.norm(n[k], lambda[year[k], sector[k], seq_date[k]], tau.n) 
-		loglik.m[k] <- logdensity.norm(m[k], lambda[year[k], sector[k], seq_date[k]] + p[sector[k]], tau.m)  
+		loglik.m[k] <- logdensity.norm(m[k], lambda[year[k], sector[k], seq_date[k]] + p, tau.m)  
 		
-		lambda[year[k], sector[k], seq_date[k]] <- length[k] * exp(S[sector[k]] + B.day * day[k] + B.N.fem * N.fem[k])
+		lambda[year[k], sector[k], seq_date[k]] <- length[k] * exp(B0 + B.day * day[k] + B.N.fem * N.fem[k])
+		
+	}						
 	
-	}
+	p ~ dunif(0, max.p) #dbeta(2,2)
 
-
-
-	for (k in 1:n.sectors){
-		S[k] ~ dnorm(mu.S, tau.S)
-		p[k] ~ dunif(0, max.p) #dbeta(2, 2)
-	}
-	
-	mu.S ~ dnorm(0, 0.01)
-	tau.S <- 1/var.S
-	var.S ~ dgamma(gamma.alpha, gamma.beta)
-	sigma.S <- sqrt(var.S)
-	
+		
 	B.N.fem ~ dnorm(0, 0.01)
 	B.day ~ dnorm(0, 0.01)
-	
+
 	tau.n <- 1/var.n
 	var.n ~ dgamma(gamma.alpha, gamma.beta)
 	sigma.n <- sqrt(var.n)
@@ -51,5 +40,4 @@ model{
 	var.m ~ dgamma(gamma.alpha, gamma.beta)
 	sigma.m <- sqrt(var.m)
 	
-
 }

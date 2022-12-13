@@ -980,7 +980,8 @@ jags.data <- list(n = log(counts.1st.2nd.jags.data$counts_1 + 1),
                   max.seq_date = max(counts.1st.2nd.jags.data$seq_date, na.rm = T),
                   n.data = nrow(counts.1st.2nd.jags.data),
                   gamma.alpha = 1,
-                  gamma.beta = 0.1)
+                  gamma.beta = 0.1,
+                  max.p = 3)
 
 # vk-1 is with # days since Jan 1, # females, and Sector random effects
 # vk-2 is without # days but with # females, and sector random effects
@@ -1003,7 +1004,7 @@ if (!file.exists(out.file.name)){
   
   k <- 1
   for (k in 1:length(model.names)){
-    print(paste( k, " of ", length(model.names)))
+    print(paste("Model ", k, " of ", length(model.names)))
     #model.file <- paste0("models/model_counts_estimation_", model.names[k], ".txt")
     model.file <- paste0(model.base.name, model.names[k], ".txt")
     jags.out[[k]] <- jags(jags.data,
@@ -1072,12 +1073,8 @@ LOOIC.df <- data.frame(model = out.list$model.names,
 ```
 
 
-The following statement was when I used lambda x p as the mean, which I think is incorrect.
-Almost all models converged fine according to Rhat values (Table \@ref(tab:Table-model-summary)). According to DIC values, the best model was `r LOOIC.df %>% filter(dDIC == 0) %>% select(model) %>% pull()`. The Rhat value for the model, however, was greater than ideal (`r LOOIC.df %>% filter(dDIC == 0) %>% select(Rhat) %>% pull()`). The second best model according to DIC values was `r LOOIC.df %>% filter(dDIC == sort(dDIC)[2]) %>% select(model) %>% pull()`, which was the best model according to LOOIC values for m. I use the model for cross validation below. This model treats the proportion ($p$) to be year-specific and common among sectors. The mean number of hatchlings before the midnight is a function of sector, the number of days since January 1st, and the number of estimated females for the year. 
 
-
-The following statement is when I used lambda + p as the mean, which I think is correct.
-Almost all models converged fine according to Rhat values (Table \@ref(tab:Table-model-summary)). According to DIC values, the best model was `r LOOIC.df %>% filter(dDIC == 0) %>% select(model) %>% pull()`. The model, however, was not considered "good" according to LOOIC values and its maximum Pareto stastistic was greater than 0.7, indicating ill fit to the data. The best model according to LOOIC values for $m$ was `r LOOIC.df %>% filter(dLOOIC.m == 0) %>% select(model) %>% pull()`. 
+Almost all models converged fine according to Rhat values (Table \@ref(tab:Table-model-summary)). According to DIC values, the best model was `r LOOIC.df %>% filter(dDIC == 0) %>% select(model) %>% pull()`, which also was the best model according to LOOIC values for m. Pareto k statistics indicated that the model fit well to the data. This model treats the proportion ($p$) to be year-specific and common among sectors. The mean number of hatchlings before the midnight is a function of sector, the number of days since January 1st, and the number of estimated females for the year. 
 
 
 ```{r Table-model-summary, echo=FALSE, warning=FALSE}
@@ -1093,7 +1090,7 @@ flextable(LOOIC.df) %>%
 
 
 ```{r p-trace-plots, echo=FALSE, message=FALSE}
-model.ver <- "v3-3"
+model.ver <- "v1-1"
 jm <- out.list$jm.out[[which(out.list$model.names == model.ver)]]
 
 switch(str_split(model.ver, "-", simplify = TRUE)[1],
@@ -1167,6 +1164,13 @@ if (!file.exists(cross.validation.out.file.name)){
            q50.lambda = NA,
            q97.5.lambda = NA)
 
+  jags.params <- c("lambda", "p", "B.N.fem",
+                   "B.day", "S",
+                   "mu.S", "sigma.S", 
+                   "m", "deviance",
+                   "sigma.n", "sigma.m",
+                   "loglik.m", "loglik.n")
+  
   # take one m out at a time and run jags on the modified dataset:
   k <- 1
   for (k in 1:nrow(counts.1st.2nd.jags.data)){
@@ -1183,29 +1187,11 @@ if (!file.exists(cross.validation.out.file.name)){
     D <- x.val.jags.data$seq_date[k]
     
     # Poisson data
-    # jags.data <- list(n = x.val.jags.data$counts_1,
-    #               m = x.val.jags.data$counts_2,
-    #               length = x.val.jags.data$length,
-    #               day = x.val.jags.data$n.days,
-    #               sector = x.val.jags.data$sector_num,
-    #               n.years = length(unique(x.val.jags.data$year_num)),
-    #               n.sectors = length(unique(x.val.jags.data$sector_num)),
-    #               N.fem = x.val.jags.data$n.females,
-    #               year = x.val.jags.data$year_num,
-    #               seq_date = x.val.jags.data$seq_date,
-    #               max.seq_date = max(x.val.jags.data$seq_date, na.rm = T),
-    #               n.data = nrow(x.val.jags.data))
+    # jags.data$m <- x.val.jags.data$counts_2
 
     # log Normal data
-    jags.data$m <- log(x.val.jags.data$counts_2+1)
+    jags.data$m <- log(x.val.jags.data$counts_2 + 1)
 
-    jags.params <- c("lambda", "p", "B.N.fem",
-                     "B.day", "S",
-                     "mu.S", "sigma.S", 
-                     "m", "deviance",
-                     "sigma.n", "sigma.m",
-                     "loglik.m", "loglik.n")
-    
     jm <- jags(jags.data,
                inits = NULL,
                parameters.to.save= jags.params,
@@ -1217,17 +1203,17 @@ if (!file.exists(cross.validation.out.file.name)){
                DIC = T, parallel=T)
     
     # calculate m[k] using the posterior samples - this is not quite working... 2022-12-08
-    lambda.samples <- extract.samples(paste0("lambda[", jags.data$year[k], ",",
-                                             jags.data$sector[k], ",",
-                                             jags.data$seq_date[k], "]"),
-                                      jm$samples)
-    
-    sigma.n.samples <- extract.samples("sigma.n", jm$samples)
-    
-    if (model.ver == "v5-1"){
-      m.k <- rnorm(mean = lambda.samples, sd = sigma.n.samples, n = 1)
-      
-    }
+    # lambda.samples <- extract.samples(paste0("lambda[", jags.data$year[k], ",",
+    #                                          jags.data$sector[k], ",",
+    #                                          jags.data$seq_date[k], "]"),
+    #                                   jm$samples)
+    # 
+    # sigma.n.samples <- extract.samples("sigma.n", jm$samples)
+    # 
+    # if (model.ver == "v5-1"){
+    #   m.k <- rnorm(mean = lambda.samples, sd = sigma.n.samples, n = 1)
+    #   
+    # }
     
     # find all m in mean, q2.5 and q97.5. 
     counts.X.val$estim.m[k] <- exp(jm$mean$m[k]) - 1
