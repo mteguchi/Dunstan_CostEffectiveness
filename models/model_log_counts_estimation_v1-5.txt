@@ -41,5 +41,5 @@ model{
 	
 	B.N.fem ~ dnorm(0, 0.01)
 	B.day ~ dnorm(0, 0.01)
-
+	B0 ~ dnorm(0, 0.01)
 }

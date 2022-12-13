@@ -948,7 +948,7 @@ counts.1st.2nd %>%
 
 jags.params <- c("lambda", "p", 
                  "S", "mu.S", "sigma.S",
-                 "B.N.fem", "B.day", 
+                 "B.N.fem", "B.day", "B0",
                  "sigma.n", "sigma.m",
                  "deviance", "loglik.n", "loglik.m")
 
