@@ -1003,6 +1003,7 @@ if (!file.exists(out.file.name)){
   
   k <- 1
   for (k in 1:length(model.names)){
+    print(paste( k, " of ", length(model.names)))
     #model.file <- paste0("models/model_counts_estimation_", model.names[k], ".txt")
     model.file <- paste0(model.base.name, model.names[k], ".txt")
     jags.out[[k]] <- jags(jags.data,
@@ -1060,13 +1061,23 @@ LOOIC.df <- data.frame(model = out.list$model.names,
                                           max.pareto.n = lapply(out.list$LOOIC.out.n, 
                                            FUN = function(x) x$loo.out$diagnostics$pareto_k %>% max()) %>%
                        unlist()) %>%
-  mutate(dDIC = DIC - min(DIC)) %>%
-  arrange(LOOIC.n)
+  mutate(dDIC = DIC - min(DIC),
+         dLOOIC.m = LOOIC.m - min(LOOIC.m),
+         dLOOIC.n = LOOIC.n - min(LOOIC.n)) %>%
+  select(-c("DIC", "LOOIC.m", "LOOIC.n")) %>%
+  arrange(dLOOIC.m) %>% 
+  select(model, Rhat, dDIC, dLOOIC.m, dLOOIC.n, max.pareto.m, max.pareto.n)
+  
 
 ```
 
 
-They seemed to converge okay; all maximum Rhat values are < 1.02. v4-1 is the best model among these. So, let's use that for cross validation etc. Take a look at posterior trace plots.
+The following statement was when I used lambda x p as the mean, which I think is incorrect.
+Almost all models converged fine according to Rhat values (Table \@ref(tab:Table-model-summary)). According to DIC values, the best model was `r LOOIC.df %>% filter(dDIC == 0) %>% select(model) %>% pull()`. The Rhat value for the model, however, was greater than ideal (`r LOOIC.df %>% filter(dDIC == 0) %>% select(Rhat) %>% pull()`). The second best model according to DIC values was `r LOOIC.df %>% filter(dDIC == sort(dDIC)[2]) %>% select(model) %>% pull()`, which was the best model according to LOOIC values for m. I use the model for cross validation below. This model treats the proportion ($p$) to be year-specific and common among sectors. The mean number of hatchlings before the midnight is a function of sector, the number of days since January 1st, and the number of estimated females for the year. 
+
+
+The following statement is when I used lambda + p as the mean, which I think is correct.
+Almost all models converged fine according to Rhat values (Table \@ref(tab:Table-model-summary)). According to DIC values, the best model was `r LOOIC.df %>% filter(dDIC == 0) %>% select(model) %>% pull()`. The model, however, was not considered "good" according to LOOIC values and its maximum Pareto stastistic was greater than 0.7, indicating ill fit to the data. The best model according to LOOIC values for $m$ was `r LOOIC.df %>% filter(dLOOIC.m == 0) %>% select(model) %>% pull()`. 
 
 
 ```{r Table-model-summary, echo=FALSE, warning=FALSE}
@@ -1074,34 +1085,33 @@ flextable(LOOIC.df) %>%
   #hline(i = (nrow(ratio.summary.table)-1)) %>%
  set_caption(paste0("Model comparison.")) %>%
   set_table_properties(width = 0.5, layout = "autofit") %>%
-  colformat_double(j = c("DIC", "Rhat", "LOOIC.m", "max.pareto.m", "LOOIC.n", "max.pareto.n", "dDIC"), digits = 2)
+  colformat_double(j = c("Rhat", "dDIC", "dLOOIC.m", "dLOOIC.n", "max.pareto.m", "max.pareto.n"), digits = 2)
 
 ```
 
 
 
+
 ```{r p-trace-plots, echo=FALSE, message=FALSE}
-model.ver <- "v5-2"
+model.ver <- "v3-3"
 jm <- out.list$jm.out[[which(out.list$model.names == model.ver)]]
 
-if (grep("v5", model.ver) == 1){
-  # for v5-1
-  mcmc_trace(jm$samples, c("p"))
-  
-} else if (grep("v3", model.ver) == 1){
-  #for v3-2
-  mcmc_trace(jm$samples, c("p[1]", "p[2]", "p[3]",
-                           "p[4]", "p[5]"))
-} else if (grep("v1", model.ver) == 1){
-  # for v1-2
-  mcmc_trace(jm$samples, c("p[1]", "p[2]", "p[3]",
-                           "p[4]"))
-} else if (grep("v4", model.ver) == 1){
-  # for v4-1
-  mcmc_trace(jm$samples, c("p[1,1,1]", "p[1,1,2]", "p[1,1,3]",
+switch(str_split(model.ver, "-", simplify = TRUE)[1],
+       v1 = mcmc_trace(jm$samples, c("p[1]", "p[2]", "p[3]",
+                           "p[4]")),
+       v2 = mcmc_trace(jm$samples, c("p[1,1]", "p[2,1]", "p[3,1]",
+                           "p[4,1]", "p[1,2]", "p[2,2]", "p[3,2]",
+                           "p[4,2]")),
+       v3 = mcmc_trace(jm$samples, c("p[1]", "p[2]", "p[3]",
+                           "p[4]", "p[5]")),
+       v4 = mcmc_trace(jm$samples, c("p[1,1,1]", "p[1,1,2]", "p[1,1,3]",
                            "p[1,1,4]", "p[1,1,5]", "p[1,1,6]",
-                           "p[1,1,7]", "p[2,1,1]", "p[2,1,2]"))
-}
+                           "p[1,1,7]", "p[2,1,1]", "p[2,1,2]")),
+       v5 =   mcmc_trace(jm$samples, c("p"))
+)
+
+
+
 ```
 
 
@@ -1123,7 +1133,14 @@ mcmc_trace(jm$samples, c("mu.S", "sigma.S"))
 
 ```{r sigma.n-B.N.fem-trace-plots, echo=FALSE, message=FALSE}
 
-mcmc_trace(jm$samples, c("sigma.n", "sigma.m", "B.N.fem"))
+switch(str_split(model.ver, "-", simplify = TRUE)[2],
+       "3" = mcmc_trace(jm$samples, c("sigma.n", "sigma.m")),
+       "1" = mcmc_trace(jm$samples, c("sigma.n", "sigma.m", "B.N.fem")),
+       "2" = mcmc_trace(jm$samples, c("sigma.n", "sigma.m", "B.N.fem")),
+       "4" = mcmc_trace(jm$samples, c("sigma.n", "sigma.m", "B.N.fem")))
+
+
+#mcmc_trace(jm$samples, c("sigma.n", "sigma.m", "B.N.fem"))
 
 
 ```
