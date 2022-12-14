@@ -1093,7 +1093,7 @@ flextable(LOOIC.df) %>%
 
 
 ```{r p-trace-plots, echo=FALSE, message=FALSE}
-model.ver <- "v1-1"
+model.ver <- "v1-6"
 jm <- out.list$jm.out[[which(out.list$model.names == model.ver)]]
 
 switch(str_split(model.ver, "-", simplify = TRUE)[1],
@@ -1136,7 +1136,8 @@ switch(str_split(model.ver, "-", simplify = TRUE)[2],
        "3" = mcmc_trace(jm$samples, c("sigma.n", "sigma.m")),
        "1" = mcmc_trace(jm$samples, c("sigma.n", "sigma.m", "B.N.fem")),
        "2" = mcmc_trace(jm$samples, c("sigma.n", "sigma.m", "B.N.fem")),
-       "4" = mcmc_trace(jm$samples, c("sigma.n", "sigma.m", "B.N.fem")))
+       "4" = mcmc_trace(jm$samples, c("sigma.n", "sigma.m", "B.N.fem")),
+       "6" = mcmc_trace(jm$samples, c("sigma.n", "sigma.m", "B.N.fem")))
 
 
 ```
@@ -1166,7 +1167,7 @@ if (!file.exists(cross.validation.out.file.name)){
   jags.params <- c(jags.params, "m")
   
   # take one m out at a time and run jags on the modified dataset:
-  k <- 17
+  k <- 1
   for (k in 1:nrow(counts.1st.2nd.jags.data)){
     print(paste( k, " of ", nrow(counts.1st.2nd.jags.data)))
     
