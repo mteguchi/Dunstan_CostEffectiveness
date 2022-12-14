@@ -24,7 +24,8 @@ model{
 		loglik.n[k] <- logdensity.norm(n[k], lambda[year[k], sector[k], seq_date[k]], tau.n) 
 		loglik.m[k] <- logdensity.norm(m[k], lambda[year[k], sector[k], seq_date[k]] + p[sector[k]], tau.m)  
 		
-		lambda[year[k], sector[k], seq_date[k]] <- length[k] * exp(B0 + B.day * day[k] + B.N.fem * N.fem[k])
+		#lambda[year[k], sector[k], seq_date[k]] <- length[k] * exp(B0 + B.day * day[k] + B.N.fem * N.fem[k])
+		lambda[year[k], sector[k], seq_date[k]] <- log(length[k]) + B0 + B.day * day[k] + B.N.fem * N.fem[k]
 	
 	}
 

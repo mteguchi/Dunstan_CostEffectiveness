@@ -1217,10 +1217,19 @@ if (!file.exists(cross.validation.out.file.name)){
     counts.X.val$q97.5.m[k] <- exp(jm$q97.5$m[k]) - 1
     
     # find appropriate p in mean, q2.5 and q97.5. 
-    counts.X.val$estim.lambda[k] <- jm$mean$lambda[Y,S,D]
-    counts.X.val$q2.5.lambda[k] <- jm$q2.5$lambda[Y,S,D]
-    counts.X.val$q50.lambda[k] <- jm$q50$lambda[Y,S,D]
-    counts.X.val$q97.5.lambda[k] <- jm$q97.5$lambda[Y,S,D]
+    if (str_split(model.ver, "-", simplify = TRUE)[2] == "6"){
+      counts.X.val$estim.lambda[k] <- jm$mean$lambda[Y,S]
+      counts.X.val$q2.5.lambda[k] <- jm$q2.5$lambda[Y,S]
+      counts.X.val$q50.lambda[k] <- jm$q50$lambda[Y,S]
+      counts.X.val$q97.5.lambda[k] <- jm$q97.5$lambda[Y,S]
+      
+    } else {
+      counts.X.val$estim.lambda[k] <- jm$mean$lambda[Y,S,D]
+      counts.X.val$q2.5.lambda[k] <- jm$q2.5$lambda[Y,S,D]
+      counts.X.val$q50.lambda[k] <- jm$q50$lambda[Y,S,D]
+      counts.X.val$q97.5.lambda[k] <- jm$q97.5$lambda[Y,S,D]
+      
+    }
     
   }
   

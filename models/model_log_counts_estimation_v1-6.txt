@@ -22,13 +22,15 @@ model{
 		loglik.n[k] <- logdensity.norm(n[k], lambda.k[k], tau.n) 
 		loglik.m[k] <- logdensity.norm(m[k], lambda.k[k] + p[year[k]], tau.m)  
 		
-		lambda.k[k] <- lambda[year[k], sector[k]] * length[k]
+		#lambda.k[k] <- lambda[year[k], sector[k]] * length[k]
+		lambda.k[k] <- lambda[year[k], sector[k]] + log(length[k])
 	
 	}
 	
 	for (y in 1:n.years){
 		for (j in 1:n.sectors){
-			lambda[y, j] <- exp(S[j] + B.N.fem * N.fem.year[y])
+			#lambda[y, j] <- exp(S[j] + B.N.fem * N.fem.year[y])
+			lambda[y, j] <- S[j] + B.N.fem * N.fem.year[y]
 		}
 	}
 	
