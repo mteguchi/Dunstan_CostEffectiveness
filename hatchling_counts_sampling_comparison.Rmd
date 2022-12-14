@@ -157,7 +157,7 @@ p.females <- ggplot(n.females.df) +
 
 save.fig.fcn(p.females, 
              file.name = paste0("figures/females_", dpi.set, "dpi.png"), 
-             replace = T, dpi = dpi.set)
+             replace = F, dpi = dpi.set)
 
 ```
 
@@ -241,7 +241,7 @@ p.counts <- plot_grid(p.raw.counts, p.raw.counts.per.female,
 
 save.fig.fcn(p.counts, 
              file.name = paste0("figures/raw_counts_", dpi.set, "dpi.png"), 
-             replace = T, dpi = dpi.set)
+             replace = F, dpi = dpi.set)
 
 ```
 
@@ -280,7 +280,7 @@ p.sector.A.1 <- plot_grid(p.sector.A, p.sector.A.female,
 
 save.fig.fcn(p.sector.A.1, 
              file.name = paste0("figures/sector_A_", dpi.set, "dpi.png"), 
-             replace = T, dpi = dpi.set)
+             replace = F, dpi = dpi.set)
 
 ```
 
@@ -318,7 +318,7 @@ p.sector.A2.1 <- plot_grid(p.sector.A2, p.sector.A2.female,
 
 save.fig.fcn(p.sector.A2.1, 
              file.name = paste0("figures/sector_A2_", dpi.set, "dpi.png"), 
-             replace = T, dpi = dpi.set)
+             replace = F, dpi = dpi.set)
 
 ```
 
@@ -354,7 +354,7 @@ p.sector.B.1 <- plot_grid(p.sector.B, p.sector.B.female,
 
 save.fig.fcn(p.sector.B.1, 
              file.name = paste0("figures/sector_B_", dpi.set, "dpi.png"), 
-             replace = T, dpi = dpi.set)
+             replace = F, dpi = dpi.set)
 
 ```
 
@@ -393,7 +393,7 @@ p.sector.D.1 <- plot_grid(p.sector.D, p.sector.D.female,
 
 save.fig.fcn(p.sector.D.1, 
              file.name = paste0("figures/sector_D_", dpi.set, "dpi.png"), 
-             replace = T, dpi = dpi.set)
+             replace = F, dpi = dpi.set)
 
 ```
 
@@ -430,7 +430,7 @@ p.sector.2014S.1 <- plot_grid(p.sector.2014S, p.sector.2014S.female,
 
 save.fig.fcn(p.sector.2014S.1, 
              file.name = paste0("figures/sector_2014S_", dpi.set, "dpi.png"), 
-             replace = T, dpi = dpi.set)
+             replace = F, dpi = dpi.set)
 ```
 
 
@@ -465,7 +465,7 @@ p.sector.2017S.1 <- plot_grid(p.sector.2017S, p.sector.2017S.female,
 
 save.fig.fcn(p.sector.2017S.1, 
              file.name = paste0("figures/sector_2017S_", dpi.set, "dpi.png"), 
-             replace = T, dpi = dpi.set)
+             replace = F, dpi = dpi.set)
 ```
 
 In sector 2017S, 12-hr surveys were conducted in 2018, whereas 6-hr surveys were conducted from 2019 to 2021 (Figure \@ref(fig:Figure-sector-2017S)). Counts from 2018 indicated that the number of hatchlings was greater before the midnight than after. No apparent peaks were found for 2019, 2020, or 2021.  
@@ -499,7 +499,7 @@ p.sector.2019S.1 <- plot_grid(p.sector.2019S, p.sector.2019S.female,
 
 save.fig.fcn(p.sector.2019S.1, 
              file.name = paste0("figures/sector_2019S_", dpi.set, "dpi.png"), 
-             replace = T, dpi = dpi.set)
+             replace = F, dpi = dpi.set)
 ```
 
 In Sector 2019S, only 6-hr surveys were conducted. An apparent peak at 2 hrs after 1800 (2000) was observed for 2022, whereas the timing of the peak for 2020 was inconclusive between the two surveys. No apparent peak was observed for 2021 (Figure \@ref(fig:Figure-sector-2019S)). 
@@ -532,7 +532,7 @@ p.sector.2019N.1 <- plot_grid(p.sector.2019N, p.sector.2019N.female,
 
 save.fig.fcn(p.sector.2019N.1, 
              file.name = paste0("figures/sector_2019N_", dpi.set, "dpi.png"), 
-             replace = T, dpi = dpi.set)
+             replace = F, dpi = dpi.set)
 ```
 
 In sector 2019N, a peak was observed at 2-3 hrs after 1800 (2000-2100) in 2022 (Figure \@ref(fig:Figure-sector-2019N)).
@@ -622,7 +622,7 @@ p.ratio.sector <- ggplot(data = counts.1st.2nd) +
 
 save.fig.fcn(p.ratio.sector, 
              file.name = paste0("figures/ratio_sector_", dpi.set, "dpi.png"), 
-             replace = T, dpi = dpi.set)
+             replace = F, dpi = dpi.set)
 
 ```
 
@@ -669,7 +669,7 @@ p.ratio.year <- ggplot(data = counts.1st.2nd) +
 
 save.fig.fcn(p.ratio.year, 
              file.name = paste0("figures/ratio_year_", dpi.set, "dpi.png"), 
-             replace = T, dpi = dpi.set)
+             replace = F, dpi = dpi.set)
 
 ```
 
@@ -808,7 +808,7 @@ p.estimates.grid <- plot_grid(p.estimates, legend, ncol = 1,
 
 save.fig.fcn(p.estimates.grid, 
              file.name = paste0("figures/ratio_counts_", dpi.set, "dpi.png"), 
-             replace = T, dpi = dpi.set)
+             replace = F, dpi = dpi.set)
 
 p.difs.1 <- ggplot(data = data.out) +
   geom_jitter(aes(x = sector, 
@@ -828,7 +828,7 @@ p.difs.1 <- ggplot(data = data.out) +
 
 save.fig.fcn(p.difs.1, 
              file.name = paste0("figures/ratio_difs_", dpi.set, "dpi.png"), 
-             replace = T, dpi = dpi.set)
+             replace = F, dpi = dpi.set)
 
 ratio.summary.table <- data.frame(Sets = c("One sector", "All sectors", 
                                            "Other sectors", "Other years"),
@@ -946,7 +946,7 @@ counts.1st.2nd %>%
   mutate(seq_date = row_number()) %>%
   left_join(years.df, by = "year") -> counts.1st.2nd.jags.data
 
-jags.params <- c("lambda", "p", 
+jags.params <- c("lambda", "p", "lambda.k",
                  "S", "mu.S", "sigma.S",
                  "B.N.fem", "B.day", "B0",
                  "sigma.n", "sigma.m",
@@ -975,6 +975,7 @@ jags.data <- list(n = log(counts.1st.2nd.jags.data$counts_1 + 1),
                   n.years = length(unique(counts.1st.2nd.jags.data$year_num)),
                   n.sectors = length(unique(counts.1st.2nd.jags.data$sector_num)),
                   N.fem = counts.1st.2nd.jags.data$n.females,
+                  N.fem.year = as.vector(n.females.df$n.females),
                   year = counts.1st.2nd.jags.data$year_num,
                   seq_date = counts.1st.2nd.jags.data$seq_date,
                   max.seq_date = max(counts.1st.2nd.jags.data$seq_date, na.rm = T),
@@ -995,11 +996,11 @@ out.file.name <- "RData/jags_out_hatchling_log_counts.rds"
 model.base.name <- "models/model_log_counts_estimation_"
 
 if (!file.exists(out.file.name)){
-  model.names <- c("v1-1", "v1-2", "v1-3", "v1-4", "v1-5",
-                   "v2-1", "v2-2", "v2-3", "v2-4", "v2-5",
-                   "v3-1", "v3-2", "v3-3", "v3-4", "v3-5",
-                   "v4-1", "v4-2", "v4-3", "v4-4", "v4-5",
-                   "v5-1", "v5-2", "v5-3", "v5-4", "v5-5")
+  model.names <- c("v1-1", "v1-2", "v1-3", "v1-4", "v1-5", "v1-6",
+                   "v2-1", "v2-2", "v2-3", "v2-4", "v2-5", "v2-6",
+                   "v3-1", "v3-2", "v3-3", "v3-4", "v3-5", "v3-6",
+                   "v4-1", "v4-2", "v4-3", "v4-4", "v4-5", "v4-6",
+                   "v5-1", "v5-2", "v5-3", "v5-4", "v5-5", "v5-6")
   
   jags.out <- LOOIC.out.n <- LOOIC.out.m <- list()
   start.time <- now()
@@ -1096,16 +1097,15 @@ model.ver <- "v1-1"
 jm <- out.list$jm.out[[which(out.list$model.names == model.ver)]]
 
 switch(str_split(model.ver, "-", simplify = TRUE)[1],
-       v1 = mcmc_trace(jm$samples, c("p[1]", "p[2]", "p[3]",
-                           "p[4]")),
+       v1 = mcmc_trace(jm$samples, c("p[1]", "p[2]", "p[3]", "p[4]")),
        v2 = mcmc_trace(jm$samples, c("p[1,1]", "p[2,1]", "p[3,1]",
-                           "p[4,1]", "p[1,2]", "p[2,2]", "p[3,2]",
-                           "p[4,2]")),
+                                     "p[4,1]", "p[1,2]", "p[2,2]", "p[3,2]",
+                                     "p[4,2]")),
        v3 = mcmc_trace(jm$samples, c("p[1]", "p[2]", "p[3]",
-                           "p[4]", "p[5]")),
+                                     "p[4]", "p[5]")),
        v4 = mcmc_trace(jm$samples, c("p[1,1,1]", "p[1,1,2]", "p[1,1,3]",
-                           "p[1,1,4]", "p[1,1,5]", "p[1,1,6]",
-                           "p[1,1,7]", "p[2,1,1]", "p[2,1,2]")),
+                                     "p[1,1,4]", "p[1,1,5]", "p[1,1,6]",
+                                     "p[1,1,7]", "p[2,1,1]", "p[2,1,2]")),
        v5 =   mcmc_trace(jm$samples, c("p"))
 )
 
@@ -1139,13 +1139,10 @@ switch(str_split(model.ver, "-", simplify = TRUE)[2],
        "4" = mcmc_trace(jm$samples, c("sigma.n", "sigma.m", "B.N.fem")))
 
 
-#mcmc_trace(jm$samples, c("sigma.n", "sigma.m", "B.N.fem"))
-
-
 ```
 
 
-The model is appeared to be working. Next is to do cross validation and estimate one m at a time. 
+The model is appeared to be working. Next step is to do cross validation and estimate one m at a time. 
 
 ```{r X-validation-1, echo=FALSE, message=FALSE}
 model.file <- paste0(model.base.name, model.ver, ".txt")
@@ -1166,15 +1163,10 @@ if (!file.exists(cross.validation.out.file.name)){
            q50.lambda = NA,
            q97.5.lambda = NA)
 
-  jags.params <- c("lambda", "p", "B.N.fem",
-                   "B.day", "S",
-                   "mu.S", "sigma.S", 
-                   "m", "deviance",
-                   "sigma.n", "sigma.m",
-                   "loglik.m", "loglik.n")
+  jags.params <- c(jags.params, "m")
   
   # take one m out at a time and run jags on the modified dataset:
-  k <- 1
+  k <- 17
   for (k in 1:nrow(counts.1st.2nd.jags.data)){
     print(paste( k, " of ", nrow(counts.1st.2nd.jags.data)))
     
@@ -1476,6 +1468,6 @@ p.counts.first.6hr <- ggplot(data = sum.6hr) +
 
 save.fig.fcn(p.counts.first.6hr, 
              file.name = paste0("figures/counts_6hr_all_", dpi.set, "dpi.png"), 
-             replace = T, dpi = dpi.set)
+             replace = F, dpi = dpi.set)
 
 ```

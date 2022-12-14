@@ -1,0 +1,59 @@
+# JAGS model for estimating hatchling counts at Raine Island
+
+# Model to estimate hatchling counts from 2400 to 0600 using covariates.
+# This is part of exercise to determine if the 6-hr sampling is sufficient
+# to determine the hatchling production at Raine Island. Hatchling 
+# counts were conducted for 12 hrs in the past but due to the logistical
+# challenges, they reduced the sampling to 6 hrs in the recent years.
+# I estimate the second half of observed hatchling counts from the first 
+# half and older data, i.e., 12-hr sampling.
+
+# Details can be found in hatchling_counts_sampling_comparison.Rmd
+
+# 
+
+# 2022-11-29 Tomo Eguchi
+ 
+
+model{
+	for (k in 1:n.data){
+		n[k] ~ dnorm(lambda.k[k], tau.n)
+		m[k] ~ dnorm(lambda.k[k] + p, tau.m)
+		
+		loglik.n[k] <- logdensity.norm(n[k], lambda.k[k], tau.n) 
+		loglik.m[k] <- logdensity.norm(m[k], lambda.k[k] + p, tau.m)  
+		
+		lambda.k[k] <- lambda[year[k], sector[k]] * length[k]
+	
+	}
+
+	for (y in 1:n.years){
+		for (j in 1:n.sectors){
+			lambda[y, j] <- exp(S[j] + B.N.fem * N.fem.year[y])
+		}
+	}
+
+
+	for (k in 1:n.sectors){
+		S[k] ~ dnorm(mu.S, tau.S)
+
+	}
+
+	p ~ dunif(min.p, max.p) #dbeta(2, 2)	
+	mu.S ~ dnorm(0, 0.01)
+	tau.S <- 1/var.S
+	var.S ~ dgamma(gamma.alpha, gamma.beta)
+	sigma.S <- sqrt(var.S)
+	
+	B.N.fem ~ dnorm(0, 0.01)
+	B.day ~ dnorm(0, 0.01)
+	
+	tau.n <- 1/var.n
+	var.n ~ dgamma(gamma.alpha, gamma.beta)
+	sigma.n <- sqrt(var.n)
+
+	tau.m <- 1/var.m
+	var.m ~ dgamma(gamma.alpha, gamma.beta)
+	sigma.m <- sqrt(var.m)
+	
+}
