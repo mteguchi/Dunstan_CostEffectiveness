@@ -1093,7 +1093,7 @@ flextable(LOOIC.df) %>%
 
 
 ```{r p-trace-plots, echo=FALSE, message=FALSE}
-model.ver <- "v1-6"
+model.ver <- "v1-1"
 jm <- out.list$jm.out[[which(out.list$model.names == model.ver)]]
 
 switch(str_split(model.ver, "-", simplify = TRUE)[1],
