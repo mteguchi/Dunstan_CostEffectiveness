@@ -25,56 +25,14 @@ library(cowplot)
 library(lubridate)
 library(loo)
 
-# functions:
-compute.LOOIC <- function(loglik.mat, data.vector, MCMC.params){
-  n.per.chain <- (MCMC.params$n.samples - MCMC.params$n.burnin)/MCMC.params$n.thin
-  
-  #loglik.vec <- as.vector(loglik)
-  
-  # each column corresponds to a data point and rows are MCMC samples
-  #loglik.mat <- matrix(loglik.vec, nrow = n.per.chain * MCMC.params$n.chains)
-  # take out the columns that correspond to missing data points
-  loglik.mat <- loglik.mat[, !is.na(data.vector)]
-  
-  Reff <- relative_eff(exp(loglik.mat),
-                       chain_id = rep(1:MCMC.params$n.chains,
-                                      each = n.per.chain),
-                       cores = 4)
-  
-  loo.out <- rstanarm::loo(loglik.mat, 
-                           r_eff = Reff, 
-                           cores = 4, k_threshold = 0.7)
-  
-  out.list <- list(Reff = Reff,
-                   loo.out = loo.out)
-  
-  return(out.list)  
-}
+source("Dunstan_functions.R")
 
-
-# a function to extract posterior samples from jags output
-extract.samples <- function(varname, zm){
-  dev <- unlist(lapply(zm, FUN = function(x) x[, varname]))
-  return(dev)
-}
 
 
 set_flextable_defaults(font.size = 9,
                        font.family = "Cambria")
 
-save.fig.fcn <- function(fig, file.name, replace = F, dpi = 600, device = "png",
-                         height = 4, 
-                         width = 6, 
-                         units = "in",
-                         bg = "white"){
-  if (isTRUE(replace) | (!isTRUE(replace) & !file.exists(file.name)))
-    ggsave(fig, 
-           filename = file.name, 
-           dpi = dpi, device = device,
-           height = height, width = width, units = units,
-           bg = bg)
-  
-}
+
 
 save.fig <- T
 dpi.set <- 600
@@ -893,19 +851,47 @@ $ ln(n_{j, k, y} + 1) \sim N(\lambda_{j, k, y}, \sigma_n)$,
 
 where $\sigma_n$ is the standard deviation. 
 
-The number of hatchlings from 2400 to 0600 (m) (plus one) in the natural log space is also a normal random deviate and its mean is a function of $\lambda_{j,k,y}$ and the proportion of the number of hatchlings from 1800 to 2400 to that from 1800 to 2400 ($p_{j,k,y}$). I tested various assumptions of this proportion by considering how $p$ was shared among years, sectors, and sampling days. In other words, the sector-, year- and sampling-day specific subscripts were removed in some models:
+The number of hatchlings from 2400 to 0600 (m) (plus one) in the natural log space is also a normal random deviate and its mean is a function of $\lambda_{j,k,y}$ and the proportion of the number of hatchlings from 1800 to 2400 to that from 1800 to 2400 ($\theta_{j,k,y}$):
 
-$ ln(m_{j,k,y} +1) \sim N(\lambda_{j,k,y} \times p_{j,k,y}, \sigma_m) $.
+$ ln(m_{j,k,y} +1) \sim N(\lambda_{j,k,y} + \theta_{j,k,y}, \sigma_m) $.
 
 The mean ($\lambda_{j, k, y}$) is a function of covariates, including year (Y) and the number of females ($N_{female}$), the day of sampling (# days since Jan 1; $D_{j,k,y}$), and sector ($S_{j,y}$):
 
-$\lambda_{j,k,y} = L_{j,k,y} \times exp(B0 + \beta_1 Y + \beta_2 N_{y} + \beta_3 D_{j,k,y}) $,
+$\lambda_{j,k,y} = ln(L_{j,k,y}) + S_{j,y} + \beta_1 Y + \beta_2 N_{y} + \beta_3 D_{j,k,y} $,
 
-Using these likelihood functions, I estimated the missing values of $m_{j,k,y}$ in a Bayesian approach. I used the following prior distributions.
+Effects of covariates on the mean ($\lambda$) were investigated by developing a series of models with different sets of covariates for the mean. In total, I developed six models:
+
+1. $\lambda_{j,k,y} = ln(L_{j,k,y}) + S_{j} + \beta_1 Y + \beta_2 N_{y} + \beta_3 D_{j,k,y} $
+
+2. $\lambda_{j,k,y} = ln(L_{j,k,y}) + S_{j} + \beta_2 N_{y} + \beta_3 D_{j,k,y}$
+
+3. $\lambda_{j,k,y} = ln(L_{j,k,y}) + S_{j}$
+
+4. $\lambda_{j,k,y} = ln(L_{j,k,y}) + \beta_2 N_{y} + \beta_3 D_{j,k,y} $
+
+5. $\lambda_{j,k,y} = ln(L_{j,k,y}) + \beta_0 + \beta_2 N_{y} + \beta_3 D_{j,k,y}$
+
+6.  $\lambda_{j,k,y} = ln(L_{j,k,y}) + S_{j} + \beta_2 N_{y}$
+
+For the additive term ($\theta$), in the log scale, that converts the mean for the first half of the evening ($\lambda$) to the second half of the evening ($\lambda + \theta$), I looked at five variations:
+
+1. year specific ($\theta_{y}$)
+
+2. year and sector specific ($\theta_{j, y}$)
+
+3. sector specific ($\theta){j}$)
+
+4. year, sector, and sampling day specific ($\theta{j,k,y}$)
+
+5. Constant ($\theta$)
+
+A total of 30 models were created. The naming convention was the $\theta$ model first as the main version (v1 - v5), followed by $\lambda$ definitions (e.g., v1-1, v1-2, etc.). For all versions with year index (i.e., v1, v2, and v4), some 12-hr sampling is necessary to estimate the appropriate $\theta$ for each year. For v3, data from previous years can be used for sector-specific $\theta$. For v5, all available data are combined to estimate $\theta$.
+
+I used the following prior distributions.
 
 $ \lambda_{j,k,y} \sim GAM(0.1, 0.01)$
 
-$ p_y \sim BETA(2, 1)$
+$ \theta_{j,k,y} \sim UNIF(-10, 10)$
 
 The density functions for these prior distributions are shown in Figure X. 
 
@@ -1076,8 +1062,7 @@ LOOIC.df <- data.frame(model = out.list$model.names,
 ```
 
 
-
-Almost all models converged fine according to Rhat values (Table \@ref(tab:Table-model-summary)). According to DIC values, the best model was `r LOOIC.df %>% filter(dDIC == 0) %>% select(model) %>% pull()`, which also was the best model according to LOOIC values for m. Pareto k statistics indicated that the model fit well to the data. This model treats the proportion ($p$) to be year-specific and common among sectors. The mean number of hatchlings before the midnight is a function of sector, the number of days since January 1st, and the number of estimated females for the year. 
+Almost all models converged fine according to Rhat values (Table \@ref(tab:Table-model-summary)). According to DIC values, the best model was `r LOOIC.df %>% filter(dDIC == 0) %>% select(model) %>% pull()`, which also was the best model according to LOOIC values for m. Pareto k statistics indicated that the model fit well to the data. This model treats the additive factor to be year-specific  ($\theata_{y}$) and common among sectors. The mean number of hatchlings before the midnight is a function of sector, the number of days since January 1st, and the number of estimated females for the year. The first 12 models were v1 and v2, indicating that the additive factor is likelyl to be year specific (v1: year specific, v2: year and sector specific). The first v5 (constant $\theta$) model was v5-4. I will investigate the performance of v1-1 and v5-4 for their predictive performance in the following. 
 
 
 ```{r Table-model-summary, echo=FALSE, warning=FALSE}
@@ -1093,7 +1078,7 @@ flextable(LOOIC.df) %>%
 
 
 ```{r p-trace-plots, echo=FALSE, message=FALSE}
-model.ver <- "v1-1"
+model.ver <- "v5-4"
 jm <- out.list$jm.out[[which(out.list$model.names == model.ver)]]
 
 switch(str_split(model.ver, "-", simplify = TRUE)[1],
@@ -1115,8 +1100,11 @@ switch(str_split(model.ver, "-", simplify = TRUE)[1],
 
 
 ```{r S-trace-plots, echo=FALSE, message=FALSE}
+# some models don't have S's
+v <- str_split(model.ver, "-", simplify = TRUE)[2]
 
-mcmc_trace(jm$samples, c("S[1]", "S[2]", "S[3]", "S[4]", "S[5]"))
+if (v != "4" | v != "5")
+  mcmc_trace(jm$samples, c("S[1]", "S[2]", "S[3]", "S[4]", "S[5]"))
 
 
 ```
@@ -1146,123 +1134,38 @@ switch(str_split(model.ver, "-", simplify = TRUE)[2],
 The model is appeared to be working. Next step is to do cross validation and estimate one m at a time. 
 
 ```{r X-validation-1, echo=FALSE, message=FALSE}
-model.file <- paste0(model.base.name, model.ver, ".txt")
 
-#cross.validation.out.file.name <- paste0("RData/cross-validation_out_", model.ver, ".rds")
-cross.validation.out.file.name <- paste0("RData/cross-validation_out_log_counts_", model.ver, ".rds")
 
-if (!file.exists(cross.validation.out.file.name)){
-  start.time <- now()
-  # Prepare the output dataframe
-  counts.X.val <- counts.1st.2nd.jags.data %>%
-    mutate(estim.m = NA,
-           q2.5.m = NA,
-           q50.m = NA,
-           q97.5.m = NA,
-           estim.lambda = NA,
-           q2.5.lambda = NA,
-           q50.lambda = NA,
-           q97.5.lambda = NA)
 
-  jags.params <- c(jags.params, "m")
-  
-  # take one m out at a time and run jags on the modified dataset:
-  k <- 1
-  for (k in 1:nrow(counts.1st.2nd.jags.data)){
-    print(paste( k, " of ", nrow(counts.1st.2nd.jags.data)))
-    
-    x.val.jags.data <- counts.1st.2nd.jags.data
-    # Turn one to NA
-    x.val.jags.data$counts_2[k] <- NA
-    # Year index
-    Y <- x.val.jags.data$year_num[k]
-    # Sector index
-    S <- x.val.jags.data$sector_num[k]
-    # day index
-    D <- x.val.jags.data$seq_date[k]
-    
-    # Poisson data
-    # jags.data$m <- x.val.jags.data$counts_2
-
-    # log Normal data
-    jags.data$m <- log(x.val.jags.data$counts_2 + 1)
-
-    jm <- jags(jags.data,
-               inits = NULL,
-               parameters.to.save= jags.params,
-               model.file = model.file,
-               n.chains = MCMC.params$n.chains,
-               n.burnin = MCMC.params$n.burnin,
-               n.thin = MCMC.params$n.thin,
-               n.iter = MCMC.params$n.samples,
-               DIC = T, parallel=T)
-    
-    # calculate m[k] using the posterior samples - this is not quite working... 2022-12-08
-    # lambda.samples <- extract.samples(paste0("lambda[", jags.data$year[k], ",",
-    #                                          jags.data$sector[k], ",",
-    #                                          jags.data$seq_date[k], "]"),
-    #                                   jm$samples)
-    # 
-    # sigma.n.samples <- extract.samples("sigma.n", jm$samples)
-    # 
-    # if (model.ver == "v5-1"){
-    #   m.k <- rnorm(mean = lambda.samples, sd = sigma.n.samples, n = 1)
-    #   
-    # }
-    
-    # find all m in mean, q2.5 and q97.5. 
-    counts.X.val$estim.m[k] <- exp(jm$mean$m[k]) - 1
-    counts.X.val$q2.5.m[k] <- exp(jm$q2.5$m[k]) - 1
-    counts.X.val$q50.m[k] <- exp(jm$q50$m[k]) - 1
-    counts.X.val$q97.5.m[k] <- exp(jm$q97.5$m[k]) - 1
-    
-    # find appropriate p in mean, q2.5 and q97.5. 
-    if (str_split(model.ver, "-", simplify = TRUE)[2] == "6"){
-      counts.X.val$estim.lambda[k] <- jm$mean$lambda[Y,S]
-      counts.X.val$q2.5.lambda[k] <- jm$q2.5$lambda[Y,S]
-      counts.X.val$q50.lambda[k] <- jm$q50$lambda[Y,S]
-      counts.X.val$q97.5.lambda[k] <- jm$q97.5$lambda[Y,S]
-      
-    } else {
-      counts.X.val$estim.lambda[k] <- jm$mean$lambda[Y,S,D]
-      counts.X.val$q2.5.lambda[k] <- jm$q2.5$lambda[Y,S,D]
-      counts.X.val$q50.lambda[k] <- jm$q50$lambda[Y,S,D]
-      counts.X.val$q97.5.lambda[k] <- jm$q97.5$lambda[Y,S,D]
-      
-    }
-    
-  }
-  
-  end.time <- now()
-  cross.validation.out <- list(output = counts.X.val,
-                               input.jags.data = counts.1st.2nd.jags.data,
-                               run.date = Sys.Date(),
-                               system = Sys.info(),
-                               run.time = end.time - start.time)
-  saveRDS(cross.validation.out,
-          file = cross.validation.out.file.name)  
-} else {
-  
-  cross.validation.out <- readRDS(file = cross.validation.out.file.name)
-}
-
-ggplot(cross.validation.out$output) +
+p.X_validation <- ggplot(cross.validation.out$output) +
   #geom_point(aes(x = sector, y = counts_2),
   #           color = "gold") +
-  geom_point(aes(x = counts_2, 
+  geom_point(aes(x = log(counts_2+1), 
                  y = estim.m, 
                  color = sector)) +
-  # geom_errorbar(aes(x = counts_2, 
-  #                   ymin = q2.5.X.val, 
-  #                   ymax = q97.5.X.val,
-  #                   color = sector)) +
+  geom_errorbar(aes(x = log(counts_2 + 1),
+                    ymin = q2.5.m,
+                    ymax = q97.5.m,
+                    color = sector)) +
   geom_abline(slope = 1, intercept = 0)+
-  facet_wrap(~ year)
+  facet_wrap(~ year) +
+  xlab("log(observed + 1)") + ylab("log(Estimated + 1)") +
+  labs(title = model.ver)
 
+save.fig.fcn(p.X_validation, 
+             file.name = paste0("figures/Cross_validation_log_", model.ver, "_", dpi.set, "dpi.png"), 
+             replace = F, dpi = dpi.set)
 
 ```
 
-Not very good... 
+The cross validation process indicated that the model predicted missing values fairly well (Figure \@ref(fig:Figure-X-validation-log-v1-1)), where observed and estimated values nearly lined up on the y = x line. Deviation from the line, however, was obvious for 2017 and 2018. It is important to note that v1-1 model has a year-specific $p$ values, which require more than one 12-hr sampling needs to be conducted in order for this model to work. 
+
+
+```{r Figure-X-validation-log-v1-1, echo=FALSE, message=FALSE, fig.cap="The differences between the observed and calculated numbers of hatchlings using a statistical model. Calculations were conducted in a cross validation manner where each survey was withheld from computing the ratio to be used in calculating the second half of the evening. Colors indicate different sets of data to cross validate: orange = using the same sector within the same year, purple = using all sectors within the same year, red = using other sectors witin the same year, and yellow = using all sectors from other years."}
+
+knitr::include_graphics(paste0("figures/Cross_validation_log_", dpi.set, "dpi.png"))
+
+```
 
 Next, I try binomial likelihood instead of Poisson
 

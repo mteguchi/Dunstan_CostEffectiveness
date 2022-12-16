@@ -1,4 +1,206 @@
+
+
+
 # why is this script not showing up on Git?
+# functions:
+
+save.fig.fcn <- function(fig, file.name, replace = F, dpi = 600, device = "png",
+                         height = 4, 
+                         width = 6, 
+                         units = "in",
+                         bg = "white"){
+  if (isTRUE(replace) | (!isTRUE(replace) & !file.exists(file.name)))
+    ggsave(fig, 
+           filename = file.name, 
+           dpi = dpi, device = device,
+           height = height, width = width, units = units,
+           bg = bg)
+  
+}
+
+compute.LOOIC <- function(loglik.mat, data.vector, MCMC.params){
+  n.per.chain <- (MCMC.params$n.samples - MCMC.params$n.burnin)/MCMC.params$n.thin
+  
+  #loglik.vec <- as.vector(loglik)
+  
+  # each column corresponds to a data point and rows are MCMC samples
+  #loglik.mat <- matrix(loglik.vec, nrow = n.per.chain * MCMC.params$n.chains)
+  # take out the columns that correspond to missing data points
+  loglik.mat <- loglik.mat[, !is.na(data.vector)]
+  
+  Reff <- relative_eff(exp(loglik.mat),
+                       chain_id = rep(1:MCMC.params$n.chains,
+                                      each = n.per.chain),
+                       cores = 4)
+  
+  loo.out <- rstanarm::loo(loglik.mat, 
+                           r_eff = Reff, 
+                           cores = 4, k_threshold = 0.7)
+  
+  out.list <- list(Reff = Reff,
+                   loo.out = loo.out)
+  
+  return(out.list)  
+}
+
+
+# a function to extract posterior samples from jags output
+extract.samples <- function(varname, zm){
+  dev <- unlist(lapply(zm, FUN = function(x) x[, varname]))
+  return(dev)
+}
+
+cross.validataion.fcn <- function(model.base.name, model.ver, jags.data, jags.params, MCMC.params, original.data){
+  
+  counts.1st.2nd.jags.data <- original.data
+  model.file <- paste0(model.base.name, model.ver, ".txt")
+  
+  #cross.validation.out.file.name <- paste0("RData/cross-validation_out_", model.ver, ".rds")
+  cross.validation.out.file.name <- paste0("RData/cross-validation_out_log_counts_", model.ver, ".rds")
+  
+  if (!file.exists(cross.validation.out.file.name)){
+    start.time <- now()
+    # Prepare the output dataframe
+    counts.X.val <- counts.1st.2nd.jags.data %>%
+      mutate(estim.m = NA,
+             q2.5.m = NA,
+             q50.m = NA,
+             q97.5.m = NA,
+             estim.lambda = NA,
+             q2.5.lambda = NA,
+             q50.lambda = NA,
+             q97.5.lambda = NA,
+             estim.p = NA,
+             q2.5.p = NA,
+             q50.p = NA,
+             q97.5.p = NA)
+    
+    jags.params <- c(jags.params, "m")
+    
+    # take one m out at a time and run jags on the modified dataset:
+    k <- 1
+    for (k in 1:nrow(counts.1st.2nd.jags.data)){
+      print(paste( k, " of ", nrow(counts.1st.2nd.jags.data)))
+      
+      x.val.jags.data <- counts.1st.2nd.jags.data
+      # Turn one to NA
+      x.val.jags.data$counts_2[k] <- NA
+      # Year index
+      Y <- x.val.jags.data$year_num[k]
+      # Sector index
+      S <- x.val.jags.data$sector_num[k]
+      # day index
+      D <- x.val.jags.data$seq_date[k]
+      
+      # Poisson data
+      # jags.data$m <- x.val.jags.data$counts_2
+      
+      # log Normal data
+      jags.data$m <- log(x.val.jags.data$counts_2 + 1)
+      
+      jm <- jags(jags.data,
+                 inits = NULL,
+                 parameters.to.save= jags.params,
+                 model.file = model.file,
+                 n.chains = MCMC.params$n.chains,
+                 n.burnin = MCMC.params$n.burnin,
+                 n.thin = MCMC.params$n.thin,
+                 n.iter = MCMC.params$n.samples,
+                 DIC = T, parallel=T)
+      
+      # calculate m[k] using the posterior samples 
+      if (str_split(model.ver, "-", simplify = TRUE)[1] == "v5"){
+        p.samples <-  extract.samples("p",
+                                      jm$samples) 
+      } else {
+        p.samples <-  extract.samples(paste0("p[", jags.data$year[k], "]"),
+                                      jm$samples)
+        
+      }
+      
+      # find m value from observed n and posterior samples of p
+      m.k <- log(counts.X.val$counts_1[k] + 1) + p.samples
+      
+      qtiles.m <- quantile(m.k, c(0.025, 0.5, 0.975))
+      
+      # Stats from calculated m values:
+      counts.X.val$estim.m[k] <- mean(m.k)
+      counts.X.val$q2.5.m[k] <- qtiles.m[1]
+      counts.X.val$q50.m[k] <- qtiles.m[2]
+      counts.X.val$q97.5.m[k] <- qtiles.m[3]
+      
+      # find appropriate lambda in mean, q2.5 and q97.5. 
+      if (str_split(model.ver, "-", simplify = TRUE)[2] == "6"){
+        counts.X.val$estim.lambda[k] <- jm$mean$lambda[Y,S]
+        counts.X.val$q2.5.lambda[k] <- jm$q2.5$lambda[Y,S]
+        counts.X.val$q50.lambda[k] <- jm$q50$lambda[Y,S]
+        counts.X.val$q97.5.lambda[k] <- jm$q97.5$lambda[Y,S]
+        
+        if (str_split(model.ver, "-", simplify = TRUE)[1] == "v5"){
+          counts.X.val$estim.p[k] <- jm$mean$p
+          counts.X.val$q2.5.p[k] <- jm$q2.5$p
+          counts.X.val$q50.p[k] <- jm$q50$p
+          counts.X.val$q97.5.p[k] <- jm$q97.5$p
+        } else {
+          counts.X.val$estim.p[k] <- jm$mean$p[Y,S]
+          counts.X.val$q2.5.p[k] <- jm$q2.5$p[Y,S]
+          counts.X.val$q50.p[k] <- jm$q50$p[Y,S]
+          counts.X.val$q97.5.p[k] <- jm$q97.5$p[Y,S]
+        }
+      } else if (str_split(model.ver, "-", simplify = TRUE)[2] == "1"){
+        counts.X.val$estim.lambda[k] <- jm$mean$lambda[Y,S,D]
+        counts.X.val$q2.5.lambda[k] <- jm$q2.5$lambda[Y,S,D]
+        counts.X.val$q50.lambda[k] <- jm$q50$lambda[Y,S,D]
+        counts.X.val$q97.5.lambda[k] <- jm$q97.5$lambda[Y,S,D]
+        
+        if (str_split(model.ver, "-", simplify = TRUE)[1] == "v5"){
+          counts.X.val$estim.p[k] <- jm$mean$p
+          counts.X.val$q2.5.p[k] <- jm$q2.5$p
+          counts.X.val$q50.p[k] <- jm$q50$p
+          counts.X.val$q97.5.p[k] <- jm$q97.5$p
+        } else {
+          counts.X.val$estim.p[k] <- jm$mean$p[Y]
+          counts.X.val$q2.5.p[k] <- jm$q2.5$p[Y]
+          counts.X.val$q50.p[k] <- jm$q50$p[Y]
+          counts.X.val$q97.5.p[k] <- jm$q97.5$p[Y]
+        }      
+      } else {
+        counts.X.val$estim.lambda[k] <- jm$mean$lambda[Y,S,D]
+        counts.X.val$q2.5.lambda[k] <- jm$q2.5$lambda[Y,S,D]
+        counts.X.val$q50.lambda[k] <- jm$q50$lambda[Y,S,D]
+        counts.X.val$q97.5.lambda[k] <- jm$q97.5$lambda[Y,S,D]
+        
+        if (str_split(model.ver, "-", simplify = TRUE)[1] == "v5"){
+          counts.X.val$estim.p[k] <- jm$mean$p
+          counts.X.val$q2.5.p[k] <- jm$q2.5$p
+          counts.X.val$q50.p[k] <- jm$q50$p
+          counts.X.val$q97.5.p[k] <- jm$q97.5$p
+        } else {
+          counts.X.val$estim.p[k] <- jm$mean$p[Y,S,D]
+          counts.X.val$q2.5.p[k] <- jm$q2.5$p[Y,S,D]
+          counts.X.val$q50.p[k] <- jm$q50$p[Y,S,D]
+          counts.X.val$q97.5.p[k] <- jm$q97.5$p[Y,S,D]
+        }
+        
+      }
+    }
+    end.time <- now()
+    cross.validation.out <- list(output = counts.X.val,
+                                 input.jags.data = counts.1st.2nd.jags.data,
+                                 run.date = Sys.Date(),
+                                 system = Sys.info(),
+                                 run.time = end.time - start.time)
+    saveRDS(cross.validation.out,
+            file = cross.validation.out.file.name)  
+  } else {
+    
+    cross.validation.out <- readRDS(file = cross.validation.out.file.name)
+  }
+  
+}
+
+
+
 
 define.df_q50 <- function(x) { 
   y <- data.frame(t(x))

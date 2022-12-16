@@ -18,18 +18,23 @@
 model{
 
 	for (k in 1:n.data){
-		n[k] ~ dnorm(lambda[year[k], sector[k], seq_date[k]], tau.n)
-		m[k] ~ dnorm(lambda[year[k], sector[k], seq_date[k]] + p, tau.m)
+		n[k] ~ dnorm(lambda.k[k], tau.n)
+		m[k] ~ dnorm(lambda.k[k] + p, tau.m)
 		
-		loglik.n[k] <- logdensity.norm(n[k], lambda[year[k], sector[k], seq_date[k]], tau.n) 
-		loglik.m[k] <- logdensity.norm(m[k], lambda[year[k], sector[k], seq_date[k]] + p, tau.m)  
+		loglik.n[k] <- logdensity.norm(n[k], lambda.k[k], tau.n) 
+		loglik.m[k] <- logdensity.norm(m[k], lambda.k[k] + p, tau.m)  
 		
-		#lambda[year[k], sector[k], seq_date[k]] <- length[k] * exp(S[sector[k]] + B.N.fem * N.fem[k])
-		lambda[year[k], sector[k], seq_date[k]] <- log(length[k]) + S[sector[k]] + B.N.fem * N.fem[k]
+		lambda.k[k] <- log(length[k]) + lambda[year[k], sector[k]]
 	
 	}
 	
 	p ~ dunif(min.p,max.p)
+			
+	for (y in 1:n.years){
+		for (j in 1:n.sectors){
+			lambda[y, j] <- S[j] + B.N.fem * N.fem[y]
+		}
+	}
 	
 	for (k in 1:n.sectors){
 		S[k] ~ dnorm(mu.S, tau.S)
