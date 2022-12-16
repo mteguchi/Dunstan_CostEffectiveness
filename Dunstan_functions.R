@@ -1,8 +1,37 @@
 
-
-
-# why is this script not showing up on Git?
 # functions:
+
+summarize.counts <- function(data.1){
+  
+  # First half
+  data.1 %>%
+    filter(hr < 7) %>%
+    group_by(sector, year, date) %>%
+    select(sector, year, date, survey_duration_hr, counts, trench_length_m, date_num) %>% #-> tmp.1
+    summarize(across(.cols = counts, 
+                     .fns = sum,  
+                     na.rm = T, 
+                     .names = "counts_1"),
+              length_m = first(trench_length_m),
+              date_num = first(date_num),
+              duration_hr = first(survey_duration_hr)) -> sum.0.6.hrs.12hr
+  
+  # Second half
+  data.1 %>%
+    filter(hr > 6) %>%
+    group_by(sector, year, date) %>%
+    summarize(across(.cols = counts, 
+                     .fns = sum, 
+                     na.rm = T, 
+                     .names = "counts_2")) -> sum.7.12.hrs.12hr
+  
+  # put them together and convert counts_2 = NA when only 6-hr survey
+  sum.0.6.hrs.12hr %>% 
+    left_join(sum.7.12.hrs.12hr, by = c("sector", "year", "date")) %>%
+    mutate(counts_2a = ifelse(duration_hr == 6, NA, counts_2)) -> counts.1st.2nd
+  
+  return(counts.1st.2nd)  
+}
 
 save.fig.fcn <- function(fig, file.name, replace = F, dpi = 600, device = "png",
                          height = 4, 
@@ -197,10 +226,71 @@ cross.validataion.fcn <- function(model.base.name, model.ver, jags.data, jags.pa
     cross.validation.out <- readRDS(file = cross.validation.out.file.name)
   }
   
+  return(cross.validation.out)
 }
 
 
-
+calculate.ratio <- function(data.1){
+  
+  # filter out 12-hr data:
+  data.1 %>% 
+    filter(survey_duration_hr == 12) -> data.1.12hr
+  
+  # Create a sequential ID number for each survey
+  # date_num_df <- data.frame(date_num = unique(data.1.12hr$date_num),
+  #                           date_seq = 1:length(unique(data.1.12hr$date_num)))
+  # 
+  # data.1.12hr %>%
+  #   left_join(date_num_df, by = "date_num") -> data.1.12hr
+  # 
+  # 
+  # First half
+  data.1.12hr %>%
+    filter(hr < 7) %>%
+    group_by(sector, year, date) %>%
+    select(sector, year, date, counts, trench_length_m, date_num) %>% #-> tmp.1
+    summarize(across(.cols = counts, 
+                     .fns = sum, 
+                     na.rm = T, 
+                     .names = "counts_1"),
+              length = first(trench_length_m),
+              date_num = first(date_num)) -> sum.0.6.hrs.12hr
+  
+  data.1.12hr %>%
+    filter(hr < 7) %>%
+    group_by(sector, year, date) %>%
+    summarize(across(.cols = counts_m, 
+                     .fns = sum, 
+                     na.rm = T, 
+                     .names = "counts_m_1")) -> counts.m.1
+  
+  sum.0.6.hrs.12hr$counts_m_1 <- counts.m.1$counts_m_1
+  
+  # Second half
+  data.1.12hr %>%
+    filter(hr > 6) %>%
+    group_by(sector, year, date) %>%
+    summarize(across(.cols = counts, 
+                     .fns = sum, 
+                     na.rm = T, 
+                     .names = "counts_2")) -> sum.7.12.hrs.12hr
+  
+  data.1.12hr %>%
+    filter(hr > 6) %>%
+    group_by(sector, year, date) %>%
+    summarize(across(.cols = counts_m, 
+                     .fns = sum, 
+                     na.rm = T, .names = "counts_m_2")) -> counts.m.2
+  
+  sum.7.12.hrs.12hr$counts_m_2 <- counts.m.2$counts_m_2
+  
+  # put them together and compute the ratio
+  sum.0.6.hrs.12hr %>% 
+    left_join(sum.7.12.hrs.12hr, by = c("sector", "year", "date")) %>% 
+    mutate(ratio = counts_m_1/(counts_m_1 + counts_m_2))-> counts.1st.2nd
+  
+  return(counts.1st.2nd)  
+}
 
 define.df_q50 <- function(x) { 
   y <- data.frame(t(x))

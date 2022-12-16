@@ -509,68 +509,6 @@ It appears that more hatchlings are generally found before midnight. An objectiv
 
 ```{r first-vs-second, echo=FALSE, message=FALSE, warning=FALSE}
 
-calculate.ratio <- function(data.1){
-  
-  # filter out 12-hr data:
-  data.1 %>% 
-    filter(survey_duration_hr == 12) -> data.1.12hr
-
-  # Create a sequential ID number for each survey
-  # date_num_df <- data.frame(date_num = unique(data.1.12hr$date_num),
-  #                           date_seq = 1:length(unique(data.1.12hr$date_num)))
-  # 
-  # data.1.12hr %>%
-  #   left_join(date_num_df, by = "date_num") -> data.1.12hr
-  # 
-  # 
-  # First half
-  data.1.12hr %>%
-    filter(hr < 7) %>%
-    group_by(sector, year, date) %>%
-    select(sector, year, date, counts, trench_length_m, date_num) %>% #-> tmp.1
-    summarize(across(.cols = counts, 
-                     .fns = sum, 
-                     na.rm = T, 
-                     .names = "counts_1"),
-              length = first(trench_length_m),
-              date_num = first(date_num)) -> sum.0.6.hrs.12hr
-  
-  data.1.12hr %>%
-    filter(hr < 7) %>%
-    group_by(sector, year, date) %>%
-    summarize(across(.cols = counts_m, 
-                     .fns = sum, 
-                     na.rm = T, 
-                     .names = "counts_m_1")) -> counts.m.1
-  
-  sum.0.6.hrs.12hr$counts_m_1 <- counts.m.1$counts_m_1
-  
-  # Second half
-  data.1.12hr %>%
-    filter(hr > 6) %>%
-    group_by(sector, year, date) %>%
-    summarize(across(.cols = counts, 
-                     .fns = sum, 
-                     na.rm = T, 
-                     .names = "counts_2")) -> sum.7.12.hrs.12hr
-  
-  data.1.12hr %>%
-    filter(hr > 6) %>%
-    group_by(sector, year, date) %>%
-    summarize(across(.cols = counts_m, 
-                     .fns = sum, 
-                     na.rm = T, .names = "counts_m_2")) -> counts.m.2
-  
-  sum.7.12.hrs.12hr$counts_m_2 <- counts.m.2$counts_m_2
-  
-  # put them together and compute the ratio
-  sum.0.6.hrs.12hr %>% 
-    left_join(sum.7.12.hrs.12hr, by = c("sector", "year", "date")) %>% 
-    mutate(ratio = counts_m_1/(counts_m_1 + counts_m_2))-> counts.1st.2nd
-  
-  return(counts.1st.2nd)  
-}
-
 counts.1st.2nd <- calculate.ratio(data.1)
 
 p.ratio.sector <- ggplot(data = counts.1st.2nd) +
@@ -1074,11 +1012,11 @@ flextable(LOOIC.df) %>%
 
 ```
 
-
+Although Rhat values seem to indicate MCMC converged fine, I also use visual aid to check good mixing of Markov chains. 
 
 
 ```{r p-trace-plots, echo=FALSE, message=FALSE}
-model.ver <- "v5-4"
+model.ver <- "v5-1"
 jm <- out.list$jm.out[[which(out.list$model.names == model.ver)]]
 
 switch(str_split(model.ver, "-", simplify = TRUE)[1],
@@ -1135,9 +1073,22 @@ The model is appeared to be working. Next step is to do cross validation and est
 
 ```{r X-validation-1, echo=FALSE, message=FALSE}
 
+cross.validation.v1_1.out <- cross.validataion.fcn(model.base.name = model.base.name, 
+                                                   model.ver = "v1-1", 
+                                                   jags.data = jags.data, 
+                                                   jags.params = jags.params, 
+                                                   MCMC.params = MCMC.params, 
+                                                   original.data = counts.1st.2nd.jags.data)
 
+cross.validation.v5_1.out <- cross.validataion.fcn(model.base.name = model.base.name, 
+                                                   model.ver = "v5-1", 
+                                                   jags.data = jags.data, 
+                                                   jags.params = jags.params, 
+                                                   MCMC.params = MCMC.params, 
+                                                   original.data = counts.1st.2nd.jags.data)
 
-p.X_validation <- ggplot(cross.validation.out$output) +
+model.ver <- "v5-1"
+p.X_validation <- ggplot(cross.validation.v5_1.out$output) +
   #geom_point(aes(x = sector, y = counts_2),
   #           color = "gold") +
   geom_point(aes(x = log(counts_2+1), 
@@ -1158,229 +1109,189 @@ save.fig.fcn(p.X_validation,
 
 ```
 
-The cross validation process indicated that the model predicted missing values fairly well (Figure \@ref(fig:Figure-X-validation-log-v1-1)), where observed and estimated values nearly lined up on the y = x line. Deviation from the line, however, was obvious for 2017 and 2018. It is important to note that v1-1 model has a year-specific $p$ values, which require more than one 12-hr sampling needs to be conducted in order for this model to work. 
+The cross validation process indicated that the model predicted missing values fairly well (Figure \@ref(fig:Figure-X-validation-log-v1-1)), where observed and estimated values nearly lined up on the y = x line. Deviation from the line, however, was obvious for 2017 and 2018. It is important to note that v1-1 model has a year-specific $\theta$ values, which require more than one 12-hr sampling needs to be conducted annually in order for this model to work. 
 
 
-```{r Figure-X-validation-log-v1-1, echo=FALSE, message=FALSE, fig.cap="The differences between the observed and calculated numbers of hatchlings using a statistical model. Calculations were conducted in a cross validation manner where each survey was withheld from computing the ratio to be used in calculating the second half of the evening. Colors indicate different sets of data to cross validate: orange = using the same sector within the same year, purple = using all sectors within the same year, red = using other sectors witin the same year, and yellow = using all sectors from other years."}
+```{r Figure-X-validation-log-v1-1, echo=FALSE, message=FALSE, fig.cap="The differences between the observed and calculated numbers of hatchlings using a statistical model (v1-1). Calculations were conducted in a cross validation manner where each survey was withheld from computing the ratio to be used in calculating the second half of the evening."}
 
-knitr::include_graphics(paste0("figures/Cross_validation_log_", dpi.set, "dpi.png"))
-
-```
-
-Next, I try binomial likelihood instead of Poisson
-
-
-```{r modeling-2, echo=FALSE, message=FALSE}
-model.ver <- "v5-1"
-model.file <- paste0("models/model_counts_estimation_", model.ver, ".txt")
-
-jags.params <- c("lambda", "p", "B.N.fem",
-                 "B.day", "S", "theta", "N", "B0",
-                 "mu.S", "sigma.S", "deviance")
-
-out.list <- create.n.m.D.length(n.years, n.sectors, n.days, counts.1st.2nd.jags.data)
-
-jags.data <- list(n = out.list$n,
-                  m = out.list$m,
-                  length = out.list$length,
-                  D = out.list$D,
-                  sectors = sectors,
-                  n.years = length(unique(counts.1st.2nd.jags.data$year_num)),
-                  n.sectors = out.list$n.sectors,
-                  num.sectors = max(out.list$n.sectors),
-                  n.days = n.days,
-                  N.fem = years.df$n.females,
-                  years = unique(counts.1st.2nd.jags.data$year_num))
-
-jm <- jags(jags.data,
-             inits = NULL,
-             parameters.to.save= jags.params,
-             model.file = model.file,
-             n.chains = MCMC.params$n.chains,
-             n.burnin = MCMC.params$n.burnin,
-             n.thin = MCMC.params$n.thin,
-             n.iter = MCMC.params$n.samples,
-             DIC = T, parallel=T)
- 
-
-
+knitr::include_graphics(paste0("figures/Cross_validation_log_v1-1_", dpi.set, "dpi.png"))
 
 ```
 
 
-```{r jags-results-v2, echo=FALSE, message=FALSE}
+The best model with a common $\theta$ value was V5-1 (Table \@ref(tab:Table-model-summary)). The model fit well to the data according to the Pareto-k statistics, although it was ranked in the middle of the pack. I also examined the predicted and true values from the model using the same cross validation technique. Results indicated that the model seems to adequately estimated the missing value (Figure \@ref(fig:Figure-x-validation-log_v5-1)).
 
-mcmc_trace(jm$samples, c("p[1,1]", "p[2,1]", "p[3,1]", "p[4,1]"))
 
+```{r Figure-X-validation-log-v5-1, echo=FALSE, message=FALSE, fig.cap="The differences between the observed and calculated numbers of hatchlings using a statistical model (v5-1). Calculations were conducted in a cross validation manner where each survey was withheld from computing the ratio to be used in calculating the second half of the evening."}
+
+knitr::include_graphics(paste0("figures/Cross_validation_log_v5-1_", dpi.set, "dpi.png"))
 
 ```
 
 
-```{r X-validation-2, echo=FALSE, message=FALSE}
-model.file <- "models/model_counts_estimation_v2.txt"
+## EStimating unobserved counts {-}
 
-if (!file.exists("RData/cross-validation_out_v2.rds")){
-  # take one m out at a time and run jags on the modified dataset:
-  counts.X.val <- counts.1st.2nd.jags.data %>%
-    mutate(estim.X.val = NA,
-           q2.5.X.val = NA,
-           q97.5.X.val = NA)
+I applied these models (v1-1 and v5-1) to the entire data set in order to estimate the counts from 2400 - 0600, when no surveys were conducted. 
+
+```{r estimating-missing-counts, echo=FALSE, message=FALSE}
+
+counts.all <- summarize.counts(data.1)
+
+# Calculate number of days since Jan 1 of each year
+counts.all %>% 
+  mutate(n.days = 11 + as.numeric(ymd(date) - ymd(paste0(year, "-01-01")))) -> counts.all
   
-  k <- 1
-  for (k in 1:nrow(counts.1st.2nd.jags.data)){
-    x.val.jags.data <- counts.1st.2nd.jags.data
-    x.val.jags.data$counts_2[k] <- NA
-    Y <- x.val.jags.data$year_num[k]
-    S <- x.val.jags.data$sector_num[k]
-    
-    out.list <- create.n.m.D.length(n.years, n.sectors, n.days, x.val.jags.data)
-    
-    jags.data <- list(n = out.list$n,
-                      m = out.list$m,
-                      length = out.list$length,
-                      D = out.list$D,
-                      sectors = sectors,
-                      n.years = length(unique(counts.1st.2nd.jags.data$year_num)),
-                      n.sectors = out.list$n.sectors,
-                      num.sectors = max(out.list$n.sectors),
-                      n.days = n.days,
-                      N.fem = years.df$n.females,
-                      years = unique(counts.1st.2nd.jags.data$year_num))
-    
-    jags.params <- c("lambda", "p", "B.N.fem",
-                     "B.day", "S",
-                     "mu.S", "sigma.S", 
-                     "m", "deviance")
-    
-    jm <- jags(jags.data,
-               inits = NULL,
-               parameters.to.save= jags.params,
-               model.file = model.file,
-               n.chains = MCMC.params$n.chains,
-               n.burnin = MCMC.params$n.burnin,
-               n.thin = MCMC.params$n.thin,
-               n.iter = MCMC.params$n.samples,
-               DIC = T, parallel=T)
-    
-    # find all m in mean, q2.5 and q97.5. Then pull out the one that has different
-    # values for those three
-    mean.x <- jm$mean$m[Y,S,]
-    q2.5.x <- jm$q2.5$m[Y,S,]
-    q97.5.x <- jm$q97.5$m[Y,S,]
-    
-    dif.x <- mean.x - q2.5.x
-    
-    counts.X.val$estim.X.val[k] <- mean.x[dif.x > 0] %>% na.omit()
-    counts.X.val$q2.5.X.val[k] <- q2.5.x[dif.x > 0] %>% na.omit()
-    counts.X.val$q97.5.X.val[k] <- q97.5.x[dif.x > 0] %>% na.omit()
+date_num_df <- data.frame(date_num = unique(counts.all$date_num),
+                          date_seq = 1:length(unique(counts.all$date_num)))
+
+# numeric sectors
+sector_num_df <- data.frame(sector = unique(counts.all$sector),
+                            sector_num = 1:length(unique(counts.all$sector)))
+
+years.df <- data.frame(year = unique(counts.all$year)) %>%
+    left_join(n.females.df, by = "year") 
+
+counts.all %>%
+  left_join(date_num_df, by = "date_num") %>%
+  left_join(sector_num_df, by = "sector") %>%
+  select(-c(date, date_num)) %>%
+  mutate(year_num = year - min(data.1$year) + 1) %>%
+  group_by(year_num, sector_num) %>%
+  mutate(seq_date = row_number()) %>%
+  left_join(years.df, by = "year") -> counts.all.jags.data
+
+jags.params <- c("lambda", "p", "lambda.k",
+                 "S", "mu.S", "sigma.S",
+                 "B.N.fem", "B.day", "B0",
+                 "sigma.n", "sigma.m",
+                 "deviance", "loglik.n", "loglik.m")
+
+# for log normal likelihood
+jags.data <- list(n = log(counts.all.jags.data$counts_1 + 1),
+                  m = log(counts.all.jags.data$counts_2a + 1),
+                  length = counts.all.jags.data$length_m,
+                  day = counts.all.jags.data$n.days,
+                  sector = counts.all.jags.data$sector_num,
+                  n.years = length(unique(counts.all.jags.data$year_num)),
+                  n.sectors = length(unique(counts.all.jags.data$sector_num)),
+                  N.fem = counts.all.jags.data$n.females,
+                  N.fem.year = as.vector(n.females.df$n.females),
+                  year = counts.all.jags.data$year_num,
+                  seq_date = counts.all.jags.data$seq_date,
+                  max.seq_date = max(counts.all.jags.data$seq_date, na.rm = T),
+                  n.data = nrow(counts.all.jags.data),
+                  gamma.alpha = 1,
+                  gamma.beta = 0.1,
+                  max.p = 10,
+                  min.p = -10)
+ 
+model.names <- c("v1-1", 
+                 "v5-1")
+
+m.estims <- jags.out <- LOOIC.out.n <- LOOIC.out.m <- list()
+
+start.time <- now()
+k <- 1
+for (k in 1:length(model.names)){
+  
+  print(paste("Model ", k, " of ", length(model.names)))
+  #model.file <- paste0("models/model_counts_estimation_", model.names[k], ".txt")
+  model.file <- paste0(model.base.name, model.names[k], ".txt")
+  jags.out[[k]] <- jags(jags.data,
+                        inits = NULL,
+                        parameters.to.save= jags.params,
+                        model.file = model.file,
+                        n.chains = MCMC.params$n.chains,
+                        n.burnin = MCMC.params$n.burnin,
+                        n.thin = MCMC.params$n.thin,
+                        n.iter = MCMC.params$n.samples,
+                        DIC = T, parallel=T)
+  
+   # calculate m[k] using the posterior samples 
+  model.ver <- model.names[k]
+  m.estim <- m.q2.5 <- m.q50 <- m.q97.5 <- vector(mode = "numeric", length = length(jags.data$m))
+  for (k1 in 1:length(jags.data$m)){
+    m.k <- jags.data$m[k1]
+    if (is.na(m.k)){
+      if (str_split(model.ver, "-", simplify = TRUE)[1] == "v5"){
+        p.samples <-  extract.samples("p",
+                                      jags.out[[k]]$samples) 
+      } else {
+        p.samples <-  extract.samples(paste0("p[", jags.data$year[k], "]"),
+                                      jags.out[[k]]$samples)
+        
+      }
+      m.k <- jags.data$n[k1] + p.samples
+      qtiles.m <- quantile(m.k, c(0.025, 0.5, 0.975))
+
+      m.estim[k1] <- mean(m.k)
+      m.q2.5[k1] <- qtiles.m[1]
+      m.q50[k1] <- qtiles.m[2]
+      m.q97.5[k1] <-qtiles.m[3]
+      
+    } else {
+      m.estim[k1] <- jags.data$m[k1]
+      m.q2.5[k1] <- jags.data$m[k1]
+      m.q50[k1] <- jags.data$m[k1]
+      m.q97.5[k1] <- jags.data$m[k1]
+      
+    }
     
   }
   
-  cross.validation.out <- list(output = counts.X.val,
-                               run.date = Sys.Date(),
-                               system = Sys.info())
-  saveRDS(cross.validation.out,
-          file = "RData/cross_validation_out_v2.rds")  
-} else {
+  m.estims[[k]] <- data.frame(m.estim = m.estim,
+                              m.q2.5 = m.q2.5,
+                              m.q50 = m.q50,
+                              m.q97.5 = m.q97.5)
   
-  cross.validation.out <- readRDS(file = "RData/cross_validation_out_v2.rds")
+  LOOIC.out.n[[k]] <- compute.LOOIC(loglik.mat = jags.out[[k]]$sims.list$loglik.n,
+                                    data.vector = jags.data$n,
+                                    MCMC.params = MCMC.params)
+  
+  LOOIC.out.m[[k]] <- compute.LOOIC(loglik.mat = jags.out[[k]]$sims.list$loglik.m,
+                                    data.vector = jags.data$n,
+                                    MCMC.params = MCMC.params)
 }
 
-ggplot(cross.validation.out$output) +
-  #geom_point(aes(x = sector, y = counts_2),
-  #           color = "gold") +
-  geom_point(aes(x = counts_2, 
-                 y = estim.X.val, 
-                 color = sector)) +
-  geom_errorbar(aes(x = counts_2, 
-                    ymin = q2.5.X.val, 
-                    ymax = q97.5.X.val,
-                    color = sector)) +
-  geom_abline(slope = 1, intercept = 0)+
-  facet_wrap(~ year)
+end.time <- now()
 
+out.list <- list(model.names = model.names,
+                 jm.out = jags.out,
+                 LOOIC.out.m = LOOIC.out.m,
+                 LOOIC.out.n = LOOIC.out.n,
+                 m.estims = m.estims,
+                 jags.data = jags.data,
+                 jags.params = jags.params,
+                 MCMC.params = MCMC.params,
+                 run.date = Sys.Date(),
+                 system = Sys.info(),
+                 run.time = end.time - start.time)
 
+LOOIC.df <- data.frame(model = out.list$model.names,
+                       DIC = lapply(out.list$jm.out, 
+                                    FUN = function(x) x$DIC) %>% unlist(),
+                       Rhat = lapply(out.list$jm.out, 
+                                     FUN = function(x) x$Rhat %>% unlist() %>% 
+                                       max(na.rm = T)) %>% unlist(),
+                       LOOIC.m = lapply(out.list$LOOIC.out.m, 
+                                        FUN = function(x) x$loo.out$estimates["looic", "Estimate"]) %>% 
+                         unlist(),
+                       max.pareto.m = lapply(out.list$LOOIC.out.m, 
+                                             FUN = function(x) x$loo.out$diagnostics$pareto_k %>%
+                                               max()) %>%
+                         unlist(),
+                       LOOIC.n = lapply(out.list$LOOIC.out.n, 
+                                        FUN = function(x) x$loo.out$estimates["looic", "Estimate"]) %>%
+                         unlist(),
+                       max.pareto.n = lapply(out.list$LOOIC.out.n, 
+                                             FUN = function(x) x$loo.out$diagnostics$pareto_k %>%
+                                               max()) %>%
+                         unlist()) %>%
+  mutate(dDIC = DIC - min(DIC),
+         dLOOIC.m = LOOIC.m - min(LOOIC.m),
+         dLOOIC.n = LOOIC.n - min(LOOIC.n)) %>%
+  select(-c("DIC", "LOOIC.m", "LOOIC.n")) %>%
+  arrange(dLOOIC.m) %>% 
+  select(model, Rhat, dDIC, dLOOIC.m, dLOOIC.n, max.pareto.m, max.pareto.n)
 ```
 
-
-## GAM is not going to work {-}
-I was going to use GAM but that's not going to work... To predict the second half from first, GAM would require covariates that are available for all hours, not just hours and dates, which are lacking...
-The number of observed hatchlings per meter was modeled as a function of time of night (hrs since 1800), year, sector, and survey, which was treated as a random effect. 
-
-I think I have to estimate the proportion of the second half as a function of covariates then estimate the number from the estimated proportion and the observed first half. 2022-11-23
-
-```{r gam, echo=FALSE, message=FALSE}
-library(mgcv)
-data.1.12hr %>%
-  filter(!is.na(counts_m_NA)) -> data.1.12hr.noNA
-
-# Sector as a grouping variable and date_seq (survey ID) as a random effect
-gam.1 <- gam(counts_m_NA ~ s(hr) + sector + s(date_seq, bs = "re"),
-             data = data.1.12hr.noNA,
-             method = "REML")
-
-# Remove sectors 
-gam.2 <- gam(counts_m_NA ~ s(hr) +  s(date_seq, bs = "re"),
-             data = data.1.12hr.noNA,
-             method = "REML")
-
-library(visreg)
-visreg(gam.1, 
-       xvar = "hr", 
-       by = "sector", 
-       data = data.1.12hr.noNA, method = "REML")
-
-# visreg(gam.2, xvar = "hr", 
-#        data = data.1.12hr.noNA, method = "REML")
-
-data.1 %>% 
-    filter(survey_duration_hr == 6) -> data.1.6hr
-  
-data.1.6hr %>% 
-  select(sector, hr, counts_m_NA) %>%
-  na.omit() -> data.1.6hr.predict
-
-```
-
-
-Within year Means with 12-hr surveys
-
-```{r}
-
-counts.1st.2nd %>%
-  group_by(year) %>%
-  summarise(var = var(ratio),
-            mean = mean(ratio)) -> year.var.mean.ratio.12hr
-
-
-```
-
-Within year means with 6-hr surveys
-
-```{r}
-# filter out 6-hr data:
-data.1 %>% 
-  filter(survey_duration_hr == 6, hr < 7) %>%
-  group_by(sector, year, date) %>%
-  summarize(across(.cols = counts_m, 
-                   .fns = sum, 
-                   na.rm = T, .names = "counts_m_1")) -> sum.0.6.hrs.6hr
-
-
-sum.0.6.hrs.6hr %>%
-  group_by(year) %>%
-  summarise(var = var(counts_m_1),
-            mean = mean(counts_m_1)) -> year.var.mean.6hr
-
-# Combine with 12hr dataset:
-sum.6hr <- rbind(sum.0.6.hrs.12hr, sum.0.6.hrs.6hr)
-
-p.counts.first.6hr <- ggplot(data = sum.6hr) +
-  geom_point(aes(x = sector, y = counts_m_1)) +
-  facet_wrap(~year)
-
-save.fig.fcn(p.counts.first.6hr, 
-             file.name = paste0("figures/counts_6hr_all_", dpi.set, "dpi.png"), 
-             replace = F, dpi = dpi.set)
-
-```
