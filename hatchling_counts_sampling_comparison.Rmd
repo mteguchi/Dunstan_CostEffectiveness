@@ -580,7 +580,7 @@ knitr::include_graphics(paste0("figures/ratio_year_", dpi.set, "dpi.png"))
 
 Cross validations were conducted for all date- and sector-specific surveys that were 12 hr long. The second half of each survey was computed using the first half of the survey and the proportion of the first half that was computed using either (1) only the same sector for that year, (2) all sectors for that year, (3) all other sectors for that year, or (4) all sectors from other years. 
 
-```{r cross-validation-1, echo=FALSE, message=FALSE}
+```{r cross-validation-1, echo=FALSE, message=FALSE, warning=FALSE}
 compute.2nd <- function(m.1st, mean.ratio){
   m.2nd <- ((1/mean.ratio) - 1) * m.1st 
 }
@@ -728,19 +728,27 @@ save.fig.fcn(p.difs.1,
 
 ratio.summary.table <- data.frame(Sets = c("One sector", "All sectors", 
                                            "Other sectors", "Other years"),
-                                  Mean = c(mean(data.out$dif.1, na.rm = T), mean(data.out$dif.all),
-                                           mean(data.out$dif.others), mean(data.out$dif.other.yrs)),
-                                  SD = c(sqrt(var(data.out$dif.1, na.rm = T)), sqrt(var(data.out$dif.all)),
-                                         sqrt(var(data.out$dif.others)), sqrt(var(data.out$dif.other.yrs))),
-                                  min = c(min(data.out$dif.1, na.rm = T), min(data.out$dif.all),
-                                           min(data.out$dif.others), min(data.out$dif.other.yrs)),
-                                  max = c(max(data.out$dif.1, na.rm = T), max(data.out$dif.all),
-                                           max(data.out$dif.others), max(data.out$dif.other.yrs)))
+                                  Mean = c(mean(data.out$dif.1, na.rm = T),
+                                           mean(data.out$dif.all),
+                                           mean(data.out$dif.others),
+                                           mean(data.out$dif.other.yrs)),
+                                  SD = c(sqrt(var(data.out$dif.1, na.rm = T)),
+                                         sqrt(var(data.out$dif.all)),
+                                         sqrt(var(data.out$dif.others)),
+                                         sqrt(var(data.out$dif.other.yrs))),
+                                  min = c(min(data.out$dif.1, na.rm = T), 
+                                          min(data.out$dif.all),
+                                           min(data.out$dif.others), 
+                                          min(data.out$dif.other.yrs)),
+                                  max = c(max(data.out$dif.1, na.rm = T),
+                                          max(data.out$dif.all),
+                                           max(data.out$dif.others),
+                                          max(data.out$dif.other.yrs)))
 
 ```
 
 
-```{r Figure-X-validation, echo=FALSE, message=FALSE, fig.cap = "Observed and calculated numbers of hatchlings using the ratio between the first and total number of hatchlings. Calculations were conducted in a cross validation manner where each survey was withheld from computing the ratio to be used in calculating the second half of the evening. A: Using the same sector within the same year, B: Using all sectors within the same year, C: Using other sectors within the same year, and D: Using all sectors from other years." }
+```{r Figure-X-validation, echo=FALSE, message=FALSE, fig.cap = "Observed and calculated numbers of hatchlings using the ratio between the first and total number of hatchlings. Calculations were conducted in a cross validation manner where each survey was withheld from computing the ratio to be used in calculating the second half of the evening. A: Using the same sector within the same year, B: Using all sectors within the same year, C: Using other sectors within the same year, and D: Using all sectors from other years. The solid lines indicate the correct answer. }
 
 knitr::include_graphics(paste0("figures/ratio_counts_", dpi.set, "dpi.png"))
 ```
@@ -1310,7 +1318,7 @@ counts.all.estims <- cbind(counts.all,
                                       q50_m_v5.1 = out.list$m.estims[[2]]$m.q50,
                                       q97.5_m_v5.1 = out.list$m.estims[[2]]$m.q97.5)) 
 
-ggplot(data = counts.all.estims) + 
+p.estimated.m <- ggplot(data = counts.all.estims) + 
   geom_point(aes(x = counts_1, 
                  y = exp(estim_m_v5.1)-1, 
                  color = sector),
@@ -1326,6 +1334,25 @@ ggplot(data = counts.all.estims) +
   xlab("Counts from 1800-2400") +
   ylab("Estimated counts from 2400-0600")
 
+save.fig.fcn(p.estimated.m, 
+             file.name = paste0("figures/estimated_m_v5-1_", dpi.set, "dpi.png"), 
+             replace = F, dpi = dpi.set)
 
 ```
+
+When estimating the second half of the evening from the hatchling counts of first half and data from other years, the variability is considerably less than if the counts were made during the second half of the evening (Figure \@ref(fig:Figure-estimated-counts-v5-1). 
+
+
+
+```{r Figure-estimated-counts-v5-1, echo=FALSE, message=FALSE, fig.cap="Observed and estimated counts from 2400 - 0600 using the v5-1 model as a function of the counts from the first half of the evening. Data points without error bars are observed counts. The solid lines indicate y=x."}
+
+knitr::include_graphics(paste0("figures/estimated_m_v5-1_", dpi.set, "dpi.png"))
+
+```
+
+## Comparing the ratio-based and model-based estimates 
+
+The model-based estimation process requires a considerate effort. Computing ratios is a lot simpler and more efficient. Here, I compare the two methods and discuss pros and cons of two approaches. 
+
+
 
