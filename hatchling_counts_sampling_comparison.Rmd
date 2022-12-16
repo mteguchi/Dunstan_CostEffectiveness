@@ -1295,3 +1295,37 @@ LOOIC.df <- data.frame(model = out.list$model.names,
   select(model, Rhat, dDIC, dLOOIC.m, dLOOIC.n, max.pareto.m, max.pareto.n)
 ```
 
+
+Look at what happened with estimated counts.
+
+```{r estimated-m, echo=FALSE, message=FALSE}
+
+counts.all.estims <- cbind(counts.all, 
+                           data.frame(estim_m_v1.1 = out.list$m.estims[[1]]$m.estim,
+                                      q2.5_m_v1.1 = out.list$m.estims[[1]]$m.q2.5,
+                                      q50_m_v1.1 = out.list$m.estims[[1]]$m.q50,
+                                      q97.5_m_v1.1 = out.list$m.estims[[1]]$m.q97.5,
+                                      estim_m_v5.1 = out.list$m.estims[[2]]$m.estim,
+                                      q2.5_m_v5.1 = out.list$m.estims[[2]]$m.q2.5,
+                                      q50_m_v5.1 = out.list$m.estims[[2]]$m.q50,
+                                      q97.5_m_v5.1 = out.list$m.estims[[2]]$m.q97.5)) 
+
+ggplot(data = counts.all.estims) + 
+  geom_point(aes(x = counts_1, 
+                 y = exp(estim_m_v5.1)-1, 
+                 color = sector),
+                 #size = duration_hr),
+             alpha = 0.3) +
+  geom_errorbar(aes(x = counts_1,
+                    ymin = exp(q2.5_m_v5.1),
+                    ymax = exp(q97.5_m_v5.1),
+                    color = sector),
+                alpha = 0.6) +
+  geom_abline(slope = 1, intercept = 0)+
+  facet_wrap(~ year) + labs(title = "v5-1") +
+  xlab("Counts from 1800-2400") +
+  ylab("Estimated counts from 2400-0600")
+
+
+```
+
