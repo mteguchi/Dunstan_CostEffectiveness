@@ -762,7 +762,7 @@ knitr::include_graphics(paste0("figures/ratio_difs_", dpi.set, "dpi.png"))
 ```
 
 
-The comparison of the calculated values (i.e., hatchling counts during the second half of each survey) indicated that the using all sectors from all other years resulted in smallest variability in the difference between the true and calculated values, followed by using all sectors within the same year (Table \@ref(tab:Table-summary-ratio), Figure \@ref(fig:Figure-ratio)). It is important to note that using all sectors or one sector within the same year requires some 12-hr sampling to be conducted within each year. 
+The comparison of the calculated values (i.e., hatchling counts during the second half of each survey) indicated that the using all sectors from all other years resulted in smallest variability in the difference between the true and calculated values, followed by using all sectors within the same year (Table \@ref(tab:Table-summary-ratio), Figure \@ref(fig:Figure-ratio)). It is important to note that using all sectors or one sector within the same year requires some 12-hr sampling to be conducted within each year. The only set that requires no 12-hr sampling in the future is "Other years." I use the set for computing the missing counts in the dataset. 
 
 
 ```{r Table-summary-ratio, echo=FALSE, warning=FALSE}
@@ -774,6 +774,12 @@ flextable(ratio.summary.table) %>%
 
 ```
 
+
+
+
+### Estimating the unobserved counts from ratios
+
+THIS NEEDS TO BE DONE... 2022-12-16
 
 ### Statistical modeling of hatchling counts {-}
 
