@@ -232,7 +232,7 @@ cross.validataion.fcn <- function(model.base.name, model.ver, jags.data, jags.pa
 
 calculate.ratio <- function(data.1){
   
-  # filter out 12-hr data:
+  # only include 12-hr data:
   data.1 %>% 
     filter(survey_duration_hr == 12) -> data.1.12hr
   

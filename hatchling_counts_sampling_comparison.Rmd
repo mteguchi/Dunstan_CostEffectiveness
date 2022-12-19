@@ -522,7 +522,7 @@ save.fig.fcn(p.ratio.sector,
 
 ```
 
-The proportion of hatchlings that were counted during the first 6 hrs, i.e., 1800 to 2400, relative to the 12-hr period (1800-0600) ranged from `r signif(min(counts.1st.2nd$ratio), 3)` to `r signif(max(counts.1st.2nd$ratio), 3)`. Majority of them were greater than 0.5 (`r counts.1st.2nd %>% filter(ratio > 0.5) %>% nrow()` of `r nrow(counts.1st.2nd`), mean = `r signif(mean(counts.1st.2nd$ratio), 3)`, SE = `r signif(sqrt(var(counts.1st.2nd$ratio))/sqrt(nrow(counts.1st.2nd)), 3)`). Two counts that resulted in low proportions of hatchlings during the first half of the evenings occurred in 2018 in sector A2 (Figure \@ref(fig:)).
+The proportion of hatchlings that were counted during the first 6 hrs, i.e., 1800 to 2400, relative to the 12-hr period (1800-0600) ranged from `r signif(min(counts.1st.2nd$ratio), 3)` to `r signif(max(counts.1st.2nd$ratio), 3)`. Majority of them were greater than 0.5 (`r counts.1st.2nd %>% filter(ratio > 0.5) %>% nrow()` of `r nrow(counts.1st.2nd)`), mean = `r signif(mean(counts.1st.2nd$ratio), 3)`, SE = `r signif(sqrt(var(counts.1st.2nd$ratio))/sqrt(nrow(counts.1st.2nd)), 3)`). Two counts that resulted in low proportions of hatchlings during the first half of the evenings occurred in 2018 in sector A2 (Figure \@ref(fig:)).
 
 
 ```{r Figure-ratio-sectors, echo=FALSE, message=FALSE, fig.cap="The proportion of hatchlings per meter during the first half of the evening (1800-2400) in the total number of hatchlings (1800-0600)."}
@@ -748,7 +748,7 @@ ratio.summary.table <- data.frame(Sets = c("One sector", "All sectors",
 ```
 
 
-```{r Figure-X-validation, echo=FALSE, message=FALSE, fig.cap = "Observed and calculated numbers of hatchlings using the ratio between the first and total number of hatchlings. Calculations were conducted in a cross validation manner where each survey was withheld from computing the ratio to be used in calculating the second half of the evening. A: Using the same sector within the same year, B: Using all sectors within the same year, C: Using other sectors within the same year, and D: Using all sectors from other years. The solid lines indicate the correct answer. }
+```{r Figure-X-validation, echo=FALSE, message=FALSE, fig.cap = "Observed and calculated numbers of hatchlings using the ratio between the first and total number of hatchlings. Calculations were conducted in a cross validation manner where each survey was withheld from computing the ratio to be used in calculating the second half of the evening. A: Using the same sector within the same year, B: Using all sectors within the same year, C: Using other sectors within the same year, and D: Using all sectors from other years. The solid lines indicate the correct answer." }
 
 knitr::include_graphics(paste0("figures/ratio_counts_", dpi.set, "dpi.png"))
 ```
@@ -762,7 +762,7 @@ knitr::include_graphics(paste0("figures/ratio_difs_", dpi.set, "dpi.png"))
 ```
 
 
-The comparison of the calculated values (i.e., hatchling counts during the second half of each survey) indicated that the using all sectors from all other years resulted in smallest variability in the difference between the true and calculated values, followed by using all sectors within the same year (Table \@ref(tab:Table-summary-ratio), Figure \@ref(fig:Figure-ratio)). It is important to note that using all sectors or one sector within the same year requires some 12-hr sampling to be conducted within each year. The only set that requires no 12-hr sampling in the future is "Other years." I use the set for computing the missing counts in the dataset. 
+The comparison of the calculated values (i.e., hatchling counts during the second half of each survey) indicated that the using all sectors from all other years resulted in smallest variability in the difference between the true and calculated values, followed by using all sectors within the same year (Table \@ref(tab:Table-summary-ratio), Figure \@ref(fig:Figure-ratio)). It is important to note that using all sectors or one sector within the same year requires some 12-hr sampling to be conducted within each year. The only set that requires no 12-hr sampling in the future is "Other years." Considering the logistical difficulties of conducting 12-hr sampling at all sectors, I compare overall hatchling estimates from "other sectors" and "other years" in the following section.  
 
 
 ```{r Table-summary-ratio, echo=FALSE, warning=FALSE}
@@ -775,11 +775,65 @@ flextable(ratio.summary.table) %>%
 ```
 
 
-
-
 ### Estimating the unobserved counts from ratios
 
-THIS NEEDS TO BE DONE... 2022-12-16
+In this section, I use the entire dataset and estimate the number of hatchlings for the second half of each evening when no survey was conducted from 2400 - 0600, using all available ratios from all years and all sectors.  
+
+```{r proportion-estimates, echo=FALSE, message=FALSE, warning=FALSE}
+
+# Similar to the cross validation above but with missing data
+# Add the counts for each night with 6-hr sampling
+data.1 %>% 
+  filter(survey_duration_hr < 12) %>%
+  select(sector, year, date, counts, trench_length_m, date_num, counts, counts_m) %>%
+  group_by(sector, year, date) %>%
+  summarize(across(.cols = counts, 
+                     .fns = sum, 
+                     na.rm = T, 
+                     .names = "counts_1"),
+              length = first(trench_length_m),
+              date_num = first(date_num)) %>%
+  mutate(counts_m_1 = counts_1/length) %>%
+  transmute(sector = sector,
+            year = year,
+            date = date,
+            counts_1 = counts_1,
+            length = length,
+            date_num = date_num,
+            counts_m_1 = counts_m_1,
+            counts_2 = NA,
+            counts_m_2 = NA,
+            ratio = NA) -> counts.1st.2nd.6hr
+
+# Combine them with the 12-hr sampling data
+counts.1st.2nd.all <- rbind(counts.1st.2nd.12hr, counts.1st.2nd.6hr)
+
+# Create a sequential ID number for each survey 
+date_num_df <- data.frame(date_num = unique(counts.1st.2nd.all$date_num),
+                          date_seq = 1:length(unique(counts.1st.2nd.all$date_num)))
+
+# Add the sequential ID numbers to the data frame
+counts.1st.2nd.all %>%
+  left_join(date_num_df, by = "date_num") -> counts.1st.2nd.all
+
+# Create the output data frame with extra columns for estimates
+data.out <- counts.1st.2nd.all
+
+# find how many are missing:
+n.missing <- counts.1st.2nd.all %>% 
+  filter(is.na(counts_2)) %>% 
+  nrow()
+
+mean.prop <- 1 - mean(counts.1st.2nd.all$ratio, na.rm = T)
+data.out$estim.2 <- data.out$counts_1 * mean.prop
+
+
+
+```
+
+
+
+
 
 ### Statistical modeling of hatchling counts {-}
 
