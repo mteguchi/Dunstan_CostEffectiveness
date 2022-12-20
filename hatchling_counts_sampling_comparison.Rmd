@@ -1221,7 +1221,7 @@ cross.validation.v5_1.out <- cross.validataion.fcn(model.base.name = model.base.
                                                    MCMC.params = MCMC.params, 
                                                    original.data = counts.1st.2nd.jags.data)
 
-model.ver <- "v5-1"
+model.ver <- "v1-1"
 p.X_validation <- ggplot(cross.validation.v5_1.out$output) +
   #geom_point(aes(x = sector, y = counts_2),
   #           color = "gold") +
