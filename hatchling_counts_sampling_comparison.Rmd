@@ -777,7 +777,7 @@ flextable(ratio.summary.table) %>%
 
 ### Estimating the unobserved counts from ratios
 
-In this section, I use the entire dataset and estimate the number of hatchlings for the second half of each evening when no survey was conducted from 2400 - 0600, using all available ratios from all years and all sectors.  
+In this section, I use the entire dataset and estimate the number of hatchlings for the second half of each evening when no survey was conducted from 2400 - 0600, using all available ratios from all years and all sectors. To estimate the uncertainty, I fitted the beta distribution to all available ratios and computed 0.025 and 0.975 quantiles of the fitted beta distribution.  
 
 ```{r proportion-estimates, echo=FALSE, message=FALSE, warning=FALSE}
 
@@ -806,7 +806,9 @@ data.1 %>%
             ratio = NA) -> counts.1st.2nd.6hr
 
 # Combine them with the 12-hr sampling data
-counts.1st.2nd.all <- rbind(counts.1st.2nd.12hr, counts.1st.2nd.6hr)
+counts.1st.2nd.all <- rbind(counts.1st.2nd.12hr, counts.1st.2nd.6hr) %>%
+  mutate(counts_1_100m = counts_m_1 * 100,
+         counts_2_100m = counts_m_2 * 100)
 
 # Create a sequential ID number for each survey 
 date_num_df <- data.frame(date_num = unique(counts.1st.2nd.all$date_num),
@@ -838,6 +840,7 @@ qtiles.fit <- qbeta(c(0.025, 0.5, 0.975),
                     beta.fit$alpha, 
                     beta.fit$beta)
 
+##### Don't delete this block #############################
 # Visual check to see if the estimates are okay:
 # beta.density <- data.frame(x = seq(0, 1, by = 0.01),
 #                            density = dbeta(seq(0, 1, by = 0.01), 
@@ -853,26 +856,28 @@ qtiles.fit <- qbeta(c(0.025, 0.5, 0.975),
 #             aes(x = x, y = density),
 #             color = "red",
 #             size = 1)
-
+#
 # Looks alright. 
+#############################################################
 
-
-data.out$estim.2 <- data.out$counts_1 * mean.prop
-data.out$q2.5 <- data.out$counts_1 * qtiles.fit[1]
-data.out$q50 <- data.out$counts_1 * qtiles.fit[2]
-data.out$q97.5 <- data.out$counts_1 * qtiles.fit[3]
+data.out$estim.2_100m <- data.out$counts_1_100m * mean.prop
+data.out$estim.2_100m_q2.5 <- data.out$counts_1_100m * qtiles.fit[1]
+data.out$estim.2_100m_q50 <- data.out$counts_1_100m * qtiles.fit[2]
+data.out$estim.2_100m_q97.5 <- data.out$counts_1_100m * qtiles.fit[3]
 
 p.estimated.prop <- ggplot(data = data.out) + 
-  geom_point(aes(x = counts_1, 
-                 y = estim.2, 
+  geom_point(aes(x = counts_1_100m, 
+                 y = estim.2_100m, 
                  color = sector),
                  #size = duration_hr),
              alpha = 0.3) +
-  geom_errorbar(aes(x = counts_1,
-                    ymin = q2.5,
-                    ymax = q97.5,
+  geom_errorbar(aes(x = counts_1_100m,
+                    ymin = estim.2_100m_q2.5,
+                    ymax = estim.2_100m_q97.5,
                     color = sector),
                 alpha = 0.6) +
+  geom_point(aes(x = counts_1_100m, y = counts_2_100m),
+             shape = 0) +
   geom_abline(slope = 1, intercept = 0)+
   facet_wrap(~ year) + labs(title = "Ratio") +
   xlab("Counts from 1800-2400") +
@@ -886,6 +891,13 @@ save.fig.fcn(p.estimated.prop,
 ```
 
 
+As it was seen from the previous analyses, observed and estimated counts were similar for 2015 and 2016. Departures were observed for 2017 and 2018. The subsequent years have no way of knowing how estimate values compared to the true values (Figure \@ref(fig:Figure-ratio-estimates). 
+
+```{r Figure-ratio-estimates, echo=FALSE, message=FALSE, fig.cap="Estimated abundance and their 95% CI of hatchling counts during the second half of the night when estimated using the proportion of the number of hatchlings during the first half to the entire night. The folid lines indicate the y=x. Hollow squares indicate observed counts."}
+
+knitr::include_graphics(paste0("figures/estimated_counts2_", dpi.set, "dpi.png"))
+
+```
 
 
 
