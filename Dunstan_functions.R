@@ -1,5 +1,14 @@
 
 # functions:
+#` Computes beta parameters from mean and variance
+#`
+beta.params <- function(m, v){
+  a <- ((1 - m) * (m^2))/v - m
+  a[a < 0] <- NA
+  b <- a * (1 - m)/m
+  ab <- list(alpha = a, beta = b)
+  return(ab)
+}
 
 summarize.counts <- function(data.1){
   

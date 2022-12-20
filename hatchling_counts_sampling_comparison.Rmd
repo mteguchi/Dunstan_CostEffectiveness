@@ -824,9 +824,63 @@ n.missing <- counts.1st.2nd.all %>%
   filter(is.na(counts_2)) %>% 
   nrow()
 
-mean.prop <- 1 - mean(counts.1st.2nd.all$ratio, na.rm = T)
-data.out$estim.2 <- data.out$counts_1 * mean.prop
+n.notNA <- counts.1st.2nd.all %>%
+  filter(!is.na(counts_2)) %>%
+  nrow()
 
+# Mean proportion using all that are available
+mean.prop <- 1 - mean(counts.1st.2nd.all$ratio, na.rm = T)
+var.prop <- var(1 - counts.1st.2nd.all$ratio, na.rm = T)
+
+# To get uncertainty in the proportion, I fit the beta distribution:
+beta.fit <- beta.params(mean.prop, var.prop)
+qtiles.fit <- qbeta(c(0.025, 0.5, 0.975), 
+                    beta.fit$alpha, 
+                    beta.fit$beta)
+
+# Visual check to see if the estimates are okay:
+# beta.density <- data.frame(x = seq(0, 1, by = 0.01),
+#                            density = dbeta(seq(0, 1, by = 0.01), 
+#                                            beta.fit$alpha, 
+#                                            beta.fit$beta))
+# 
+# ggplot(data = counts.1st.2nd.all) +
+#   geom_histogram(aes(x = 1 - ratio, y = ..density..),
+#                  binwidth = 0.1) +
+#   geom_density(aes(x = 1 - ratio),
+#                color = "blue", size = 1) +
+#   geom_path(data = beta.density,
+#             aes(x = x, y = density),
+#             color = "red",
+#             size = 1)
+
+# Looks alright. 
+
+
+data.out$estim.2 <- data.out$counts_1 * mean.prop
+data.out$q2.5 <- data.out$counts_1 * qtiles.fit[1]
+data.out$q50 <- data.out$counts_1 * qtiles.fit[2]
+data.out$q97.5 <- data.out$counts_1 * qtiles.fit[3]
+
+p.estimated.prop <- ggplot(data = data.out) + 
+  geom_point(aes(x = counts_1, 
+                 y = estim.2, 
+                 color = sector),
+                 #size = duration_hr),
+             alpha = 0.3) +
+  geom_errorbar(aes(x = counts_1,
+                    ymin = q2.5,
+                    ymax = q97.5,
+                    color = sector),
+                alpha = 0.6) +
+  geom_abline(slope = 1, intercept = 0)+
+  facet_wrap(~ year) + labs(title = "Ratio") +
+  xlab("Counts from 1800-2400") +
+  ylab("Estimated counts from 2400-0600")
+
+save.fig.fcn(p.estimated.prop, 
+             file.name = paste0("figures/estimated_counts2_", dpi.set, "dpi.png"), 
+             replace = F, dpi = dpi.set)
 
 
 ```
