@@ -105,10 +105,12 @@ data.0 %>%
 # Ballpark figures of nesting female abundance - extracted from Figure 2 of Raine Island Recovery Project 2021-22 Technical report.pdf. - To be updated with more precise numbers. 
 
 n.females.df <- data.frame(year = c(2015:2022),
-                           n.females = scale(c(15000, 5000, 12000, 20000, 1000, 38000, 1000, 12000)))
+                           n.females = c(15000, 5000, 12000, 20000, 1000, 38000, 1000, 12000)) %>%
+  mutate(n.females.scaled = scale(n.females))
 
 # combine the # females into the data
-data.1 %>% left_join(n.females.df, by = "year") %>%
+data.1 %>% 
+  left_join(n.females.df, by = "year") %>%
   mutate(counts_m_NA_female = 1000 * counts_m_NA/n.females) -> data.1
 
 p.females <- ggplot(n.females.df) +
@@ -177,11 +179,11 @@ p.raw.counts <- ggplot(data = data.1) +
   #                y = counts, 
   #                color = sector)) +
   geom_path(aes(x = hr, 
-                 y = counts_m_NA, 
-                 color = as.factor(year))) +
+                y = counts_m_NA, 
+                color = as.factor(year))) +
   facet_wrap(~sector, nrow = 2) +
   labs(color = "Year") +
-  theme(legend.position = "none") +
+  #theme(legend.position = "none") +
   xlab("Hours since 1800") + ylab("# hatchlings per meter")
 
 
@@ -196,12 +198,25 @@ p.raw.counts.per.female <- ggplot(data = data.1) +
   labs(color = "Year") +
   xlab("Hours since 1800") + ylab("# hatchlings per meter per 1000 females")
 
-p.counts <- plot_grid(p.raw.counts, p.raw.counts.per.female,
-                      labels = c("(1)", "(2)"))
+legend_bottom <- get_legend(p.raw.counts + 
+                              guides(color = guide_legend(nrow = 1)) +
+                              theme(legend.position = "bottom", 
+                                    legend.direction = "horizontal",
+                                    legend.justification = "center"))
 
-save.fig.fcn(p.counts, 
-             file.name = paste0("figures/raw_counts_", dpi.set, "dpi.png"), 
-             replace = F, dpi = dpi.set)
+p.counts <- plot_grid(p.raw.counts + theme(legend.position = "none"), 
+                      p.raw.counts.per.female + theme(legend.position = "none"),
+                      legend_bottom,
+                      labels = c("(1)", "(2)"),
+                      rel_heights = c(1, 0.1))
+
+ggsave(filename = paste0("figures/raw_counts_", dpi.set, "dpi.png"),
+       plot = p.counts, device = "png", dpi = 600, bg = "white")
+
+# save.fig.fcn(p.counts, 
+#              file.name = paste0("figures/raw_counts_", dpi.set, "dpi.png"), 
+#              replace = T, dpi = dpi.set,
+#              height = 4, width = 5)
 
 ```
 
@@ -507,7 +522,7 @@ knitr::include_graphics(paste0("figures/sector_2019N_", dpi.set, "dpi.png"))
 
 It appears that more hatchlings are generally found before midnight. An objective of this project is to estimate the total number of hatchlings per night (1800 - 0600) from a reduced sampling design that counted the number of hatchlings in 6-hr period (1800 - 2400). Two approaches were used to estimate the total counts from partial counts: (1) using the ratios between the first and second half and (2) develop a regression model to determine the relationship between the first and second halves.
 
-### Ratios between the two sampling periods (1800-0600 vs. 1800-2400)
+### Ratios between the two sampling periods (1800-0600 vs. 1800-2400) {-}
 
 ```{r first-vs-second, echo=FALSE, message=FALSE, warning=FALSE, cache=TRUE}
 
@@ -773,7 +788,7 @@ flextable(ratio.summary.table) %>%
 ```
 
 
-### Estimating the unobserved counts from ratios
+### Estimating the unobserved counts from ratios {-}
 
 In this section, I use the entire dataset and estimate the number of hatchlings for the second half of each evening when no survey was conducted from 2400 - 0600, using all available ratios from all years and all sectors. To estimate the uncertainty, I fitted the beta distribution to all available ratios and computed 0.025 and 0.975 quantiles of the fitted beta distribution.  
 
@@ -903,7 +918,7 @@ knitr::include_graphics(paste0("figures/estimated_counts2_", dpi.set, "dpi.png")
 
 In this section, I use a statistical model to estimate the number of hatchlings during the second half of the night from the first half. I treated the observed number of hatchlings from 1800 to 2400 (n) in the j-th sector of the k-th sampling day during the y-th year as a Poisson random deviate. Sampling distance (L) jwas changed from 100 m to 50 m. Consequently, the sampling length needs to be accounted for in the model. When taking the natural log of the counts per distance, 
 
-$ ln(n/L) = ln(n) - ln(L) $.
+$$ln(n/L) = ln(n) - ln(L)$$.
 
 We assume that we can model the relationship $ln(n/L)$ with a function, say $f(...)$, where $\dots$ indicate one or more parameters. 
 
@@ -917,27 +932,33 @@ $$
 
 First, I considered the Poisson distribution as the likelihood function for the observed counts ($n$ and $m$). However, it did not fit well according to the Pareto k statistics, which measure how well a statistical model fits to the observed data in the Bayesian context (ref here). Consequently, I altered the likelihood function to the normal distribution and transformed the observed counts in the natural log scale. In order to deal with zero counts, I added one to each count.
 
-$ ln(n_{j, k, y} + 1) \sim N(\lambda_{j, k, y}, \sigma_n)$,
+$$
+ln(n_{j, k, y} + 1) \sim N(\lambda_{j, k, y}, \sigma_n)
+$$
 
 where $\sigma_n$ is the standard deviation. 
 
 The number of hatchlings from 2400 to 0600 (m) (plus one) in the natural log space is also a normal random deviate and its mean is a function of $\lambda_{j,k,y}$ and the proportion of the number of hatchlings from 1800 to 2400 to that from 1800 to 2400 ($\theta_{j,k,y}$):
 
-$ ln(m_{j,k,y} +1) \sim N(\lambda_{j,k,y} + \theta_{j,k,y}, \sigma_m) $.
+$$
+ln(m_{j,k,y} +1) \sim N(\lambda_{j,k,y} + \theta_{j,k,y}, \sigma_m) 
+$$
 
 The mean ($\lambda_{j, k, y}$) is a function of covariates, including year ($Y$) and the number of females ($N_{female}$), the day of sampling (# days since Jan 1; $D_{j,k,y}$), and sector ($S_{j,y}$):
 
-$\lambda_{j,k,y} = ln(L_{j,k,y}) + S_{j,y} + \beta_1 Y + \beta_2 N_{y} + \beta_3 D_{j,k,y} $,
+$$
+\lambda_{j,k,y} = ln(L_{j,k,y}) + S_{j,y} + \beta_1 Y + \beta_2 N_{y} + \beta_3 D_{j,k,y} 
+$$
 
 Effects of covariates on the mean ($\lambda$) were investigated by developing a series of models with different sets of covariates for the mean. In total, I developed six models:
 
-1. $\lambda_{j,k,y} = ln(L_{j,k,y}) + S_{j} + \beta_1 Y + \beta_2 N_{y} + \beta_3 D_{j,k,y} $
+1. $\lambda_{j,k,y} = ln(L_{j,k,y}) + S_{j} + \beta_1 Y + \beta_2 N_{y} + \beta_3 D_{j,k,y}$
 
 2. $\lambda_{j,k,y} = ln(L_{j,k,y}) + S_{j} + \beta_2 N_{y} + \beta_3 D_{j,k,y}$
 
 3. $\lambda_{j,k,y} = ln(L_{j,k,y}) + S_{j}$
 
-4. $\lambda_{j,k,y} = ln(L_{j,k,y}) + \beta_2 N_{y} + \beta_3 D_{j,k,y} $
+4. $\lambda_{j,k,y} = ln(L_{j,k,y}) + \beta_2 N_{y} + \beta_3 D_{j,k,y}$
 
 5. $\lambda_{j,k,y} = ln(L_{j,k,y}) + \beta_0 + \beta_2 N_{y} + \beta_3 D_{j,k,y}$
 
@@ -959,9 +980,9 @@ A total of 30 models were created. The naming convention was the $\theta$ model 
 
 Parameters were estimated via the Bayesian approach using JAGS (Plummer Yr) and the jagsUI package (ref) in R (ref). I used the following prior distributions.
 
-$ \lambda_{j,k,y} \sim GAM(1, 0.1)$
+$\lambda_{j,k,y} \sim GAM(1, 0.1)$
 
-$ \theta_{j,k,y} \sim UNIF(-10, 10)$
+$\theta_{j,k,y} \sim UNIF(-10, 10)$
 
 To test the modeling approach, I first used only data with 12-hr sampling and conducted cross-validations by withholding one 2400-0600 period at a time. 
 
@@ -1026,7 +1047,7 @@ jags.data <- list(n = log(counts.1st.2nd.jags.data$counts_1 + 1),
                   sector = counts.1st.2nd.jags.data$sector_num,
                   n.years = length(unique(counts.1st.2nd.jags.data$year_num)),
                   n.sectors = length(unique(counts.1st.2nd.jags.data$sector_num)),
-                  N.fem = counts.1st.2nd.jags.data$n.females,
+                  N.fem = counts.1st.2nd.jags.data$n.females.scaled,
                   N.fem.year = as.vector(n.females.df$n.females),
                   year = counts.1st.2nd.jags.data$year_num,
                   seq_date = counts.1st.2nd.jags.data$seq_date,
@@ -1216,7 +1237,7 @@ cross.validation.v5_1.out <- cross.validataion.fcn(model.base.name = model.base.
                                                    original.data = counts.1st.2nd.jags.data)
 
 model.ver <- "v1-1"
-p.X_validation <- ggplot(cross.validation.v5_1.out$output) +
+p.X_validation_V1_1 <- ggplot(cross.validation.v1_1.out$output) +
   #geom_point(aes(x = sector, y = counts_2),
   #           color = "gold") +
   geom_point(aes(x = log(counts_2+1), 
@@ -1231,10 +1252,29 @@ p.X_validation <- ggplot(cross.validation.v5_1.out$output) +
   xlab("log(observed + 1)") + ylab("log(Estimated + 1)") +
   labs(title = model.ver)
 
-save.fig.fcn(p.X_validation, 
+save.fig.fcn(p.X_validation_V1_1, 
              file.name = paste0("figures/Cross_validation_log_", model.ver, "_", dpi.set, "dpi.png"), 
              replace = F, dpi = dpi.set)
 
+model.ver <- "v5-1"
+p.X_validation_V5_1 <- ggplot(cross.validation.v5_1.out$output) +
+  #geom_point(aes(x = sector, y = counts_2),
+  #           color = "gold") +
+  geom_point(aes(x = log(counts_2+1), 
+                 y = estim.m, 
+                 color = sector)) +
+  geom_errorbar(aes(x = log(counts_2 + 1),
+                    ymin = q2.5.m,
+                    ymax = q97.5.m,
+                    color = sector)) +
+  geom_abline(slope = 1, intercept = 0)+
+  facet_wrap(~ year) +
+  xlab("log(observed + 1)") + ylab("log(Estimated + 1)") +
+  labs(title = model.ver)
+
+save.fig.fcn(p.X_validation_V5_1, 
+             file.name = paste0("figures/Cross_validation_log_", model.ver, "_", dpi.set, "dpi.png"), 
+             replace = F, dpi = dpi.set)
 ```
 
 The cross validation process indicated that the model predicted missing values fairly well (Figure \@ref(fig:Figure-X-validation-log-v1-1)), where observed and estimated values nearly lined up on the y = x line. Deviation from the line, however, was obvious for 2017 and 2018. It is important to note that v1-1 model has a year-specific $\theta$ values, which require more than one 12-hr sampling needs to be conducted annually in order for this model to work. 
@@ -1247,7 +1287,7 @@ knitr::include_graphics(paste0("figures/Cross_validation_log_v1-1_", dpi.set, "d
 ```
 
 
-The best model with a common $\theta$ value was V5-1 (Table \@ref(tab:Table-model-summary)). The model fit well to the data according to the Pareto-k statistics, although it was ranked in the middle of the pack. I also examined the predicted and true values from the model using the same cross validation technique. Results indicated that the model seems to adequately estimated the missing value (Figure \@ref(fig:Figure-x-validation-log_v5-1)).
+The best model with a common $\theta$ value was V5-1 (Table \@ref(tab:Table-model-summary)). The model fit well to the data according to the Pareto-k statistics, although it was ranked in the middle of the pack. I also examined the predicted and true values from the model using the same cross validation technique. Results indicated that the model seems to adequately estimated the missing value (Figure \@ref(fig:Figure-X-validation-log-v5-1)).
 
 
 ```{r Figure-X-validation-log-v5-1, echo=FALSE, message=FALSE, fig.cap="The differences between the observed and calculated numbers of hatchlings using a statistical model (v5-1). Calculations were conducted in a cross validation manner where each survey was withheld from computing the ratio to be used in calculating the second half of the evening."}
@@ -1261,7 +1301,7 @@ knitr::include_graphics(paste0("figures/Cross_validation_log_v5-1_", dpi.set, "d
 
 I applied these models (v1-1 and v5-1) to the entire data set in order to estimate the counts from 2400 - 0600, when no surveys were conducted. 
 
-```{r estimating-missing-counts, echo=FALSE, message=FALSE, cache=TRUE}
+```{r estimating-missing-counts, echo=FALSE, message=FALSE, warning=FALSE, results='hide', cache=TRUE}
 
 counts.all <- summarize.counts(data.1)
 
@@ -1322,7 +1362,7 @@ start.time <- now()
 k <- 1
 for (k in 1:length(model.names)){
   
-  print(paste("Model ", k, " of ", length(model.names)))
+  #print(paste("Model ", k, " of ", length(model.names)))
   #model.file <- paste0("models/model_counts_estimation_", model.names[k], ".txt")
   model.file <- paste0(model.base.name, model.names[k], ".txt")
   jags.out[[k]] <- jags(jags.data,
@@ -1333,7 +1373,7 @@ for (k in 1:length(model.names)){
                         n.burnin = MCMC.params$n.burnin,
                         n.thin = MCMC.params$n.thin,
                         n.iter = MCMC.params$n.samples,
-                        DIC = T, parallel=T)
+                        DIC = T, parallel=T, verbose = FALSE)
   
    # calculate m[k] using the posterior samples 
   model.ver <- model.names[k]
@@ -1433,7 +1473,7 @@ LOOIC.df <- data.frame(model = out.list$model.names,
 
 Look at what happened with estimated counts.
 
-```{r estimated-m, echo=FALSE, message=FALSE, cache=TRUE}
+```{r estimated-m, echo=FALSE, message=FALSE, warning = FALSE, cache=TRUE}
 
 counts.all.estims <- cbind(counts.all, 
                            data.frame(estim_m_v1.1 = out.list$m.estims[[1]]$m.estim,
@@ -1469,7 +1509,7 @@ save.fig.fcn(p.estimated.m,
 
 ```
 
-When estimating the second half of the evening from the hatchling counts of the first half and data from other years, the variability is considerably less than if the counts were made during the second half of the evening (Figure \@ref(fig:Figure-estimated-counts-v5-1). 
+When estimating the second half of the evening from the hatchling counts of the first half and data from other years, the variability is considerably less than if the counts were made during the second half of the evening (Figure \@ref(fig:Figure-estimated-counts-v5-1)). 
 
 
 
