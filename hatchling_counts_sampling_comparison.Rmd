@@ -24,6 +24,8 @@ library(flextable)
 library(cowplot)
 library(lubridate)
 library(loo)
+library("jagsUI")
+library("bayesplot")
 
 source("Dunstan_functions.R")
 
@@ -45,7 +47,7 @@ At Raine Island, annual hatchling production has been determined via counts of h
 
 In order to look at possible effects of differences in sampling scheme (i.e., 12hr vs 6 hr), I compare hatchling count data between the two sampling design. I converted the counts to counts per meter using the length of a trench (50 m vs 100 m). All analyses were conducted on the number of observed hatchlings per meter per hour. Furthermore, in order to consider the differences in the number of nesting females per nesting season, I divided the number of hatchlings per meter per hour by the estimated number of females (Petersen estimates from vessel-based survey) divided by 1000. The unit of the variable of interest, therefore, is the number of hatchlings per meter per hour per 1000 females. 
 
-```{r data-import, include=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
+```{r data-import, include=FALSE, echo=FALSE, message=FALSE, warning=FALSE, cache=TRUE}
 
 col.def <- cols(date = col_date(format = "%d/%m/%Y"),
                 sector = col_factor(levels = c("A", "A2", "B", "D", "2014S", "2017S", "2019S", "2019N")),
@@ -122,7 +124,7 @@ save.fig.fcn(p.females,
 
 
 
-```{r pivot-check, message=FALSE, echo=FALSE, warning=FALSE}
+```{r pivot-check, message=FALSE, echo=FALSE, warning=FALSE, cache=TRUE}
 # Make sure the pivoting worked correctly:
 
 data.0 %>% 
@@ -169,7 +171,7 @@ knitr::include_graphics(paste0("figures/females_", dpi.set, "dpi.png"))
 
 In order to look at the details, each sector was examined separately. 
 
-```{r raw-plot, echo=FALSE, message=FALSE, warning=FALSE}
+```{r raw-plot, echo=FALSE, message=FALSE, warning=FALSE, cache=TRUE}
 p.raw.counts <- ggplot(data = data.1) +
   # geom_point(aes(x = hr, 
   #                y = counts, 
@@ -214,7 +216,7 @@ knitr::include_graphics(paste0("figures/raw_counts_", dpi.set, "dpi.png"))
 
 ### Sector A {-}
 
-```{r sector-A, echo=FALSE, message=FALSE, warning=FALSE}
+```{r sector-A, echo=FALSE, message=FALSE, warning=FALSE, cache=TRUE}
 xlab.txt <- "Hours since 1800"
 ylab.1.txt <- "# hatchlings per meter"
 ylab.2.txt <- "# hatchlings per meter per 1000 females"
@@ -254,7 +256,7 @@ knitr::include_graphics(paste0("figures/sector_A_", dpi.set, "dpi.png"))
 
 ### Sector A2 {-}
 
-```{r sector-A2, echo=FALSE, message=FALSE, warning=FALSE}
+```{r sector-A2, echo=FALSE, message=FALSE, warning=FALSE, cache=TRUE}
 
 data.1 %>% filter(sector == "A2") -> data.1.A2
 
@@ -291,7 +293,7 @@ knitr::include_graphics(paste0("figures/sector_A2_", dpi.set, "dpi.png"))
 
 ### Sector B {-}
 
-```{r sector-B, echo=FALSE, message=FALSE, warning=FALSE}
+```{r sector-B, echo=FALSE, message=FALSE, warning=FALSE, cache=TRUE}
 
 data.1 %>% filter(sector == "B") -> data.1.B
 
@@ -329,7 +331,7 @@ knitr::include_graphics(paste0("figures/sector_B_", dpi.set, "dpi.png"))
 
 ### Sector D {-}
 
-```{r sector-D, echo=FALSE, message=FALSE, warning=FALSE}
+```{r sector-D, echo=FALSE, message=FALSE, warning=FALSE, cache=TRUE}
 
 data.1 %>% filter(sector == "D") -> data.1.D
 
@@ -367,7 +369,7 @@ knitr::include_graphics(paste0("figures/sector_D_", dpi.set, "dpi.png"))
 
 ### Sector 2014S {-}
 
-```{r sector-2014S, echo=FALSE, message=FALSE, warning=FALSE}
+```{r sector-2014S, echo=FALSE, message=FALSE, warning=FALSE, cache=TRUE}
 
 data.1 %>% filter(sector == "2014S") -> data.1.2014S
 
@@ -402,7 +404,7 @@ knitr::include_graphics(paste0("figures/sector_2014S_", dpi.set, "dpi.png"))
 ```
 
 ### Sector 2017S {-}
-```{r sector-2017S, echo=FALSE, message=FALSE, warning=FALSE}
+```{r sector-2017S, echo=FALSE, message=FALSE, warning=FALSE, cache=TRUE}
 
 data.1 %>% filter(sector == "2017S") -> data.1.2017S
 
@@ -436,7 +438,7 @@ knitr::include_graphics(paste0("figures/sector_2017S_", dpi.set, "dpi.png"))
 ```
 
 ### Sector 2019S {-}
-```{r sector-2019S, echo=FALSE, message=FALSE, warning=FALSE}
+```{r sector-2019S, echo=FALSE, message=FALSE, warning=FALSE, cache=TRUE}
 
 data.1 %>% filter(sector == "2019S") -> data.1.2019S
 
@@ -469,7 +471,7 @@ knitr::include_graphics(paste0("figures/sector_2019S_", dpi.set, "dpi.png"))
 ```
 
 ### Sector 2019N {-}
-```{r sector_2019N, echo=FALSE, message=FALSE, warning=FALSE}
+```{r sector_2019N, echo=FALSE, message=FALSE, warning=FALSE, cache=TRUE}
 
 data.1 %>% filter(sector == "2019N") -> data.1.2019N
 
@@ -507,7 +509,7 @@ It appears that more hatchlings are generally found before midnight. An objectiv
 
 ### Ratios between the two sampling periods (1800-0600 vs. 1800-2400)
 
-```{r first-vs-second, echo=FALSE, message=FALSE, warning=FALSE}
+```{r first-vs-second, echo=FALSE, message=FALSE, warning=FALSE, cache=TRUE}
 
 counts.1st.2nd <- calculate.ratio(data.1)
 
@@ -531,7 +533,7 @@ knitr::include_graphics(paste0("figures/ratio_sector_", dpi.set, "dpi.png"))
 
 ```
 
-```{r sector-year-summary, echo=FALSE, message=FALSE}
+```{r sector-year-summary, echo=FALSE, message=FALSE, cache=TRUE}
 
 # counts.1st.2nd %>%
 #   group_by(sector, year) %>%
@@ -555,10 +557,6 @@ counts.1st.2nd %>%
   summarise(mean.years = mean(ratio),
             SE.years = sqrt(var(ratio))/sqrt(n())) -> counts.1st.2nd.years
 
-
-```
-
-```{r}
 p.ratio.year <- ggplot(data = counts.1st.2nd) +
   geom_point(aes(x = sector, y = ratio)) +
   facet_wrap(~year)
@@ -580,7 +578,7 @@ knitr::include_graphics(paste0("figures/ratio_year_", dpi.set, "dpi.png"))
 
 Cross validations were conducted for all date- and sector-specific surveys that were 12 hr long. The second half of each survey was computed using the first half of the survey and the proportion of the first half that was computed using either (1) only the same sector for that year, (2) all sectors for that year, (3) all other sectors for that year, or (4) all sectors from other years. 
 
-```{r cross-validation-1, echo=FALSE, message=FALSE, warning=FALSE}
+```{r cross-validation-1, echo=FALSE, message=FALSE, warning=FALSE, cache=TRUE}
 compute.2nd <- function(m.1st, mean.ratio){
   m.2nd <- ((1/mean.ratio) - 1) * m.1st 
 }
@@ -779,7 +777,7 @@ flextable(ratio.summary.table) %>%
 
 In this section, I use the entire dataset and estimate the number of hatchlings for the second half of each evening when no survey was conducted from 2400 - 0600, using all available ratios from all years and all sectors. To estimate the uncertainty, I fitted the beta distribution to all available ratios and computed 0.025 and 0.975 quantiles of the fitted beta distribution.  
 
-```{r proportion-estimates, echo=FALSE, message=FALSE, warning=FALSE}
+```{r proportion-estimates, echo=FALSE, message=FALSE, warning=FALSE, cache=TRUE}
 
 # Similar to the cross validation above but with missing data
 # Add the counts for each night with 6-hr sampling
@@ -969,8 +967,6 @@ To test the modeling approach, I first used only data with 12-hr sampling and co
 
 
 ```{r modeling-1, echo=FALSE, message=FALSE}
-library("jagsUI")
-library("bayesplot")
 
 MCMC.params <- list(n.chains = 5,
                     n.samples = 100000,
@@ -1144,10 +1140,10 @@ flextable(LOOIC.df) %>%
 
 ```
 
-Although Rhat values seem to indicate MCMC converged fine, I also use visual aid to check good mixing of Markov chains. 
 
+```{r p-trace-plots, echo=FALSE, message=FALSE, include=FALSE, cache=TRUE}
+#Although Rhat values seem to indicate MCMC converged fine, I also use visual aid to check good mixing of Markov chains. 
 
-```{r p-trace-plots, echo=FALSE, message=FALSE}
 model.ver <- "v5-1"
 jm <- out.list$jm.out[[which(out.list$model.names == model.ver)]]
 
@@ -1169,7 +1165,7 @@ switch(str_split(model.ver, "-", simplify = TRUE)[1],
 ```
 
 
-```{r S-trace-plots, echo=FALSE, message=FALSE}
+```{r S-trace-plots, echo=FALSE, message=FALSE, include=FALSE, cache=TRUE}
 # some models don't have S's
 v <- str_split(model.ver, "-", simplify = TRUE)[2]
 
@@ -1180,7 +1176,7 @@ if (v != "4" | v != "5")
 ```
 
 
-```{r muS-sS-trace-plots, echo=FALSE, message=FALSE}
+```{r muS-sS-trace-plots, echo=FALSE, message=FALSE, include=FALSE, cache=TRUE}
 
 mcmc_trace(jm$samples, c("mu.S", "sigma.S"))
 
@@ -1188,7 +1184,7 @@ mcmc_trace(jm$samples, c("mu.S", "sigma.S"))
 ```
 
 
-```{r sigma.n-B.N.fem-trace-plots, echo=FALSE, message=FALSE}
+```{r sigma.n-B.N.fem-trace-plots, echo=FALSE, message=FALSE, include=FALSE, cache=TRUE}
 
 switch(str_split(model.ver, "-", simplify = TRUE)[2],
        "3" = mcmc_trace(jm$samples, c("sigma.n", "sigma.m")),
@@ -1203,7 +1199,7 @@ switch(str_split(model.ver, "-", simplify = TRUE)[2],
 
 The model is appeared to be working. Next step is to do cross validation and estimate one m at a time. 
 
-```{r X-validation-1, echo=FALSE, message=FALSE}
+```{r X-validation-1, echo=FALSE, message=FALSE, cache=TRUE}
 
 cross.validation.v1_1.out <- cross.validataion.fcn(model.base.name = model.base.name, 
                                                    model.ver = "v1-1", 
@@ -1265,7 +1261,7 @@ knitr::include_graphics(paste0("figures/Cross_validation_log_v5-1_", dpi.set, "d
 
 I applied these models (v1-1 and v5-1) to the entire data set in order to estimate the counts from 2400 - 0600, when no surveys were conducted. 
 
-```{r estimating-missing-counts, echo=FALSE, message=FALSE}
+```{r estimating-missing-counts, echo=FALSE, message=FALSE, cache=TRUE}
 
 counts.all <- summarize.counts(data.1)
 
@@ -1437,7 +1433,7 @@ LOOIC.df <- data.frame(model = out.list$model.names,
 
 Look at what happened with estimated counts.
 
-```{r estimated-m, echo=FALSE, message=FALSE}
+```{r estimated-m, echo=FALSE, message=FALSE, cache=TRUE}
 
 counts.all.estims <- cbind(counts.all, 
                            data.frame(estim_m_v1.1 = out.list$m.estims[[1]]$m.estim,
@@ -1483,9 +1479,13 @@ knitr::include_graphics(paste0("figures/estimated_m_v5-1_", dpi.set, "dpi.png"))
 
 ```
 
-## Comparing the ratio-based and model-based estimates 
+## Comparing the ratio-based and model-based estimates and conclusions {-}
 
 The model-based estimation process requires a considerate effort. Computing ratios is a lot simpler and more efficient. Here, I compare the two methods and discuss pros and cons of two approaches and recommendations for future sampling effort. 
+
+There was no clear winner in the comparison. Surprisingly, using the simple ratio from 2015-2018 provided "reasonable" estimates of hatchling counts. Estimates were not always accurate, however. Results of the model-based approach were not much different from those from the ratio-based approach. In both approaches, the difference between the estimates and the true counts (when available) was greater when the number of counts during the first half of the evening was larger.
+
+To estimate the total hatchling production on Raine Island, the 6-hr sampling of hatchling may be sufficient when the number of hatchlings, therefore nests, is low. When there is a high nesting season, it may be necessary to conduct a few 12-hr sampling to better estimate the ratio or the correction factor for that year (and others). Because the ratio of the first half to the total appears to be very similar among sectors, only one sector needs to be samples for 12 hrs if 12-hr sampling is logistically challenging. 
 
 
 
