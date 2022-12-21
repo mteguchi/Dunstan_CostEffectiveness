@@ -1344,7 +1344,7 @@ for (k in 1:length(model.names)){
   m.estim <- m.q2.5 <- m.q50 <- m.q97.5 <- vector(mode = "numeric", length = length(jags.data$m))
   for (k1 in 1:length(jags.data$m)){
     m.k <- jags.data$m[k1]
-    if (is.na(m.k)){
+    #if (is.na(m.k)){
       if (str_split(model.ver, "-", simplify = TRUE)[1] == "v5"){
         p.samples <-  extract.samples("p",
                                       jags.out[[k]]$samples) 
@@ -1353,6 +1353,7 @@ for (k in 1:length(model.names)){
                                       jags.out[[k]]$samples)
         
       }
+      
       m.k <- jags.data$n[k1] + p.samples
       qtiles.m <- quantile(m.k, c(0.025, 0.5, 0.975))
 
@@ -1361,13 +1362,13 @@ for (k in 1:length(model.names)){
       m.q50[k1] <- qtiles.m[2]
       m.q97.5[k1] <-qtiles.m[3]
       
-    } else {
-      m.estim[k1] <- jags.data$m[k1]
-      m.q2.5[k1] <- jags.data$m[k1]
-      m.q50[k1] <- jags.data$m[k1]
-      m.q97.5[k1] <- jags.data$m[k1]
-
-    }
+    # } else {
+    #   m.estim[k1] <- jags.data$m[k1]
+    #   m.q2.5[k1] <- jags.data$m[k1]
+    #   m.q50[k1] <- jags.data$m[k1]
+    #   m.q97.5[k1] <- jags.data$m[k1]
+    # 
+    # }
 
   }
   
@@ -1401,22 +1402,28 @@ out.list <- list(model.names = model.names,
 
 LOOIC.df <- data.frame(model = out.list$model.names,
                        DIC = lapply(out.list$jm.out, 
-                                    FUN = function(x) x$DIC) %>% unlist(),
+                                    FUN = function(x) x$DIC) %>% 
+                         unlist(),
                        Rhat = lapply(out.list$jm.out, 
                                      FUN = function(x) x$Rhat %>% unlist() %>% 
-                                       max(na.rm = T)) %>% unlist(),
+                                       max(na.rm = T)) %>% 
+                         unlist(),
                        LOOIC.m = lapply(out.list$LOOIC.out.m, 
-                                        FUN = function(x) x$loo.out$estimates["looic", "Estimate"]) %>% 
+                                        FUN = function(x) 
+                                          x$loo.out$estimates["looic", "Estimate"]) %>% 
                          unlist(),
                        max.pareto.m = lapply(out.list$LOOIC.out.m, 
-                                             FUN = function(x) x$loo.out$diagnostics$pareto_k %>%
+                                             FUN = function(x) 
+                                               x$loo.out$diagnostics$pareto_k %>%
                                                max()) %>%
                          unlist(),
                        LOOIC.n = lapply(out.list$LOOIC.out.n, 
-                                        FUN = function(x) x$loo.out$estimates["looic", "Estimate"]) %>%
+                                        FUN = function(x) 
+                                          x$loo.out$estimates["looic", "Estimate"]) %>%
                          unlist(),
                        max.pareto.n = lapply(out.list$LOOIC.out.n, 
-                                             FUN = function(x) x$loo.out$diagnostics$pareto_k %>%
+                                             FUN = function(x) 
+                                               x$loo.out$diagnostics$pareto_k %>%
                                                max()) %>%
                          unlist()) %>%
   mutate(dDIC = DIC - min(DIC),
@@ -1454,7 +1461,7 @@ p.estimated.m <- ggplot(data = counts.all.estims) +
                     color = sector),
                 alpha = 0.6) +
   geom_point(aes(x = counts_1,
-                 y = counts_2), shape = 0) +
+                 y = counts_2a), shape = 0) +
   geom_abline(slope = 1, intercept = 0)+
   facet_wrap(~ year) + labs(title = "v5-1") +
   xlab("Counts from 1800-2400") +
@@ -1462,11 +1469,11 @@ p.estimated.m <- ggplot(data = counts.all.estims) +
 
 save.fig.fcn(p.estimated.m, 
              file.name = paste0("figures/estimated_m_v5-1_", dpi.set, "dpi.png"), 
-             replace = F, dpi = dpi.set)
+             replace = T, dpi = dpi.set)
 
 ```
 
-When estimating the second half of the evening from the hatchling counts of first half and data from other years, the variability is considerably less than if the counts were made during the second half of the evening (Figure \@ref(fig:Figure-estimated-counts-v5-1). 
+When estimating the second half of the evening from the hatchling counts of the first half and data from other years, the variability is considerably less than if the counts were made during the second half of the evening (Figure \@ref(fig:Figure-estimated-counts-v5-1). 
 
 
 
@@ -1478,7 +1485,7 @@ knitr::include_graphics(paste0("figures/estimated_m_v5-1_", dpi.set, "dpi.png"))
 
 ## Comparing the ratio-based and model-based estimates 
 
-The model-based estimation process requires a considerate effort. Computing ratios is a lot simpler and more efficient. Here, I compare the two methods and discuss pros and cons of two approaches. 
+The model-based estimation process requires a considerate effort. Computing ratios is a lot simpler and more efficient. Here, I compare the two methods and discuss pros and cons of two approaches and recommendations for future sampling effort. 
 
 
 
