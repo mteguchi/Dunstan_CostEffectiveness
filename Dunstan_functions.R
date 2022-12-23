@@ -144,7 +144,8 @@ cross.validataion.fcn <- function(model.base.name, model.ver, jags.data, jags.pa
                  n.burnin = MCMC.params$n.burnin,
                  n.thin = MCMC.params$n.thin,
                  n.iter = MCMC.params$n.samples,
-                 DIC = T, parallel=T)
+                 DIC = T, parallel=T,
+                 verbose = FALSE)
       
       # calculate m[k] using the posterior samples 
       if (str_split(model.ver, "-", simplify = TRUE)[1] == "v5"){
@@ -166,6 +167,19 @@ cross.validataion.fcn <- function(model.base.name, model.ver, jags.data, jags.pa
       counts.X.val$q2.5.m[k] <- qtiles.m[1]
       counts.X.val$q50.m[k] <- qtiles.m[2]
       counts.X.val$q97.5.m[k] <- qtiles.m[3]
+
+      # find appropriate p:
+      if (str_split(model.ver, "-", simplify = TRUE)[1] == "v5"){
+        counts.X.val$estim.p[k] <- jm$mean$p
+        counts.X.val$q2.5.p[k] <- jm$q2.5$p
+        counts.X.val$q50.p[k] <- jm$q50$p
+        counts.X.val$q97.5.p[k] <- jm$q97.5$p
+      } else if (str_split(model.ver, "-", simplify = TRUE)[1] == "v1") {
+        counts.X.val$estim.p[k] <- jm$mean$p[Y]
+        counts.X.val$q2.5.p[k] <- jm$q2.5$p[Y]
+        counts.X.val$q50.p[k] <- jm$q50$p[Y]
+        counts.X.val$q97.5.p[k] <- jm$q97.5$p[Y]
+      }
       
       # find appropriate lambda in mean, q2.5 and q97.5. 
       if (str_split(model.ver, "-", simplify = TRUE)[2] == "6"){
@@ -174,51 +188,17 @@ cross.validataion.fcn <- function(model.base.name, model.ver, jags.data, jags.pa
         counts.X.val$q50.lambda[k] <- jm$q50$lambda[Y,S]
         counts.X.val$q97.5.lambda[k] <- jm$q97.5$lambda[Y,S]
         
-        if (str_split(model.ver, "-", simplify = TRUE)[1] == "v5"){
-          counts.X.val$estim.p[k] <- jm$mean$p
-          counts.X.val$q2.5.p[k] <- jm$q2.5$p
-          counts.X.val$q50.p[k] <- jm$q50$p
-          counts.X.val$q97.5.p[k] <- jm$q97.5$p
-        } else {
-          counts.X.val$estim.p[k] <- jm$mean$p[Y,S]
-          counts.X.val$q2.5.p[k] <- jm$q2.5$p[Y,S]
-          counts.X.val$q50.p[k] <- jm$q50$p[Y,S]
-          counts.X.val$q97.5.p[k] <- jm$q97.5$p[Y,S]
-        }
       } else if (str_split(model.ver, "-", simplify = TRUE)[2] == "1"){
         counts.X.val$estim.lambda[k] <- jm$mean$lambda[Y,S,D]
         counts.X.val$q2.5.lambda[k] <- jm$q2.5$lambda[Y,S,D]
         counts.X.val$q50.lambda[k] <- jm$q50$lambda[Y,S,D]
         counts.X.val$q97.5.lambda[k] <- jm$q97.5$lambda[Y,S,D]
         
-        if (str_split(model.ver, "-", simplify = TRUE)[1] == "v5"){
-          counts.X.val$estim.p[k] <- jm$mean$p
-          counts.X.val$q2.5.p[k] <- jm$q2.5$p
-          counts.X.val$q50.p[k] <- jm$q50$p
-          counts.X.val$q97.5.p[k] <- jm$q97.5$p
-        } else {
-          counts.X.val$estim.p[k] <- jm$mean$p[Y]
-          counts.X.val$q2.5.p[k] <- jm$q2.5$p[Y]
-          counts.X.val$q50.p[k] <- jm$q50$p[Y]
-          counts.X.val$q97.5.p[k] <- jm$q97.5$p[Y]
-        }      
       } else {
         counts.X.val$estim.lambda[k] <- jm$mean$lambda[Y,S,D]
         counts.X.val$q2.5.lambda[k] <- jm$q2.5$lambda[Y,S,D]
         counts.X.val$q50.lambda[k] <- jm$q50$lambda[Y,S,D]
         counts.X.val$q97.5.lambda[k] <- jm$q97.5$lambda[Y,S,D]
-        
-        if (str_split(model.ver, "-", simplify = TRUE)[1] == "v5"){
-          counts.X.val$estim.p[k] <- jm$mean$p
-          counts.X.val$q2.5.p[k] <- jm$q2.5$p
-          counts.X.val$q50.p[k] <- jm$q50$p
-          counts.X.val$q97.5.p[k] <- jm$q97.5$p
-        } else {
-          counts.X.val$estim.p[k] <- jm$mean$p[Y,S,D]
-          counts.X.val$q2.5.p[k] <- jm$q2.5$p[Y,S,D]
-          counts.X.val$q50.p[k] <- jm$q50$p[Y,S,D]
-          counts.X.val$q97.5.p[k] <- jm$q97.5$p[Y,S,D]
-        }
         
       }
     }
