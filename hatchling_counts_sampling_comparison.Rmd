@@ -199,10 +199,10 @@ p.raw.counts.per.female <- ggplot(data = data.1) +
   xlab("Hours since 1800") + ylab("# hatchlings per meter per 1000 females")
 
 legend_bottom <- get_legend(p.raw.counts + 
-                              guides(color = guide_legend(nrow = 1)) +
+                              guides(color = guide_legend(nrow = 2)) +
                               theme(legend.position = "bottom", 
                                     legend.direction = "horizontal",
-                                    legend.justification = "center"))
+                                    legend.justification = "left"))
 
 p.counts <- plot_grid(p.raw.counts + theme(legend.position = "none"), 
                       p.raw.counts.per.female + theme(legend.position = "none"),
@@ -210,13 +210,12 @@ p.counts <- plot_grid(p.raw.counts + theme(legend.position = "none"),
                       labels = c("(1)", "(2)"),
                       rel_heights = c(1, 0.1))
 
-ggsave(filename = paste0("figures/raw_counts_", dpi.set, "dpi.png"),
-       plot = p.counts, device = "png", dpi = 600, bg = "white")
+# ggsave(filename = paste0("figures/raw_counts_", dpi.set, "dpi.png"),
+#        plot = p.counts, device = "png", dpi = 600, bg = "white")
 
-# save.fig.fcn(p.counts, 
-#              file.name = paste0("figures/raw_counts_", dpi.set, "dpi.png"), 
-#              replace = T, dpi = dpi.set,
-#              height = 4, width = 5)
+save.fig.fcn(p.counts,
+             file.name = paste0("figures/raw_counts_", dpi.set, "dpi.png"),
+             replace = T, dpi = dpi.set)
 
 ```
 
@@ -361,14 +360,14 @@ p.sector.D.female <- ggplot(data.1.D) +
   geom_path(aes(x = hr, y = counts_m_NA_female)) +
   facet_wrap(~year)+ 
   xlab(xlab.txt) +
-  ylab(ylab.1.txt)
+  ylab(ylab.2.txt)
 
 p.sector.D.1 <- plot_grid(p.sector.D, p.sector.D.female,
                           labels = c("(1)", "(2)"))
 
 save.fig.fcn(p.sector.D.1, 
              file.name = paste0("figures/sector_D_", dpi.set, "dpi.png"), 
-             replace = F, dpi = dpi.set)
+             replace = T, dpi = dpi.set)
 
 ```
 
@@ -539,7 +538,7 @@ save.fig.fcn(p.ratio.sector,
 
 ```
 
-The proportion of hatchlings that were counted during the first 6 hrs, i.e., 1800 to 2400, relative to the 12-hr period (1800-0600) ranged from `r signif(min(counts.1st.2nd$ratio), 3)` to `r signif(max(counts.1st.2nd$ratio), 3)`. Majority (`r counts.1st.2nd %>% filter(ratio > 0.5) %>% nrow()` of `r nrow(counts.1st.2nd)`) were greater than 0.5 (mean = `r signif(mean(counts.1st.2nd$ratio), 3)`, SE = `r signif(sqrt(var(counts.1st.2nd$ratio))/sqrt(nrow(counts.1st.2nd)), 3)`). Counts that resulted in low proportions of hatchlings during the first half of the evenings occurred in 2017 at the sectors A2, B, and 2014S, and 2018 at the sector A2 (Figure \@ref(fig:Figure-ratio-sectors)).
+The proportion of hatchlings that were counted during the first 6 hrs, i.e., 1800 to 2400, relative to the 12-hr period (1800-0600) ranged from `r signif(min(counts.1st.2nd$ratio), 3)` to `r signif(max(counts.1st.2nd$ratio), 3)`. Majority (`r counts.1st.2nd %>% filter(ratio > 0.5) %>% nrow()` of `r nrow(counts.1st.2nd)`) were greater than 0.5 (mean = `r signif(mean(counts.1st.2nd$ratio), 3)`, SE = `r signif(sqrt(var(counts.1st.2nd$ratio))/sqrt(nrow(counts.1st.2nd)), 3)`). Counts that resulted in low proportions of hatchlings during the first half of the evenings occurred in 2017 at the sectors A2, B, and 2014S, and in 2018 at the sector A2 (Figure \@ref(fig:Figure-ratio-sectors)).
 
 
 ```{r Figure-ratio-sectors, echo=FALSE, message=FALSE, fig.cap="The proportion of hatchlings per meter during the first half of the evening (1800-2400) in the total number of hatchlings (1800-0600)."}
@@ -591,7 +590,7 @@ knitr::include_graphics(paste0("figures/ratio_year_", dpi.set, "dpi.png"))
 
 ```
 
-### Estimating the total number of hatchligs using the proportions
+### Estimating the total number of hatchligs using the proportions {-}
 
 I used the proportion of hatchlings that were observed during the first half of the evening to estimate the total number of hatchlings. The proportions were computed in four different ways: (1) only the same sector for that year, (2) all sectors for that year, (3) all other sectors for that year, or (4) all sectors from other years. In order to test for the performance of the method and compare among the ways to calculate proportions, cross validations were conducted for all date- and sector-specific surveys that were 12 hr long.  
 
@@ -973,7 +972,7 @@ For the additive term ($\theta$), in the log scale, that converts the mean of th
 
 2. year and sector specific ($\theta_{j, y}$)
 
-3. sector specific ($\theta_j}$)
+3. sector specific ($\theta_{j}$)
 
 4. year, sector, and sampling day specific ($\theta_{j,k,y}$)
 
@@ -981,7 +980,7 @@ For the additive term ($\theta$), in the log scale, that converts the mean of th
 
 A total of 30 models were created. The naming convention was the $\theta$ model first as the main version (v1 - v5), followed by $\lambda$ definitions (e.g., v1-1, v1-2, etc.). For all versions with year index (i.e., v1, v2, and v4), some 12-hr sampling is necessary to estimate the appropriate $\theta$ for each year. For v3, data from previous years can be used for sector-specific $\theta$. For v5, all available data are combined to estimate $\theta$.
 
-Parameters were estimated via the Bayesian approach using JAGS (Plummer Yr) and the jagsUI package (ref) in R (ref). I used the following prior distributions.
+Parameters were estimated via the Bayesian approach using JAGS and the jagsUI package in R. I used the following prior distributions.
 
 $\lambda_{j,k,y} \sim GAM(1, 0.1)$
 
@@ -1152,13 +1151,13 @@ LOOIC.df <- data.frame(model = out.list$model.names,
 ```
 
 
-Almost all models converged fine according to Rhat values (Table \@ref(tab:Table-model-summary)). According to DIC values, the best model was `r LOOIC.df %>% filter(dDIC == 0) %>% select(model) %>% pull()`, which also was the best model according to LOOIC values for m. Pareto k statistics indicated that the model fit well to the data. This model treats the additive factor to be year-specific  ($\theta_{y}$) and common among sectors. The mean number of hatchlings before the midnight is a function of sector, the number of days since January 1st, and the number of estimated females for the year. The first 12 models were v1 and v2, indicating that the additive factor is likelyl to be year specific (v1: year specific, v2: year and sector specific). The first v5 (constant $\theta$) model was v5-4. I will investigate the performance of v1-1 and v5-4 for their predictive performance in the following. 
+Almost all models converged fine according to Rhat values (Table \@ref(tab:Table-model-summary)). According to DIC values, the best model was `r LOOIC.df %>% filter(dDIC == 0) %>% select(model) %>% pull()`, which also was the best model according to LOOIC values for m. Pareto k statistics indicated that the model fit well to the data. This model treats the additive factor to be year-specific  ($\theta_{y}$) and common among sectors. The mean number of hatchlings before the midnight is a function of sector, the number of days since January 1st, and the number of estimated females for the year. According to the LOOIC values for $n$, which is the number of hatchlings in the first half of the evening, the best model was v1-6, which had year-specific $\theta$ and sectors and the number of females as covariates for the mean. The second best model was v5-6, which had a constant $\theta$ and sectors and the number of females as covariates for the mean. 
 
 
 ```{r Table-model-summary, echo=FALSE, warning=FALSE}
-flextable(LOOIC.df) %>% 
+flextable(LOOIC.df %>% filter(dLOOIC.n < 10)) %>% 
   #hline(i = (nrow(ratio.summary.table)-1)) %>%
-  set_caption(paste0("Model comparison.")) %>%
+  set_caption(paste0("Comparison of how models fit to the hatchling count data. Only first 10 models are shown. Rhat indicates the conversion of Markov chain Monte Carlo, where Rhat < 1.1 is considered to be acceptable. dDIC indicates the difference in deviance information criteria (DIC) value from the smallest DIC value, where the model with smallest DIC is considered best. dLOOIC.m and dLOOIC.n indicate leave-one-out information criteria for m (the number of hatchlings in the second half of the evening) and n (the number of hatchlings in the first half of the evening), where the smaller values indicate better models. max.pareto.m and max.pareto.n indicate the maximum value of Pareto k statistic, which is an index of model fit. Values of Pareto k statistics less than 0.5 are considered acceptable. Values greater than 0.7 indicate ill fit of the model.")) %>%
   set_table_properties(width = 0.5, layout = "autofit") %>%
   colformat_double(j = c("Rhat", "dDIC", "dLOOIC.m", "dLOOIC.n", "max.pareto.m", "max.pareto.n"), digits = 2)
 
@@ -1168,7 +1167,7 @@ flextable(LOOIC.df) %>%
 ```{r p-trace-plots, echo=FALSE, message=FALSE, include=FALSE, cache=TRUE}
 #Although Rhat values seem to indicate MCMC converged fine, I also use visual aid to check good mixing of Markov chains. 
 
-model.ver <- "v5-1"
+model.ver <- "v5-6"
 jm <- out.list$jm.out[[which(out.list$model.names == model.ver)]]
 
 switch(str_split(model.ver, "-", simplify = TRUE)[1],
@@ -1231,8 +1230,8 @@ cross.validation.v1_6.out <- cross.validataion.fcn(model.base.name = model.base.
                                                    MCMC.params = MCMC.params, 
                                                    original.data = counts.1st.2nd.jags.data)
 
-cross.validation.v5_1.out <- cross.validataion.fcn(model.base.name = model.base.name, 
-                                                   model.ver = "v5-1", 
+cross.validation.v5_6.out <- cross.validataion.fcn(model.base.name = model.base.name, 
+                                                   model.ver = "v5-6", 
                                                    jags.data = jags.data, 
                                                    jags.params = jags.params, 
                                                    MCMC.params = MCMC.params, 
@@ -1260,8 +1259,8 @@ save.fig.fcn(p.X_validation_V1_6,
                                 model.ver, "_", dpi.set, "dpi.png"), 
              replace = F, dpi = dpi.set)
 
-model.ver <- "v5-1"
-p.X_validation_V5_1 <- ggplot(cross.validation.v5_1.out$output) +
+model.ver <- "v5-6"
+p.X_validation_V5_6 <- ggplot(cross.validation.v5_6.out$output) +
   #geom_point(aes(x = sector, y = counts_2),
   #           color = "gold") +
   geom_point(aes(x = log(counts_2+1), 
@@ -1277,14 +1276,14 @@ p.X_validation_V5_1 <- ggplot(cross.validation.v5_1.out$output) +
   labs(title = model.ver) +
   theme(legend.position = "bottom")
 
-save.fig.fcn(p.X_validation_V5_1, 
+save.fig.fcn(p.X_validation_V5_6, 
              file.name = paste0("figures/Cross_validation_log_", 
                                 model.ver, "_", dpi.set, "dpi.png"), 
              replace = F, dpi = dpi.set)
 ```
 
 
-The cross validation process indicated that the model predicted missing values fairly well (Figure \@ref(fig:Figure-X-validation-log-v1-6)), where observed and estimated values nearly lined up on the y = x line. Deviation from the line, however, was obvious for 2017 and 2018. It is important to note that v1-6 model has a year-specific $\theta$ values, which require more than one 12-hr sampling needs to be conducted annually in order for this model to work. 
+The cross validation process indicated that the model predicted missing values fairly well for 2015 (Figure \@ref(fig:Figure-X-validation-log-v1-6)), where observed and estimated values nearly lined up on the y = x line. Deviation from the line, however, was obvious for 2017 and 2018. It is important to note that v1-6 model has a year-specific $\theta$ values, which require more than one 12-hr sampling needs to be conducted annually in order for this model to work. V1-6 cannot be applied to the whole dataset because no data exist to estimate year-specific $\theta$ after 2018. 
 
 
 ```{r Figure-X-validation-log-v1-6, echo=FALSE, message=FALSE, fig.cap="The differences between the observed and calculated numbers of hatchlings using a statistical model (v1-1). Calculations were conducted in a cross validation manner where each survey was withheld from computing the ratio to be used in calculating the second half of the evening."}
@@ -1294,19 +1293,19 @@ knitr::include_graphics(paste0("figures/Cross_validation_log_v1-6_", dpi.set, "d
 ```
 
 
-The best model with a common $\theta$ value was V5-1 (Table \@ref(tab:Table-model-summary)). The model fit well to the data according to the Pareto-k statistics, although it was ranked in the middle of the pack. I also examined the predicted and true values from the model using the same cross validation technique. Results indicated that the model seems to adequately estimated the missing value (Figure \@ref(fig:Figure-X-validation-log-v5-1)).
+The best model with a common $\theta$ value was V5-6 (Table \@ref(tab:Table-model-summary)). The model fit well to the data according to the Pareto-k statistics, although it was ranked after V1 and V2 models. Results from cross validation indicated that the model estimated missing values well (Figure \@ref(fig:Figure-X-validation-log-v5-6)). Because this model has a common $\theta$ value, it can be used for years with no observations in the second half of the evening. 
 
 
-```{r Figure-X-validation-log-v5-1, echo=FALSE, message=FALSE, fig.cap="The differences between the observed and calculated numbers of hatchlings using a statistical model (v5-1). Calculations were conducted in a cross validation manner where each survey was withheld from computing the ratio to be used in calculating the second half of the evening."}
+```{r Figure-X-validation-log-v5-6, echo=FALSE, message=FALSE, fig.cap="The differences between the observed and calculated numbers of hatchlings using a statistical model (v5-1). Calculations were conducted in a cross validation manner where each survey was withheld from computing the ratio to be used in calculating the second half of the evening."}
 
-knitr::include_graphics(paste0("figures/Cross_validation_log_v5-1_", dpi.set, "dpi.png"))
+knitr::include_graphics(paste0("figures/Cross_validation_log_v5-6_", dpi.set, "dpi.png"))
 
 ```
 
 
 ## EStimating unobserved counts {-}
 
-I applied these models (v1-1 and v5-1) to the entire data set in order to estimate the counts from 2400 - 0600, when no surveys were conducted. 
+I applied the v5-6 model to the entire data set in order to estimate the counts from 2400 - 0600, when no surveys were conducted. 
 
 ```{r estimating-missing-counts, echo=FALSE, message=FALSE, warning=FALSE, results='hide', cache=TRUE}
 
@@ -1360,8 +1359,8 @@ jags.data <- list(n = log(counts.all.jags.data$counts_1 + 1),
                   max.p = 10,
                   min.p = -10)
  
-model.names <- c("v1-1", 
-                 "v5-1")
+model.names <- c("v1-6", 
+                 "v5-6")
 
 m.estims <- jags.out <- LOOIC.out.n <- LOOIC.out.m <- list()
 
@@ -1480,7 +1479,6 @@ LOOIC.df <- data.frame(model = out.list$model.names,
 ```
 
 
-Look at what happened with estimated counts.
 
 ```{r estimated-m, echo=FALSE, message=FALSE, warning = FALSE, cache=TRUE}
 
@@ -1488,68 +1486,90 @@ counts.all.estims <- cbind(counts.all %>%
                              mutate(counts_1_100m = 100 * counts_1/length_m,
                                     counts_2_100m = 100 * counts_2/length_m,
                                     counts_2a_100m = 100 * counts_2a/length_m), 
-                           data.frame(estim_m_v1.1 = out.list$m.estims[[1]]$m.estim,
-                                      q2.5_m_v1.1 = out.list$m.estims[[1]]$m.q2.5,
-                                      q50_m_v1.1 = out.list$m.estims[[1]]$m.q50,
-                                      q97.5_m_v1.1 = out.list$m.estims[[1]]$m.q97.5,
-                                      estim_m_v5.1 = out.list$m.estims[[2]]$m.estim,
-                                      q2.5_m_v5.1 = out.list$m.estims[[2]]$m.q2.5,
-                                      q50_m_v5.1 = out.list$m.estims[[2]]$m.q50,
-                                      q97.5_m_v5.1 = out.list$m.estims[[2]]$m.q97.5)) %>%
-  mutate(estim_m_100m_v1.1 = (exp(estim_m_v1.1) - 1) * 100/length_m,
-         q2.5_m_100m_v1.1 = (exp(q2.5_m_v1.1) - 1) * 100/length_m,
-         q50_m_100m_v1.1 = (exp(q50_m_v1.1) - 1) * 100/length_m,
-         q97.5_m_100m_v1.1 = (exp(q97.5_m_v1.1) - 1) * 100/length_m,
-         estim_m_100m_v5.1 = (exp(estim_m_v5.1) - 1) * 100/length_m,
-         q2.5_m_100m_v5.1 = (exp(q2.5_m_v5.1) - 1) * 100/length_m,
-         q50_m_100m_v5.1 = (exp(q50_m_v5.1) - 1) * 100/length_m,
-         q97.5_m_100m_v5.1 = (exp(q97.5_m_v5.1) - 1) * 100/length_m)
+                           data.frame(estim_m_v1.6 = out.list$m.estims[[1]]$m.estim,
+                                      q2.5_m_v1.6 = out.list$m.estims[[1]]$m.q2.5,
+                                      q50_m_v1.6 = out.list$m.estims[[1]]$m.q50,
+                                      q97.5_m_v1.6 = out.list$m.estims[[1]]$m.q97.5,
+                                      estim_m_v5.6 = out.list$m.estims[[2]]$m.estim,
+                                      q2.5_m_v5.6 = out.list$m.estims[[2]]$m.q2.5,
+                                      q50_m_v5.6 = out.list$m.estims[[2]]$m.q50,
+                                      q97.5_m_v5.6 = out.list$m.estims[[2]]$m.q97.5)) %>%
+  mutate(estim_m_100m_v1.6 = (exp(estim_m_v1.6) - 1) * 100/length_m,
+         q2.5_m_100m_v1.6 = (exp(q2.5_m_v1.6) - 1) * 100/length_m,
+         q50_m_100m_v1.6 = (exp(q50_m_v1.6) - 1) * 100/length_m,
+         q97.5_m_100m_v1.6 = (exp(q97.5_m_v1.6) - 1) * 100/length_m,
+         estim_m_100m_v5.6 = (exp(estim_m_v5.6) - 1) * 100/length_m,
+         q2.5_m_100m_v5.6 = (exp(q2.5_m_v5.6) - 1) * 100/length_m,
+         q50_m_100m_v5.6 = (exp(q50_m_v5.6) - 1) * 100/length_m,
+         q97.5_m_100m_v5.6 = (exp(q97.5_m_v5.6) - 1) * 100/length_m)
+
+# p.estimated.m.V1.6 <- ggplot(data = counts.all.estims) + 
+#   geom_point(aes(x = counts_1_100m, 
+#                  y = estim_m_100m_v1.6, 
+#                  color = sector),
+#                  #size = duration_hr),
+#              alpha = 0.3) +
+#   geom_errorbar(aes(x = counts_1_100m,
+#                     ymin = q2.5_m_100m_v1.6,
+#                     ymax = q97.5_m_100m_v1.6,
+#                     color = sector),
+#                 alpha = 0.6) +
+#   geom_point(aes(x = counts_1_100m,
+#                  y = counts_2a_100m), shape = 0) +
+#   geom_abline(slope = 1, intercept = 0)+
+#   facet_wrap(~ year) + labs(title = "v1-6") +
+#   xlab("Observed counts from 1800-2400") +
+#   ylab("Estimated counts from 2400-0600") +
+#   theme(legend.position = "bottom")
+# 
+# save.fig.fcn(p.estimated.m.V1.6, 
+#              file.name = paste0("figures/estimated_m_v1-6_", dpi.set, "dpi.png"), 
+#              replace = T, dpi = dpi.set)
 
 p.estimated.m <- ggplot(data = counts.all.estims) + 
   geom_point(aes(x = counts_1_100m, 
-                 y = estim_m_100m_v5.1, 
+                 y = estim_m_100m_v5.6, 
                  color = sector),
                  #size = duration_hr),
              alpha = 0.3) +
   geom_errorbar(aes(x = counts_1_100m,
-                    ymin = q2.5_m_100m_v5.1,
-                    ymax = q97.5_m_100m_v5.1,
+                    ymin = q2.5_m_100m_v5.6,
+                    ymax = q97.5_m_100m_v5.6,
                     color = sector),
                 alpha = 0.6) +
   geom_point(aes(x = counts_1_100m,
                  y = counts_2a_100m), shape = 0) +
   geom_abline(slope = 1, intercept = 0)+
-  facet_wrap(~ year) + labs(title = "v5-1") +
+  facet_wrap(~ year) + labs(title = "v5-6") +
   xlab("Observed counts from 1800-2400") +
   ylab("Estimated counts from 2400-0600") +
-  theme(legend.position = "bottom", legend.)
+  theme(legend.position = "bottom")
 
 save.fig.fcn(p.estimated.m, 
-             file.name = paste0("figures/estimated_m_v5-1_", dpi.set, "dpi.png"), 
+             file.name = paste0("figures/estimated_m_v5-6_", dpi.set, "dpi.png"), 
              replace = T, dpi = dpi.set)
 
 ```
 
 
-When estimating the second half of the evening from the hatchling counts of the first half and data from other years, the variability is considerably less than if the counts were made during the second half of the evening (Figure \@ref(fig:Figure-estimated-counts-v5-1)). 
+When estimating the number of hatchlings for the second half of the evening were estimated from the hatchling counts of the first half and data from other years, the variability is considerably less than observed counts during the second half of the evening (Figure \@ref(fig:Figure-estimated-counts-v5-6)). This result indicates that there are significant variability in the number of hatchlings that are counted during the second half of the evening.
 
 
+```{r Figure-estimated-counts-v5-6, echo=FALSE, message=FALSE, fig.cap="Observed and estimated counts from 2400 - 0600 using the v5-6 model as a function of the counts from the first half of the evening. Hollow squares are observed counts. The solid lines indicate y=x."}
 
-```{r Figure-estimated-counts-v5-1, echo=FALSE, message=FALSE, fig.cap="Observed and estimated counts from 2400 - 0600 using the v5-1 model as a function of the counts from the first half of the evening. Data points without error bars are observed counts. The solid lines indicate y=x."}
-
-knitr::include_graphics(paste0("figures/estimated_m_v5-1_", dpi.set, "dpi.png"))
+knitr::include_graphics(paste0("figures/estimated_m_v5-6_", dpi.set, "dpi.png"))
 
 ```
 
 ## Comparing the ratio-based and model-based estimates and conclusions {-}
 
-The model-based estimation process requires a considerable effort. Computing proportions is a lot simpler and less time consuming. Here, I compare the two methods and discuss pros and cons of two approaches and recommendations for future sampling effort. 
+The model-based estimation process can incorporate sampling variability. It requires additional assumptions (e.g., statistical distributions, additivity), however. Computing proportions is a simple process and requires less time computing.  
 
-There was no clear winner in the comparison. Surprisingly, using the simple proportion from 2015-2018 provided "reasonable" estimates of hatchling counts. Estimates were not always accurate, however. The proportion approach does not take into account of the sampling error. Observed values are used as the true numbers of hatchlings. Results of the model-based approach were not different from those from the proportion-based approach. 
+There was no clear winner between the two approaches. Surprisingly, using the simple proportion from 2015-2018 provided "reasonable" estimates of hatchling counts. Estimates were not always accurate, however. Furthermore, the proportion approach does not take into account of the sampling error. Observed values are used as the true numbers of hatchlings. Results of the model-based approach were not different from those from the proportion-based approach. 
 
-For both approaches, the difference between the estimates and the true counts (when available) was greater when the number of hatchlings during the first half of the evening was large.
+For both approaches, as expected, the difference between the estimates and the true counts (when available) was greater when the number of hatchlings during the first half of the evening was large.
 
-To estimate the total hatchling production on Raine Island, the 6-hr sampling of hatchling may be sufficient when the number of hatchlings is low. During a high nesting season, it may be necessary to conduct a few 12-hr sampling to better estimate the ratio or the correction factor for that year (and others). Because the ratio of the first half to the total appears to be very similar among sectors, only one sector needs to be sampled for 12 hrs if 12-hr sampling at multiple sectors is logistically challenging. 
+To estimate the total hatchling production at Raine Island, the 6-hr sampling of hatchling may be sufficient when the number of hatchlings is low. During a high nesting season, it may be necessary to conduct a few 12-hr sampling to better estimate the ratio or the correction factor for that year (and others). Because the ratio of the first half to the total appears to be very similar among sectors, only one sector needs to be sampled for 12 hrs if 12-hr sampling at multiple sectors is logistically challenging. 
 
 
 
